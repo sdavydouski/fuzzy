@@ -1,4 +1,4 @@
 rootProject.name = 'fuzzy'
 
+include 'modules:graphics'
 include 'game'
-include 'graphics'

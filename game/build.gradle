@@ -3,14 +3,6 @@ apply plugin: 'application'
 
 mainClassName = 'com.wiranoid.fuzzy.game.HelloFuzzy'
 
-sourceSets {
-    main {
-        java {
-            srcDir 'src'
-        }
-    }
-}
-
 dependencies {
-    compile project(':graphics')
+    compile project(':modules:graphics')
 }
