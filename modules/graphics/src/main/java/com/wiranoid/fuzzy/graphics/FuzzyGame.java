@@ -7,12 +7,10 @@ import org.lwjgl.glfw.GLFWVidMode;
 import org.lwjgl.opengl.GL;
 
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.stream.Stream;
 
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
@@ -129,15 +127,10 @@ public class FuzzyGame {
         int VAO = glGenVertexArrays();
         glBindVertexArray(VAO);
 
-        FloatBuffer vertices = BufferUtils.createFloatBuffer(3 * 4);
-        // Top Right
-        vertices.put(0.5f).put(0.5f).put(0.0f);
-        // Bottom Right
-        vertices.put(0.5f).put(-0.5f).put(0.0f);
-        // Bottom Left
-        vertices.put(-0.5f).put(-0.5f).put(0.0f);
-        // Top Left
-        vertices.put(-0.5f).put(0.5f).put(0.0f);
+        FloatBuffer vertices = BufferUtils.createFloatBuffer(3 * 6);
+        vertices.put(0.5f).put(-0.5f).put(0.0f).put(1.0f).put(0.0f).put(0.0f);
+        vertices.put(-0.5f).put(-0.5f).put(0.0f).put(0.0f).put(1.0f).put(0.0f);
+        vertices.put(0.0f).put(0.5f).put(0.0f).put(0.0f).put(0.0f).put(1.0f);
         // Passing the buffer without flipping will crash JVM because of a EXCEPTION_ACCESS_VIOLATION
         vertices.flip();
 
@@ -145,22 +138,12 @@ public class FuzzyGame {
         glBindBuffer(GL_ARRAY_BUFFER, VBO);
         glBufferData(GL_ARRAY_BUFFER, vertices, GL_STATIC_DRAW);
 
-        IntBuffer indices = BufferUtils.createIntBuffer(2 * 3);
-        // First Triangle
-        indices.put(0).put(1).put(3);
-        // Second Triangle
-        indices.put(1).put(2).put(3);
-        // Passing the buffer without flipping will crash JVM because of a EXCEPTION_ACCESS_VIOLATION
-        indices.flip();
-
-        int EBO = glGenBuffers();
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices, GL_STATIC_DRAW);
-
         // We need to specify the input to our vertex shader
-        int posAttrib = glGetAttribLocation(shaderProgram, "position");
-        glEnableVertexAttribArray(posAttrib);
-        glVertexAttribPointer(posAttrib, 3, GL_FLOAT, false, 3 * Float.BYTES, 0);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, false, 6 * Float.BYTES, 0);
+
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 3, GL_FLOAT, false, 6 * Float.BYTES, 3 * Float.BYTES);
 
         // This is allowed, the call to glVertexAttribPointer registered VBO as the currently bound
         // vertex buffer object so afterwards we can safely unbind
@@ -187,15 +170,8 @@ public class FuzzyGame {
             // Activate the shader
             glUseProgram(shaderProgram);
 
-            //update the uniform color
-            double timeValue = glfwGetTime();
-            double greenValue = (Math.sin(timeValue) / 2) + 0.5;
-            int ourColorLocation = glGetUniformLocation(shaderProgram, "ourColor");
-            glUniform4f(ourColorLocation, 0.0f, (float) greenValue, 0.0f, 1.0f);
-
-            // Draw our first rectangle (or two triangles)
             glBindVertexArray(VAO);
-            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+            glDrawArrays(GL_TRIANGLES, 0, 3);
             glBindVertexArray(0);
 
             // Swap the screen buffers
