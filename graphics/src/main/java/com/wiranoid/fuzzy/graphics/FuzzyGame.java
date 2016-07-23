@@ -1,4 +1,4 @@
-package com.wiranoid.fuzzy;
+package com.wiranoid.fuzzy.graphics;
 
 import org.lwjgl.BufferUtils;
 import org.lwjgl.glfw.GLFWErrorCallback;
@@ -17,7 +17,7 @@ import static org.lwjgl.opengl.GL30.*;
 import static org.lwjgl.system.MemoryUtil.NULL;
 
 
-public class HelloFuzzy {
+public class FuzzyGame {
 
     private static GLFWErrorCallback errorCallback
             = GLFWErrorCallback.createPrint(System.err);
@@ -39,17 +39,17 @@ public class HelloFuzzy {
     private static String vertexShaderSource = "#version 330 core\n" +
             "in vec3 position;\n" +
             "void main() {\n" +
-                "gl_Position = vec4(position, 1.0f);\n" +
+            "gl_Position = vec4(position, 1.0f);\n" +
             "}\n";
 
     private static String fragmentShaderSource = "#version 330 core\n" +
             "out vec4 color;\n" +
             "uniform vec4 ourColor;\n" +
             "void main() {\n" +
-                "color = ourColor;\n" +
+            "color = ourColor;\n" +
             "}\n";
 
-    public static void main(String[] args) {
+    public static void run() {
         glfwSetErrorCallback(errorCallback);
 
         if (!glfwInit()) {
