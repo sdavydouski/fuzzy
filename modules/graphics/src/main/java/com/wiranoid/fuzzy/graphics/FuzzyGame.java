@@ -6,8 +6,13 @@ import org.lwjgl.glfw.GLFWKeyCallback;
 import org.lwjgl.glfw.GLFWVidMode;
 import org.lwjgl.opengl.GL;
 
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.stream.Stream;
 
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
@@ -34,20 +39,6 @@ public class FuzzyGame {
 
     private static int WIDTH = 640;
     private static int HEIGHT = 480;
-
-    // Shaders
-    private static String vertexShaderSource = "#version 330 core\n" +
-            "in vec3 position;\n" +
-            "void main() {\n" +
-            "gl_Position = vec4(position, 1.0f);\n" +
-            "}\n";
-
-    private static String fragmentShaderSource = "#version 330 core\n" +
-            "out vec4 color;\n" +
-            "uniform vec4 ourColor;\n" +
-            "void main() {\n" +
-            "color = ourColor;\n" +
-            "}\n";
 
     public static void run() {
         glfwSetErrorCallback(errorCallback);
@@ -84,6 +75,17 @@ public class FuzzyGame {
         IntBuffer height = BufferUtils.createIntBuffer(1);
         glfwGetFramebufferSize(window, width, height);
         glViewport(0, 0, width.get(), height.get());
+
+        //read shaders from files
+        String vertexShaderSource = "";
+        String fragmentShaderSource = "";
+        try {
+            vertexShaderSource = new String(Files.readAllBytes(Paths.get("shaders/vertex/vertex.vert")));
+            fragmentShaderSource = new String(Files.readAllBytes(Paths.get("shaders/fragment/fragment.frag")));
+        }
+        catch (IOException ex) {
+            System.err.println(ex.getMessage());
+        }
 
         // Build and compile our shader program
         // Vertex shader
