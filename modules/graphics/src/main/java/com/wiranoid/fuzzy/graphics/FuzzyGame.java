@@ -7,6 +7,7 @@ import org.lwjgl.glfw.GLFWVidMode;
 import org.lwjgl.opengl.GL;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.nio.file.Files;
@@ -14,9 +15,11 @@ import java.nio.file.Paths;
 
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
+import static org.lwjgl.opengl.GL13.*;
 import static org.lwjgl.opengl.GL15.*;
 import static org.lwjgl.opengl.GL20.*;
 import static org.lwjgl.opengl.GL30.*;
+import static org.lwjgl.stb.STBImage.*;
 import static org.lwjgl.system.MemoryUtil.NULL;
 
 
@@ -78,8 +81,8 @@ public class FuzzyGame {
         String vertexShaderSource = "";
         String fragmentShaderSource = "";
         try {
-            vertexShaderSource = new String(Files.readAllBytes(Paths.get("shaders/vertex/vertex.vert")));
-            fragmentShaderSource = new String(Files.readAllBytes(Paths.get("shaders/fragment/fragment.frag")));
+            vertexShaderSource = new String(Files.readAllBytes(Paths.get("assets/shaders/vertex/vertex.vert")));
+            fragmentShaderSource = new String(Files.readAllBytes(Paths.get("assets/shaders/fragment/fragment.frag")));
         }
         catch (IOException ex) {
             System.err.println(ex.getMessage());
@@ -127,10 +130,27 @@ public class FuzzyGame {
         int VAO = glGenVertexArrays();
         glBindVertexArray(VAO);
 
-        FloatBuffer vertices = BufferUtils.createFloatBuffer(3 * 6);
-        vertices.put(0.5f).put(-0.5f).put(0.0f).put(1.0f).put(0.0f).put(0.0f);
-        vertices.put(-0.5f).put(-0.5f).put(0.0f).put(0.0f).put(1.0f).put(0.0f);
-        vertices.put(0.0f).put(0.5f).put(0.0f).put(0.0f).put(0.0f).put(1.0f);
+        FloatBuffer vertices = BufferUtils.createFloatBuffer(4 * 8);
+        vertices
+                // Top Right
+                .put(0.5f).put(0.5f).put(0.0f)      // Position
+                .put(1.0f).put(0.0f).put(0.0f)      // Color
+                .put(1.0f).put(1.0f);               // Texture coord
+        vertices
+                // Bottom Right
+                .put(0.5f).put(-0.5f).put(0.0f)     // Position
+                .put(0.0f).put(1.0f).put(0.0f)      // Color
+                .put(1.0f).put(0.0f);               // Texture coord
+        vertices
+                // Bottom Left
+                .put(-0.5f).put(-0.5f).put(0.0f)    // Position
+                .put(0.0f).put(0.0f).put(1.0f)      // Color
+                .put(0.0f).put(0.0f);               // Texture coord
+        vertices
+                // Top Left
+                .put(-0.5f).put(0.5f).put(0.0f)     // Position
+                .put(1.0f).put(1.0f).put(0.0f)      // Color
+                .put(0.0f).put(1.0f);               // Texture coord
         // Passing the buffer without flipping will crash JVM because of a EXCEPTION_ACCESS_VIOLATION
         vertices.flip();
 
@@ -138,12 +158,28 @@ public class FuzzyGame {
         glBindBuffer(GL_ARRAY_BUFFER, VBO);
         glBufferData(GL_ARRAY_BUFFER, vertices, GL_STATIC_DRAW);
 
+
+        IntBuffer indices = BufferUtils.createIntBuffer(2 * 3);
+        // First Triangle
+        indices.put(0).put(1).put(3);
+        // Second Triangle
+        indices.put(1).put(2).put(3);
+        // Passing the buffer without flipping will crash JVM because of a EXCEPTION_ACCESS_VIOLATION
+        indices.flip();
+
+        int EBO = glGenBuffers();
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices, GL_STATIC_DRAW);
+
         // We need to specify the input to our vertex shader
         glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, false, 6 * Float.BYTES, 0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, false, 8 * Float.BYTES, 0);
 
         glEnableVertexAttribArray(1);
-        glVertexAttribPointer(1, 3, GL_FLOAT, false, 6 * Float.BYTES, 3 * Float.BYTES);
+        glVertexAttribPointer(1, 3, GL_FLOAT, false, 8 * Float.BYTES, 3 * Float.BYTES);
+
+        glEnableVertexAttribArray(2);
+        glVertexAttribPointer(2, 2, GL_FLOAT, false, 8 * Float.BYTES, 6 * Float.BYTES);
 
         // This is allowed, the call to glVertexAttribPointer registered VBO as the currently bound
         // vertex buffer object so afterwards we can safely unbind
@@ -152,6 +188,83 @@ public class FuzzyGame {
         // Unbind VAO (it's always a good thing to unbind any buffer/array to prevent strange bugs),
         // remember: do NOT unbind the EBO, keep it bound to this VAO
         glBindVertexArray(0);
+
+        // Load and create a texture
+        // ====================
+        // Texture 1
+        // ====================
+        int texture1 = glGenTextures();
+        // All upcoming GL_TEXTURE_2D operations now have effect on this texture object
+        glBindTexture(GL_TEXTURE_2D, texture1);
+
+        // Set the texture wrapping parameters
+        // Set texture wrapping to GL_REPEAT (usually basic wrapping method)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        // Set texture filtering parameters
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        // Load image, create texture and generate mipmaps
+        IntBuffer texture1Width = BufferUtils.createIntBuffer(1);
+        IntBuffer texture1Height = BufferUtils.createIntBuffer(1);
+        IntBuffer texture1Comp = BufferUtils.createIntBuffer(1);
+
+        stbi_set_flip_vertically_on_load(1);
+        ByteBuffer texture1Image = stbi_load(
+                "assets/textures/container.jpg", texture1Width, texture1Height, texture1Comp, 3
+        );
+
+        if (texture1Image == null) {
+            throw new RuntimeException("Failed to load a texture file!"
+                    + System.lineSeparator() + stbi_failure_reason());
+        }
+
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB,
+                texture1Width.get(), texture1Height.get(), 0, GL_RGB, GL_UNSIGNED_BYTE, texture1Image);
+        glGenerateMipmap(GL_TEXTURE_2D);
+
+        stbi_image_free(texture1Image);
+        // Unbind texture when done, so we won't accidentally mess up our texture.
+        glBindTexture(GL_TEXTURE_2D, 0);
+
+        // ====================
+        // Texture 2
+        // ====================
+        int texture2 = glGenTextures();
+        // All upcoming GL_TEXTURE_2D operations now have effect on this texture object
+        glBindTexture(GL_TEXTURE_2D, texture2);
+
+        // Set the texture wrapping parameters
+        // Set texture wrapping to GL_REPEAT (usually basic wrapping method)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        // Set texture filtering parameters
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        // Load image, create texture and generate mipmaps
+        IntBuffer texture2Width = BufferUtils.createIntBuffer(1);
+        IntBuffer texture2Height = BufferUtils.createIntBuffer(1);
+        IntBuffer texture2Comp = BufferUtils.createIntBuffer(1);
+
+        stbi_set_flip_vertically_on_load(1);
+        ByteBuffer texture2Image = stbi_load(
+                "assets/textures/awesomeface.png", texture2Width, texture2Height, texture2Comp, 3
+        );
+
+        if (texture2Image == null) {
+            throw new RuntimeException("Failed to load a texture file!"
+                    + System.lineSeparator() + stbi_failure_reason());
+        }
+
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB,
+                texture2Width.get(), texture2Height.get(), 0, GL_RGB, GL_UNSIGNED_BYTE, texture2Image);
+        glGenerateMipmap(GL_TEXTURE_2D);
+
+        stbi_image_free(texture2Image);
+        // Unbind texture when done, so we won't accidentally mess up our texture.
+        glBindTexture(GL_TEXTURE_2D, 0);
 
         // Enable wireframe polygons
         //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -170,8 +283,18 @@ public class FuzzyGame {
             // Activate the shader
             glUseProgram(shaderProgram);
 
+            // Bind Textures using texture units
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, texture1);
+            glUniform1i(glGetUniformLocation(shaderProgram, "ourTexture1"), 0);
+
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, texture2);
+            glUniform1i(glGetUniformLocation(shaderProgram, "ourTexture2"), 1);
+
+            // Draw container
             glBindVertexArray(VAO);
-            glDrawArrays(GL_TRIANGLES, 0, 3);
+            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
             glBindVertexArray(0);
 
             // Swap the screen buffers
@@ -181,6 +304,7 @@ public class FuzzyGame {
         // Properly de-allocate all resources once they've outlived their purpose
         glDeleteVertexArrays(VAO);
         glDeleteBuffers(VBO);
+        glDeleteBuffers(EBO);
         glDeleteProgram(shaderProgram);
 
         glfwDestroyWindow(window);
