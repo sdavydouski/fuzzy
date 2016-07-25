@@ -1,5 +1,7 @@
 package com.wiranoid.fuzzy.graphics;
 
+import org.joml.Matrix4f;
+import org.joml.Vector3f;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.glfw.GLFWKeyCallback;
@@ -266,6 +268,9 @@ public class FuzzyGame {
         // Unbind texture when done, so we won't accidentally mess up our texture.
         glBindTexture(GL_TEXTURE_2D, 0);
 
+        // Matrix transformations
+        FloatBuffer transform = BufferUtils.createFloatBuffer(16);
+
         // Enable wireframe polygons
         //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
@@ -282,6 +287,18 @@ public class FuzzyGame {
 
             // Activate the shader
             glUseProgram(shaderProgram);
+
+            // Create transformations
+            // Remember that the actual transformation order should be read in reverse:
+            // even though we first translate and then later rotate, the actual
+            // transformations first apply a rotation and then a translation
+            Matrix4f matrix4f = new Matrix4f().translate(0.5f, -0.5f, 0.0f);
+            matrix4f
+                    .rotate((float) glfwGetTime(), new Vector3f(0.0f, 0.0f, 1.0f))
+                    .get(transform);
+
+            // Get matrix's uniform location and set matrix
+            glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "transform"), false, transform);
 
             // Bind Textures using texture units
             glActiveTexture(GL_TEXTURE0);
