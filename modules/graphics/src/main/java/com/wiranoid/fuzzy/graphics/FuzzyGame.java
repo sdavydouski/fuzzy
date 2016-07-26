@@ -1,5 +1,6 @@
 package com.wiranoid.fuzzy.graphics;
 
+import com.wiranoid.fuzzy.graphics.shaders.Shader;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.lwjgl.BufferUtils;
@@ -79,54 +80,24 @@ public class FuzzyGame {
         glfwGetFramebufferSize(window, width, height);
         glViewport(0, 0, width.get(), height.get());
 
-        //read shaders from files
-        String vertexShaderSource = "";
-        String fragmentShaderSource = "";
-        try {
-            vertexShaderSource = new String(Files.readAllBytes(Paths.get("assets/shaders/vertex/vertex.vert")));
-            fragmentShaderSource = new String(Files.readAllBytes(Paths.get("assets/shaders/fragment/fragment.frag")));
-        }
-        catch (IOException ex) {
-            System.err.println(ex.getMessage());
-        }
-
-        // Build and compile our shader program
-        // Vertex shader
-        int vertexShader = glCreateShader(GL_VERTEX_SHADER);
-        glShaderSource(vertexShader, vertexShaderSource);
-        glCompileShader(vertexShader);
-
-        // Check for compile time errors
-        int status = glGetShaderi(vertexShader, GL_COMPILE_STATUS);
-        if (status != GL_TRUE) {
-            throw new RuntimeException(glGetShaderInfoLog(vertexShader));
-        }
-
-        // Fragment shader
-        int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-        glShaderSource(fragmentShader, fragmentShaderSource);
-        glCompileShader(fragmentShader);
-
-        // Check for compile time errors
-        status = glGetShaderi(fragmentShader, GL_COMPILE_STATUS);
-        if (status != GL_TRUE) {
-            throw new RuntimeException(glGetShaderInfoLog(fragmentShader));
-        }
+        // Shaders
+        Shader vertexShader = Shader.load(GL_VERTEX_SHADER, "assets/shaders/vertex/vertex.vert");
+        Shader fragmentShader = Shader.load(GL_FRAGMENT_SHADER, "assets/shaders/fragment/fragment.frag");
 
         // Link shaders
         int shaderProgram = glCreateProgram();
-        glAttachShader(shaderProgram, vertexShader);
-        glAttachShader(shaderProgram, fragmentShader);
+        glAttachShader(shaderProgram, vertexShader.getId());
+        glAttachShader(shaderProgram, fragmentShader.getId());
         glLinkProgram(shaderProgram);
 
         // Check for linking errors
-        status = glGetProgrami(shaderProgram, GL_LINK_STATUS);
+        int status = glGetProgrami(shaderProgram, GL_LINK_STATUS);
         if (status != GL_TRUE) {
             throw new RuntimeException(glGetProgramInfoLog(shaderProgram));
         }
 
-        glDeleteShader(vertexShader);
-        glDeleteShader(fragmentShader);
+        vertexShader.delete();
+        fragmentShader.delete();
 
         // Bind the Vertex Array Object first, then bind and set vertex buffer(s) and attribute pointer(s).
         int VAO = glGenVertexArrays();
@@ -268,7 +239,7 @@ public class FuzzyGame {
         // Unbind texture when done, so we won't accidentally mess up our texture.
         glBindTexture(GL_TEXTURE_2D, 0);
 
-        // Matrix transformations
+        // Buffer for transformation matrix
         FloatBuffer transform = BufferUtils.createFloatBuffer(16);
 
         // Enable wireframe polygons
