@@ -243,16 +243,17 @@ public class FuzzyGame {
             // Activate the shader
             shaderProgram.use();
 
-            // Create transformations
-            // Remember that the actual transformation order should be read in reverse:
-            // even though we first translate and then later rotate, the actual
-            // transformations first apply a rotation and then a translation
-            Matrix4f transform = new Matrix4f().translate(0.5f, -0.5f, 0.0f);
-            transform
-                    .rotate((float) glfwGetTime(), new Vector3f(0.0f, 0.0f, 1.0f));
+            Matrix4f model = new Matrix4f().rotate((float) Math.toRadians(-55), new Vector3f(1.0f, 0.0f, 0.0f));
+            shaderProgram.setUniform("model", model);
 
-            // Get matrix's uniform location and set matrix
-            shaderProgram.setUniform("transform", transform);
+            Matrix4f view = new Matrix4f().translate(new Vector3f(0.0f, 0.0f, -3.0f));
+            shaderProgram.setUniform("view", view);
+
+            // Note: currently we set the projection matrix each frame,
+            // but since the projection matrix rarely changes it's often
+            // best practice to set it outside the main loop only once.
+            Matrix4f projection = new Matrix4f().perspective((float) Math.toRadians(45), WIDTH / HEIGHT, 0.1f, 100.0f);
+            shaderProgram.setUniform("projection", projection);
 
             // Bind Textures using texture units
             glActiveTexture(GL_TEXTURE0);
