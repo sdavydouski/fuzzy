@@ -1,6 +1,7 @@
 package com.wiranoid.fuzzy.graphics;
 
 import com.wiranoid.fuzzy.graphics.shaders.Shader;
+import com.wiranoid.fuzzy.graphics.shaders.ShaderProgram;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.lwjgl.BufferUtils;
@@ -9,12 +10,9 @@ import org.lwjgl.glfw.GLFWKeyCallback;
 import org.lwjgl.glfw.GLFWVidMode;
 import org.lwjgl.opengl.GL;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
@@ -85,16 +83,10 @@ public class FuzzyGame {
         Shader fragmentShader = Shader.load(GL_FRAGMENT_SHADER, "assets/shaders/fragment/fragment.frag");
 
         // Link shaders
-        int shaderProgram = glCreateProgram();
-        glAttachShader(shaderProgram, vertexShader.getId());
-        glAttachShader(shaderProgram, fragmentShader.getId());
-        glLinkProgram(shaderProgram);
-
-        // Check for linking errors
-        int status = glGetProgrami(shaderProgram, GL_LINK_STATUS);
-        if (status != GL_TRUE) {
-            throw new RuntimeException(glGetProgramInfoLog(shaderProgram));
-        }
+        ShaderProgram shaderProgram = new ShaderProgram();
+        shaderProgram.attachShader(vertexShader);
+        shaderProgram.attachShader(fragmentShader);
+        shaderProgram.link();
 
         vertexShader.delete();
         fragmentShader.delete();
@@ -145,14 +137,9 @@ public class FuzzyGame {
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices, GL_STATIC_DRAW);
 
         // We need to specify the input to our vertex shader
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, false, 8 * Float.BYTES, 0);
-
-        glEnableVertexAttribArray(1);
-        glVertexAttribPointer(1, 3, GL_FLOAT, false, 8 * Float.BYTES, 3 * Float.BYTES);
-
-        glEnableVertexAttribArray(2);
-        glVertexAttribPointer(2, 2, GL_FLOAT, false, 8 * Float.BYTES, 6 * Float.BYTES);
+        shaderProgram.setVertexAttributePointer(0, 3, GL_FLOAT, false, 8 * Float.BYTES, 0);
+        shaderProgram.setVertexAttributePointer(1, 3, GL_FLOAT, false, 8 * Float.BYTES, 3 * Float.BYTES);
+        shaderProgram.setVertexAttributePointer(2, 2, GL_FLOAT, false, 8 * Float.BYTES, 6 * Float.BYTES);
 
         // This is allowed, the call to glVertexAttribPointer registered VBO as the currently bound
         // vertex buffer object so afterwards we can safely unbind
@@ -239,9 +226,6 @@ public class FuzzyGame {
         // Unbind texture when done, so we won't accidentally mess up our texture.
         glBindTexture(GL_TEXTURE_2D, 0);
 
-        // Buffer for transformation matrix
-        FloatBuffer transform = BufferUtils.createFloatBuffer(16);
-
         // Enable wireframe polygons
         //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
@@ -257,28 +241,27 @@ public class FuzzyGame {
             glClear(GL_COLOR_BUFFER_BIT);
 
             // Activate the shader
-            glUseProgram(shaderProgram);
+            shaderProgram.use();
 
             // Create transformations
             // Remember that the actual transformation order should be read in reverse:
             // even though we first translate and then later rotate, the actual
             // transformations first apply a rotation and then a translation
-            Matrix4f matrix4f = new Matrix4f().translate(0.5f, -0.5f, 0.0f);
-            matrix4f
-                    .rotate((float) glfwGetTime(), new Vector3f(0.0f, 0.0f, 1.0f))
-                    .get(transform);
+            Matrix4f transform = new Matrix4f().translate(0.5f, -0.5f, 0.0f);
+            transform
+                    .rotate((float) glfwGetTime(), new Vector3f(0.0f, 0.0f, 1.0f));
 
             // Get matrix's uniform location and set matrix
-            glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "transform"), false, transform);
+            shaderProgram.setUniform("transform", transform);
 
             // Bind Textures using texture units
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, texture1);
-            glUniform1i(glGetUniformLocation(shaderProgram, "ourTexture1"), 0);
+            shaderProgram.setUniform("ourTexture1", 0);
 
             glActiveTexture(GL_TEXTURE1);
             glBindTexture(GL_TEXTURE_2D, texture2);
-            glUniform1i(glGetUniformLocation(shaderProgram, "ourTexture2"), 1);
+            shaderProgram.setUniform("ourTexture2", 1);
 
             // Draw container
             glBindVertexArray(VAO);
@@ -293,7 +276,7 @@ public class FuzzyGame {
         glDeleteVertexArrays(VAO);
         glDeleteBuffers(VBO);
         glDeleteBuffers(EBO);
-        glDeleteProgram(shaderProgram);
+        shaderProgram.delete();
 
         glfwDestroyWindow(window);
         keyCallback.free();
