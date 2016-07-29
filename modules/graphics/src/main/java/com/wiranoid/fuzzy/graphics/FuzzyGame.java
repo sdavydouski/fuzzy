@@ -39,8 +39,8 @@ public class FuzzyGame {
         }
     };
 
-    private static int WIDTH = 640;
-    private static int HEIGHT = 480;
+    private static int WIDTH = 800;
+    private static int HEIGHT = 600;
 
     public static void run() {
         glfwSetErrorCallback(errorCallback);
@@ -91,62 +91,93 @@ public class FuzzyGame {
         vertexShader.delete();
         fragmentShader.delete();
 
+        // Setup OpenGL options
+        glEnable(GL_DEPTH_TEST);
+
         // Bind the Vertex Array Object first, then bind and set vertex buffer(s) and attribute pointer(s).
         int VAO = glGenVertexArrays();
         glBindVertexArray(VAO);
 
-        FloatBuffer vertices = BufferUtils.createFloatBuffer(4 * 8);
-        vertices
-                // Top Right
-                .put(0.5f).put(0.5f).put(0.0f)      // Position
-                .put(1.0f).put(0.0f).put(0.0f)      // Color
-                .put(1.0f).put(1.0f);               // Texture coord
-        vertices
-                // Bottom Right
-                .put(0.5f).put(-0.5f).put(0.0f)     // Position
-                .put(0.0f).put(1.0f).put(0.0f)      // Color
-                .put(1.0f).put(0.0f);               // Texture coord
-        vertices
-                // Bottom Left
-                .put(-0.5f).put(-0.5f).put(0.0f)    // Position
-                .put(0.0f).put(0.0f).put(1.0f)      // Color
-                .put(0.0f).put(0.0f);               // Texture coord
-        vertices
-                // Top Left
-                .put(-0.5f).put(0.5f).put(0.0f)     // Position
-                .put(1.0f).put(1.0f).put(0.0f)      // Color
-                .put(0.0f).put(1.0f);               // Texture coord
+        float[] vertices = {
+                -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+                0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
+                0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+                0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+                -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+                -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+
+                -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+                0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+                0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+                0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+                -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
+                -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+
+                -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+                -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+                -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+                -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+                -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+                -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+
+                0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+                0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+                0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+                0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+                0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+                0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+
+                -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+                0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
+                0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+                0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+                -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+                -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+
+                -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+                0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+                0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+                0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+                -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
+                -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
+        };
+
+        FloatBuffer verticesBuffer = BufferUtils.createFloatBuffer(36 * 6);
+
+        for (float vertex : vertices) {
+            verticesBuffer.put(vertex);
+        }
+
+        // World space positions of our cubes
+        Vector3f[] cubePositions = {
+            new Vector3f(0.0f, 0.0f, 0.0f),
+            new Vector3f(2.0f, 5.0f, -15.0f),
+            new Vector3f(-1.5f, -2.2f, -2.5f),
+            new Vector3f(-3.8f, -2.0f, -12.3f),
+            new Vector3f(2.4f, -0.4f, -3.5f),
+            new Vector3f(-1.7f, 3.0f, -7.5f),
+            new Vector3f(1.3f, -2.0f, -2.5f),
+            new Vector3f(1.5f, 2.0f, -2.5f),
+            new Vector3f(1.5f, 0.2f, -1.5f),
+            new Vector3f(-1.3f, 1.0f, -1.5f)
+        };
+
         // Passing the buffer without flipping will crash JVM because of a EXCEPTION_ACCESS_VIOLATION
-        vertices.flip();
+        verticesBuffer.flip();
 
         int VBO = glGenBuffers();
         glBindBuffer(GL_ARRAY_BUFFER, VBO);
-        glBufferData(GL_ARRAY_BUFFER, vertices, GL_STATIC_DRAW);
-
-
-        IntBuffer indices = BufferUtils.createIntBuffer(2 * 3);
-        // First Triangle
-        indices.put(0).put(1).put(3);
-        // Second Triangle
-        indices.put(1).put(2).put(3);
-        // Passing the buffer without flipping will crash JVM because of a EXCEPTION_ACCESS_VIOLATION
-        indices.flip();
-
-        int EBO = glGenBuffers();
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices, GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, verticesBuffer, GL_STATIC_DRAW);
 
         // We need to specify the input to our vertex shader
-        shaderProgram.setVertexAttributePointer(0, 3, GL_FLOAT, false, 8 * Float.BYTES, 0);
-        shaderProgram.setVertexAttributePointer(1, 3, GL_FLOAT, false, 8 * Float.BYTES, 3 * Float.BYTES);
-        shaderProgram.setVertexAttributePointer(2, 2, GL_FLOAT, false, 8 * Float.BYTES, 6 * Float.BYTES);
+        shaderProgram.setVertexAttributePointer(0, 3, GL_FLOAT, false, 5 * Float.BYTES, 0);
+        shaderProgram.setVertexAttributePointer(2, 2, GL_FLOAT, false, 5 * Float.BYTES, 3 * Float.BYTES);
 
         // This is allowed, the call to glVertexAttribPointer registered VBO as the currently bound
         // vertex buffer object so afterwards we can safely unbind
         glBindBuffer(GL_ARRAY_BUFFER, 0);
 
         // Unbind VAO (it's always a good thing to unbind any buffer/array to prevent strange bugs),
-        // remember: do NOT unbind the EBO, keep it bound to this VAO
         glBindVertexArray(0);
 
         // Load and create a texture
@@ -238,22 +269,7 @@ public class FuzzyGame {
             // Render
             // Clear the colorbuffer
             glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-            glClear(GL_COLOR_BUFFER_BIT);
-
-            // Activate the shader
-            shaderProgram.use();
-
-            Matrix4f model = new Matrix4f().rotate((float) Math.toRadians(-55), new Vector3f(1.0f, 0.0f, 0.0f));
-            shaderProgram.setUniform("model", model);
-
-            Matrix4f view = new Matrix4f().translate(new Vector3f(0.0f, 0.0f, -3.0f));
-            shaderProgram.setUniform("view", view);
-
-            // Note: currently we set the projection matrix each frame,
-            // but since the projection matrix rarely changes it's often
-            // best practice to set it outside the main loop only once.
-            Matrix4f projection = new Matrix4f().perspective((float) Math.toRadians(45), WIDTH / HEIGHT, 0.1f, 100.0f);
-            shaderProgram.setUniform("projection", projection);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             // Bind Textures using texture units
             glActiveTexture(GL_TEXTURE0);
@@ -264,9 +280,31 @@ public class FuzzyGame {
             glBindTexture(GL_TEXTURE_2D, texture2);
             shaderProgram.setUniform("ourTexture2", 1);
 
-            // Draw container
+            // Activate the shader
+            shaderProgram.use();
+
+            // Create transformations
+            Matrix4f view = new Matrix4f().translate(new Vector3f(0.0f, 0.0f, -5.0f));
+            shaderProgram.setUniform("view", view);
+
+            // Note: currently we set the projection matrix each frame,
+            // but since the projection matrix rarely changes it's often
+            // best practice to set it outside the main loop only once.
+            Matrix4f projection = new Matrix4f().perspective((float) Math.toRadians(45), WIDTH / HEIGHT, 0.1f, 100.0f);
+            shaderProgram.setUniform("projection", projection);
+
             glBindVertexArray(VAO);
-            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+            for (int i = 0; i < cubePositions.length; i++) {
+                // Calculate the model matrix for each object and pass it to shader before drawing
+                Matrix4f model = new Matrix4f().translate(cubePositions[i]);
+                float time= (float) glfwGetTime();
+                model.rotateXYZ(time * (i + 1) / 3.0f, time, time / (i + 1));
+                shaderProgram.setUniform("model", model);
+
+                glDrawArrays(GL_TRIANGLES, 0, 36);
+            }
+
             glBindVertexArray(0);
 
             // Swap the screen buffers
@@ -276,7 +314,6 @@ public class FuzzyGame {
         // Properly de-allocate all resources once they've outlived their purpose
         glDeleteVertexArrays(VAO);
         glDeleteBuffers(VBO);
-        glDeleteBuffers(EBO);
         shaderProgram.delete();
 
         glfwDestroyWindow(window);
