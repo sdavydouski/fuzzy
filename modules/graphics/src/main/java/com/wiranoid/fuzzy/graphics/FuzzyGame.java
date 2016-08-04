@@ -2,12 +2,10 @@ package com.wiranoid.fuzzy.graphics;
 
 import com.wiranoid.fuzzy.graphics.shaders.Shader;
 import com.wiranoid.fuzzy.graphics.shaders.ShaderProgram;
-import com.wiranoid.fuzzy.graphics.textures.Texture;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.glfw.*;
-import org.lwjgl.opengl.GL;
 
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
@@ -18,16 +16,24 @@ import static org.lwjgl.opengl.GL13.*;
 import static org.lwjgl.opengl.GL15.*;
 import static org.lwjgl.opengl.GL20.*;
 import static org.lwjgl.opengl.GL30.*;
-import static org.lwjgl.system.MemoryUtil.NULL;
 
 
 public class FuzzyGame {
-
-    private static int WIDTH;
-    private static int HEIGHT;
-
     private static GLFWErrorCallback errorCallback
             = GLFWErrorCallback.createPrint(System.err);
+
+    static {
+        glfwSetErrorCallback(errorCallback);
+
+        if (!glfwInit()) {
+            throw new IllegalStateException("Unable to initialize GLFW");
+        }
+    }
+
+    private static GLFWVidMode vidMode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+
+    private static int WIDTH = vidMode.width();
+    private static int HEIGHT = vidMode.height();
 
     // Camera
     private static Vector3f cameraPos = new Vector3f(0.0f, 0.0f, 3.0f);
@@ -144,48 +150,18 @@ public class FuzzyGame {
     };
 
     public static void run() {
-        glfwSetErrorCallback(errorCallback);
+        Window window = new Window(WIDTH, HEIGHT, "Fuzzy", true, true);
 
-        if (!glfwInit()) {
-            throw new IllegalStateException("Unable to initialize GLFW");
-        }
+        window.setKeyCallback(keyCallback);
+        window.setMouseCallback(mouseCallback);
+        window.setScrollCallback(scrollCallback);
 
-        // Set all the required options for GLFW
-        glfwDefaultWindowHints();
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-        glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
-
-        GLFWVidMode vidMode = glfwGetVideoMode(glfwGetPrimaryMonitor());
-        WIDTH = vidMode.width();
-        HEIGHT = vidMode.height();
-//        glfwSetWindowPos(window,
-//                (vidMode.width() - WIDTH) / 2,
-//                (vidMode.height() - HEIGHT) / 2);
-
-        // Fullscreen
-        long window = glfwCreateWindow(WIDTH, HEIGHT, "Fuzzy", glfwGetPrimaryMonitor(), NULL);
-        if (window == NULL) {
-            glfwTerminate();
-            throw new RuntimeException("Failed to create GLFW window");
-        }
-
-        glfwSetKeyCallback(window, keyCallback);
-        glfwSetCursorPosCallback(window, mouseCallback);
-        glfwSetScrollCallback(window, scrollCallback);
-
-        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-
-        glfwMakeContextCurrent(window);
-        // Enable V-Sync
-        glfwSwapInterval(1);
-        GL.createCapabilities();
+        glfwSetInputMode(window.getId(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
         // Define the viewport dimensions
         IntBuffer width = BufferUtils.createIntBuffer(1);
         IntBuffer height = BufferUtils.createIntBuffer(1);
-        glfwGetFramebufferSize(window, width, height);
+        glfwGetFramebufferSize(window.getId(), width, height);
         glViewport(0, 0, width.get(), height.get());
 
         // Shaders
@@ -298,7 +274,7 @@ public class FuzzyGame {
         //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
         // Game loop
-        while (!glfwWindowShouldClose(window)) {
+        while (!window.isClosing()) {
             // Calculate deltatime of current frame
             float currentFrame = (float) glfwGetTime();
             deltaTime = currentFrame - lastFrame;
@@ -350,8 +326,7 @@ public class FuzzyGame {
 
             glBindVertexArray(0);
 
-            // Swap the screen buffers
-            glfwSwapBuffers(window);
+            window.update();
         }
 
         // Properly de-allocate all resources once they've outlived their purpose
@@ -361,8 +336,7 @@ public class FuzzyGame {
         glDeleteBuffers(VBO);
         shaderProgram.delete();
 
-        glfwDestroyWindow(window);
-        keyCallback.free();
+        window.delete();
 
         // Terminate GLFW, clearing any resources allocated by GLFW
         glfwTerminate();

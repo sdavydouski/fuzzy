@@ -1,4 +1,4 @@
-package com.wiranoid.fuzzy.graphics.textures;
+package com.wiranoid.fuzzy.graphics;
 
 import org.lwjgl.BufferUtils;
 
