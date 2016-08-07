@@ -145,8 +145,8 @@ public class FuzzyGame {
         shaderProgram.attachShader(fragmentShader);
         shaderProgram.link();
 
-        vertexShader.delete();
-        fragmentShader.delete();
+        vertexShader.dispose();
+        fragmentShader.dispose();
 
         // Setup OpenGL options
         glEnable(GL_DEPTH_TEST);
@@ -300,13 +300,13 @@ public class FuzzyGame {
         }
 
         // Properly de-allocate all resources once they've outlived their purpose
-        texture1.delete();
-        texture2.delete();
+        texture1.dispose();
+        texture2.dispose();
         glDeleteVertexArrays(VAO);
         glDeleteBuffers(VBO);
-        shaderProgram.delete();
+        shaderProgram.dispose();
 
-        window.delete();
+        window.dispose();
 
         // Terminate GLFW, clearing any resources allocated by GLFW
         glfwTerminate();

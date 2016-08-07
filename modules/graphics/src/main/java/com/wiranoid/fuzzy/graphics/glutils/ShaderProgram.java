@@ -1,5 +1,6 @@
 package com.wiranoid.fuzzy.graphics.glutils;
 
+import com.wiranoid.fuzzy.core.utils.Disposable;
 import org.joml.*;
 import org.lwjgl.BufferUtils;
 
@@ -8,7 +9,7 @@ import java.nio.FloatBuffer;
 import static org.lwjgl.opengl.GL11.GL_TRUE;
 import static org.lwjgl.opengl.GL20.*;
 
-public class ShaderProgram {
+public class ShaderProgram implements Disposable {
     private final int id;
 
     public ShaderProgram() {
@@ -29,7 +30,7 @@ public class ShaderProgram {
         glUseProgram(id);
     }
 
-    public void delete() {
+    public void dispose() {
         glDeleteProgram(id);
     }
 

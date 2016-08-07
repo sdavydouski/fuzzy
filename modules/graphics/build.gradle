@@ -4,6 +4,8 @@ def lwjglVersion = '3.0.0'
 def jomlVersion = '1.8.1'
 
 dependencies {
+    compile project(':modules:core')
+
     compile "org.lwjgl:lwjgl:${lwjglVersion}"
     compile "org.lwjgl:lwjgl-platform:${lwjglVersion}:natives-windows"
     compile "org.lwjgl:lwjgl-platform:${lwjglVersion}:natives-linux"

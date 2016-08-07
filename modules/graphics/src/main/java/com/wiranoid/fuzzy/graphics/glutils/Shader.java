@@ -1,5 +1,7 @@
 package com.wiranoid.fuzzy.graphics.glutils;
 
+import com.wiranoid.fuzzy.core.utils.Disposable;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -7,7 +9,7 @@ import java.nio.file.Paths;
 import static org.lwjgl.opengl.GL11.GL_TRUE;
 import static org.lwjgl.opengl.GL20.*;
 
-public class Shader {
+public class Shader implements Disposable {
     private final int id;
 
     public int getId() {
@@ -22,7 +24,7 @@ public class Shader {
         checkCompilationStatus();
     }
 
-    public void delete() {
+    public void dispose() {
         glDeleteShader(id);
     }
 

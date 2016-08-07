@@ -1,5 +1,6 @@
 package com.wiranoid.fuzzy.graphics.g2d;
 
+import com.wiranoid.fuzzy.core.utils.Disposable;
 import org.lwjgl.BufferUtils;
 
 import static org.lwjgl.opengl.GL11.*;
@@ -9,7 +10,7 @@ import static org.lwjgl.stb.STBImage.*;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 
-public class Texture {
+public class Texture implements Disposable {
     private final int id;
 
     private final int width;
@@ -55,7 +56,7 @@ public class Texture {
         glBindTexture(GL_TEXTURE_2D, 0);
     }
 
-    public void delete() {
+    public void dispose() {
         glDeleteTextures(id);
     }
 

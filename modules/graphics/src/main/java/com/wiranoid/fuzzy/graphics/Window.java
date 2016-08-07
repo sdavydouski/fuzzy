@@ -1,5 +1,6 @@
 package com.wiranoid.fuzzy.graphics;
 
+import com.wiranoid.fuzzy.core.utils.Disposable;
 import org.lwjgl.glfw.*;
 import org.lwjgl.opengl.GL;
 
@@ -7,7 +8,7 @@ import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.GL_FALSE;
 import static org.lwjgl.system.MemoryUtil.NULL;
 
-public class Window {
+public class Window implements Disposable {
     private final long id;
 
     private GLFWKeyCallback keyCallback;
@@ -108,7 +109,7 @@ public class Window {
         glfwSwapBuffers(id);
     }
 
-    public void delete() {
+    public void dispose() {
         glfwDestroyWindow(id);
         keyCallback.free();
         mouseCallback.free();
