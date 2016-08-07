@@ -1,7 +1,8 @@
 package com.wiranoid.fuzzy.graphics;
 
-import com.wiranoid.fuzzy.graphics.shaders.Shader;
-import com.wiranoid.fuzzy.graphics.shaders.ShaderProgram;
+import com.wiranoid.fuzzy.graphics.g2d.Texture;
+import com.wiranoid.fuzzy.graphics.glutils.Shader;
+import com.wiranoid.fuzzy.graphics.glutils.ShaderProgram;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.lwjgl.BufferUtils;

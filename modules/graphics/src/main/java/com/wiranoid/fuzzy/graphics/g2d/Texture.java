@@ -1,4 +1,4 @@
-package com.wiranoid.fuzzy.graphics;
+package com.wiranoid.fuzzy.graphics.g2d;
 
 import org.lwjgl.BufferUtils;
 

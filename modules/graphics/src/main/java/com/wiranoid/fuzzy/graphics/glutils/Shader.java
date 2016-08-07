@@ -1,4 +1,4 @@
-package com.wiranoid.fuzzy.graphics.shaders;
+package com.wiranoid.fuzzy.graphics.glutils;
 
 import java.io.IOException;
 import java.nio.file.Files;
