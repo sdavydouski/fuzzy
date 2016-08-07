@@ -30,25 +30,22 @@ public class FuzzyGame {
         }
     }
 
+    private static Camera camera = new Camera(
+            // position
+            new Vector3f(0.0f, 0.0f, 3.0f),
+            // direction
+            new Vector3f(0.0f, 0.0f, -1.0f),
+            // world up
+            new Vector3f(0.0f, 1.0f, 0.0f),
+            // yaw and pitch angles
+            -90.0f, 0.0f,
+            // movementSpeed, mouseSensitivity, field of view (zoom)
+            5.0f, 0.03f, 45.0f);
+
     private static GLFWVidMode vidMode = glfwGetVideoMode(glfwGetPrimaryMonitor());
 
     private static int WIDTH = vidMode.width();
     private static int HEIGHT = vidMode.height();
-
-    // Camera
-    private static Vector3f cameraPos = new Vector3f(0.0f, 0.0f, 3.0f);
-    private static Vector3f cameraFront = new Vector3f(0.0f, 0.0f, -1.0f);
-    private static Vector3f cameraUp = new Vector3f(0.0f, 1.0f, 0.0f);
-
-    // Yaw is initialized to -90.0 degrees since a yaw of 0.0 results in a direction
-    // vector pointing to the right (due to how Eular angles work) so we initially
-    // rotate a bit to the left.
-    private static float yaw = -90.0f;
-    private static float pitch = 0.0f;
-    private static float lastX = WIDTH / 2.0f;
-    private static float lastY = HEIGHT / 2.0f;
-
-    private static float fov = 45.0f;
 
     // Deltatime
     // Time between current frame and last frame
@@ -77,21 +74,22 @@ public class FuzzyGame {
     };
 
     private static void doMovement() {
-        // Camera controls
-        float cameraSpeed = 5.0f * deltaTime;
         if (keys[GLFW_KEY_W]) {
-            cameraPos.add(cameraFront.mul(cameraSpeed, new Vector3f()));
+            camera.processKeyboard(Camera.Movement.FORWARD, deltaTime);
         }
         if (keys[GLFW_KEY_S]) {
-            cameraPos.sub(cameraFront.mul(cameraSpeed, new Vector3f()));
+            camera.processKeyboard(Camera.Movement.BACKWARD, deltaTime);
         }
         if (keys[GLFW_KEY_A]) {
-            cameraPos.sub(cameraFront.cross(cameraUp, new Vector3f()).normalize().mul(cameraSpeed));
+            camera.processKeyboard(Camera.Movement.LEFT, deltaTime);
         }
         if (keys[GLFW_KEY_D]) {
-            cameraPos.add(cameraFront.cross(cameraUp, new Vector3f()).normalize().mul(cameraSpeed));
+            camera.processKeyboard(Camera.Movement.RIGHT, deltaTime);
         }
     }
+
+    private static float lastX = WIDTH / 2.0f;
+    private static float lastY = HEIGHT / 2.0f;
 
     private static boolean firstMouse = true;
     private static GLFWCursorPosCallback mouseCallback = new GLFWCursorPosCallback() {
@@ -110,53 +108,25 @@ public class FuzzyGame {
             lastX = (float) xpos;
             lastY = (float) ypos;
 
-            // Arbitrary value
-            float sensitivity = 0.03f;
-            xOffset *= sensitivity;
-            yOffset *= sensitivity;
-
-            yaw += xOffset;
-            pitch += yOffset;
-
-            // Make sure that when pitch is out of bounds, screen doesn't get flipped
-            if (pitch > 89.0f) {
-                pitch = 89.0f;
-            }
-            if (pitch < -89.0f) {
-                pitch = -89.0f;
-            }
-
-            Vector3f front = new Vector3f();
-            front.x = (float) (Math.cos(Math.toRadians(yaw)) * Math.cos(Math.toRadians(pitch)));
-            front.y = (float) Math.sin(Math.toRadians(pitch));
-            front.z = (float) (Math.sin(Math.toRadians(yaw)) * Math.cos(Math.toRadians(pitch)));
-            cameraFront = front.normalize();
+            camera.processMouseMovement(xOffset, yOffset, true);
         }
     };
 
     private static GLFWScrollCallback scrollCallback = new GLFWScrollCallback() {
         @Override
         public void invoke(long window, double xoffset, double yoffset) {
-            if (1.0f <= fov && fov <= 80.0f) {
-                fov -= yoffset * 3.0f;
-            }
-            if (fov <= 1.0f) {
-                fov = 1.0f;
-            }
-            if (fov >= 80.0f) {
-                fov = 80.0f;
-            }
+            camera.processMouseScroll((float) yoffset);
         }
     };
 
     public static void run() {
-        Window window = new Window(WIDTH, HEIGHT, "Fuzzy", true, true);
+        Window window = new Window(1200, 800, "Fuzzy", false, true);
 
         window.setKeyCallback(keyCallback);
         window.setMouseCallback(mouseCallback);
         window.setScrollCallback(scrollCallback);
 
-        glfwSetInputMode(window.getId(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        window.setInputMode(GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
         // Define the viewport dimensions
         IntBuffer width = BufferUtils.createIntBuffer(1);
@@ -303,13 +273,12 @@ public class FuzzyGame {
             shaderProgram.use();
 
             // Camera/View transformation
-            Matrix4f view = new Matrix4f();
-            view.lookAt(cameraPos, cameraPos.add(cameraFront, new Vector3f()), cameraUp);
-
+            Matrix4f view = camera.getViewMatrix();
             shaderProgram.setUniform("view", view);
 
             // Projection
-            Matrix4f projection = new Matrix4f().perspective((float) Math.toRadians(fov), WIDTH / HEIGHT, 0.1f, 100.0f);
+            Matrix4f projection = new Matrix4f().perspective(
+                    (float) Math.toRadians(camera.getZoom()), WIDTH / HEIGHT, 0.1f, 100.0f);
             shaderProgram.setUniform("projection", projection);
 
             glBindVertexArray(VAO);

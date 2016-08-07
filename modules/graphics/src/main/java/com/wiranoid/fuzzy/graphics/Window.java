@@ -15,6 +15,7 @@ public class Window {
     private GLFWScrollCallback scrollCallback;
 
     private boolean vsync;
+    private String title;
 
 
     public long getId() {
@@ -49,8 +50,18 @@ public class Window {
         }
     }
 
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        glfwSetWindowTitle(id, title);
+    }
+
+
     public Window(int width, int height, String title, boolean isFullScreen, boolean vsync) {
         this.vsync = vsync;
+        this.title = title;
 
         glfwDefaultWindowHints();
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -85,8 +96,8 @@ public class Window {
         }
     }
 
-    public void setTitle(String title) {
-        glfwSetWindowTitle(id, title);
+    public void setInputMode(int mode, int value) {
+        glfwSetInputMode(id, mode, value);
     }
 
     public boolean isClosing() {
