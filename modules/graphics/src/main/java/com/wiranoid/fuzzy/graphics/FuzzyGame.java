@@ -15,7 +15,6 @@ import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL13.*;
 import static org.lwjgl.opengl.GL15.*;
-import static org.lwjgl.opengl.GL20.*;
 import static org.lwjgl.opengl.GL30.*;
 
 
@@ -135,18 +134,13 @@ public class FuzzyGame {
         glfwGetFramebufferSize(window.getId(), width, height);
         glViewport(0, 0, width.get(), height.get());
 
-        // Shaders
-        Shader vertexShader = Shader.load(GL_VERTEX_SHADER, "assets/shaders/vertex/vertex.vert");
-        Shader fragmentShader = Shader.load(GL_FRAGMENT_SHADER, "assets/shaders/fragment/fragment.frag");
 
-        // Link shaders
-        ShaderProgram shaderProgram = new ShaderProgram();
-        shaderProgram.attachShader(vertexShader);
-        shaderProgram.attachShader(fragmentShader);
+        ShaderProgram shaderProgram = new ShaderProgram(
+                Shader.load(Shader.Type.VERTEX, "assets/shaders/vertex/vertex.vert"),
+                Shader.load(Shader.Type.FRAGMENT, "assets/shaders/fragment/fragment.frag")
+        );
+
         shaderProgram.link();
-
-        vertexShader.dispose();
-        fragmentShader.dispose();
 
         // Setup OpenGL options
         glEnable(GL_DEPTH_TEST);
@@ -227,8 +221,8 @@ public class FuzzyGame {
         glBufferData(GL_ARRAY_BUFFER, verticesBuffer, GL_STATIC_DRAW);
 
         // We need to specify the input to our vertex shader
-        shaderProgram.setVertexAttributePointer(0, 3, GL_FLOAT, false, 5 * Float.BYTES, 0);
-        shaderProgram.setVertexAttributePointer(2, 2, GL_FLOAT, false, 5 * Float.BYTES, 3 * Float.BYTES);
+        shaderProgram.setVertexAttribute(0, 3, GL_FLOAT, false, 5 * Float.BYTES, 0);
+        shaderProgram.setVertexAttribute(2, 2, GL_FLOAT, false, 5 * Float.BYTES, 3 * Float.BYTES);
 
         // This is allowed, the call to glVertexAttribPointer registered VBO as the currently bound
         // vertex buffer object so afterwards we can safely unbind

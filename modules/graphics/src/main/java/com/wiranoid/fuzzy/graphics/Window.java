@@ -1,6 +1,6 @@
 package com.wiranoid.fuzzy.graphics;
 
-import com.wiranoid.fuzzy.core.utils.Disposable;
+import com.wiranoid.fuzzy.utils.Disposable;
 import org.lwjgl.glfw.*;
 import org.lwjgl.opengl.GL;
 
@@ -17,7 +17,6 @@ public class Window implements Disposable {
 
     private boolean vsync;
     private String title;
-
 
     public long getId() {
         return id;
