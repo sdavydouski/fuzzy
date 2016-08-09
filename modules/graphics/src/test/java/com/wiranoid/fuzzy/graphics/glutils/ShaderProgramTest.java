@@ -10,66 +10,70 @@ import static org.lwjgl.glfw.GLFW.glfwInit;
 
 public class ShaderProgramTest {
 
-    //setup opengl
+    private ShaderProgram shaderProgram;
+
     {
         glfwInit();
-        Window window = new Window(800, 600, "Test", false, true);
-    }
+        new Window(800, 600, "Test", false, true);
 
-    private String vertexShaderSource = "#version 330 core\n" +
-            "layout (location = 0) in vec3 position;\n" +
-            "void main()\n" +
-            "{\n" +
+        String vertexShaderSource =
+                "#version 330 core\n" +
+                "layout (location = 0) in vec3 position;\n" +
+                "void main()\n" +
+                "{\n" +
                 "gl_Position = vec4(position, 1.0);\n" +
-            "}\n";
+                "}\n";
 
-    private String fragmentShaderSource = "#version 330 core\n" +
-            "out vec4 color;\n" +
-            "uniform int intVal;\n" +
-            "uniform float floatVal;\n" +
-            "uniform vec2 vec2fVal;\n" +
-            "uniform vec3 vec3fVal;\n" +
-            "uniform vec4 vec4fVal;\n" +
-            "uniform mat3 mat3fVal;\n" +
-            "uniform mat4 mat4fVal;\n" +
-            "void main()\n" +
-            "{\n" +
-                "color = intVal * floatVal * vec4(vec2fVal.x, vec3fVal.y, vec4fVal.z * mat3fVal[0][0], mat4fVal[1][1]);\n" +
-            "}\n";
+        String fragmentShaderSource =
+                "#version 330 core\n" +
+                "out vec4 color;\n" +
+                "uniform int intUniform;\n" +
+                "uniform float floatUniform;\n" +
+                "uniform vec2 vec2fUniform;\n" +
+                "uniform vec3 vec3fUniform;\n" +
+                "uniform vec4 vec4fUniform;\n" +
+                "uniform mat3 mat3fUniform;\n" +
+                "uniform mat4 mat4fUniform;\n" +
+                "void main()\n" +
+                "{\n" +
+                    "color = intUniform * floatUniform * vec4(" +
+                        "vec2fUniform.x, vec3fUniform.y, vec4fUniform.z * mat3fUniform[0][0], mat4fUniform[1][1]" +
+                    ");\n" +
+                "}\n";
 
-    @Test
-    public void checkUniforms() {
-        ShaderProgram shaderProgram = new ShaderProgram(
+        this.shaderProgram = new ShaderProgram(
                 new Shader(Shader.Type.VERTEX, vertexShaderSource),
                 new Shader(Shader.Type.FRAGMENT, fragmentShaderSource)
         );
+    }
+
+    @Test
+    public void testUniforms() {
         shaderProgram.link();
-        shaderProgram.use();
 
-        int intVal = 42;
-        float floatVal = 3.14f;
-        Vector2f vec2fVal = new Vector2f(1.0f, 2.0f);
-        Vector3f vec3fVal = new Vector3f(1.0f, 2.0f, 3.0f);
-        Vector4f vec4fVal = new Vector4f(1.0f, 2.0f, 3.0f, 4.0f);
-        Matrix3f mat3fVal = new Matrix3f();
-        Matrix4f mat4fVal = new Matrix4f().add(new Matrix4f());
+        int intUniform = 42;
+        float floatUniform = 3.14f;
+        Vector2f vec2fUniform = new Vector2f(1.0f, 2.0f);
+        Vector3f vec3fUniform = new Vector3f(1.0f, 2.0f, 3.0f);
+        Vector4f vec4fUniform = new Vector4f(1.0f, 2.0f, 3.0f, 4.0f);
+        Matrix3f mat3fUniform = new Matrix3f();
+        Matrix4f mat4fUniform = new Matrix4f().add(new Matrix4f());
 
-        shaderProgram.setUniform("intVal", intVal);
-        shaderProgram.setUniform("floatVal", floatVal);
-        shaderProgram.setUniform("vec2fVal", vec2fVal);
-        shaderProgram.setUniform("vec3fVal", vec3fVal);
-        shaderProgram.setUniform("vec4fVal", vec4fVal);
-        shaderProgram.setUniform("mat3fVal", mat3fVal);
-        shaderProgram.setUniform("mat4fVal", mat4fVal);
+        shaderProgram.setUniform("intUniform", intUniform);
+        shaderProgram.setUniform("floatUniform", floatUniform);
+        shaderProgram.setUniform("vec2fUniform", vec2fUniform);
+        shaderProgram.setUniform("vec3fUniform", vec3fUniform);
+        shaderProgram.setUniform("vec4fUniform", vec4fUniform);
+        shaderProgram.setUniform("mat3fUniform", mat3fUniform);
+        shaderProgram.setUniform("mat4fUniform", mat4fUniform);
 
-        assertEquals(intVal, shaderProgram.getUniform("intVal"));
-        assertEquals(floatVal, shaderProgram.getUniform("floatVal"));
-        assertEquals(vec2fVal, shaderProgram.getUniform("vec2fVal"));
-        assertEquals(vec3fVal, shaderProgram.getUniform("vec3fVal"));
-        assertEquals(vec4fVal, shaderProgram.getUniform("vec4fVal"));
-        assertEquals(mat3fVal, shaderProgram.getUniform("mat3fVal"));
-        assertEquals(mat4fVal, shaderProgram.getUniform("mat4fVal"));
-
+        assertEquals(intUniform, shaderProgram.getUniform("intUniform"));
+        assertEquals(floatUniform, shaderProgram.getUniform("floatUniform"));
+        assertEquals(vec2fUniform, shaderProgram.getUniform("vec2fUniform"));
+        assertEquals(vec3fUniform, shaderProgram.getUniform("vec3fUniform"));
+        assertEquals(vec4fUniform, shaderProgram.getUniform("vec4fUniform"));
+        assertEquals(mat3fUniform, shaderProgram.getUniform("mat3fUniform"));
+        assertEquals(mat4fUniform, shaderProgram.getUniform("mat4fUniform"));
         assertEquals(7, shaderProgram.getUniforms().size());
 
         shaderProgram.dispose();

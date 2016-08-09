@@ -2,6 +2,7 @@ apply plugin: 'java'
 
 def lwjglVersion = '3.0.0'
 def jomlVersion = '1.8.1'
+def junitVersion = '4.12'
 
 tasks.withType(Test) {
     testLogging {
@@ -32,7 +33,7 @@ tasks.withType(Test) {
 }
 
 dependencies {
-    compile project(':modules')
+    compile project(':modules:core')
 
     compile "org.lwjgl:lwjgl:${lwjglVersion}"
     compile "org.lwjgl:lwjgl-platform:${lwjglVersion}:natives-windows"
@@ -42,5 +43,5 @@ dependencies {
     // A Java math library for OpenGL rendering calculations
     compile "org.joml:joml:${jomlVersion}"
 
-    testCompile "junit:junit:4.12"
+    testCompile "junit:junit:${junitVersion}"
 }

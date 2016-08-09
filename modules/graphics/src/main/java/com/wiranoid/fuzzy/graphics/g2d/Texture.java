@@ -1,6 +1,6 @@
 package com.wiranoid.fuzzy.graphics.g2d;
 
-import com.wiranoid.fuzzy.utils.Disposable;
+import com.wiranoid.fuzzy.core.utils.Disposable;
 import org.lwjgl.BufferUtils;
 
 import static org.lwjgl.opengl.GL11.*;

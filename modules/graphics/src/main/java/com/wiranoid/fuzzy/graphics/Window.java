@@ -1,6 +1,6 @@
 package com.wiranoid.fuzzy.graphics;
 
-import com.wiranoid.fuzzy.utils.Disposable;
+import com.wiranoid.fuzzy.core.utils.Disposable;
 import org.lwjgl.glfw.*;
 import org.lwjgl.opengl.GL;
 
@@ -57,7 +57,6 @@ public class Window implements Disposable {
     public void setTitle(String title) {
         glfwSetWindowTitle(id, title);
     }
-
 
     public Window(int width, int height, String title, boolean isFullScreen, boolean vsync) {
         this.vsync = vsync;

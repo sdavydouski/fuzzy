@@ -1,6 +1,6 @@
 package com.wiranoid.fuzzy.graphics.glutils;
 
-import com.wiranoid.fuzzy.utils.Disposable;
+import com.wiranoid.fuzzy.core.utils.Disposable;
 
 import java.io.IOException;
 import java.nio.file.Files;

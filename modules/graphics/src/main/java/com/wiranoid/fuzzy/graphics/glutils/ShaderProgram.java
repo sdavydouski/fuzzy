@@ -1,6 +1,6 @@
 package com.wiranoid.fuzzy.graphics.glutils;
 
-import com.wiranoid.fuzzy.utils.Disposable;
+import com.wiranoid.fuzzy.core.utils.Disposable;
 import org.joml.*;
 import org.lwjgl.BufferUtils;
 
@@ -51,8 +51,6 @@ public class ShaderProgram implements Disposable {
     }
 
     public void attachShader(Shader shader) {
-        glAttachShader(id, shader.getId());
-
         switch (shader.getType()) {
             case VERTEX:
                 this.vertexShader = shader;
@@ -67,11 +65,12 @@ public class ShaderProgram implements Disposable {
                 throw new IllegalArgumentException("Unsupported shader type! " +
                         "Only vertex, geometry and fragment types are currently supported.");
         }
+
+        glAttachShader(id, shader.getId());
     }
 
     public void link() {
         glLinkProgram(id);
-
         checkLinkageStatus();
     }
 
