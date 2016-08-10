@@ -1,6 +1,5 @@
 package com.wiranoid.fuzzy.graphics;
 
-import com.wiranoid.fuzzy.graphics.g2d.Texture;
 import com.wiranoid.fuzzy.graphics.glutils.Shader;
 import com.wiranoid.fuzzy.graphics.glutils.ShaderProgram;
 import org.joml.Matrix4f;
@@ -13,7 +12,6 @@ import java.nio.IntBuffer;
 
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
-import static org.lwjgl.opengl.GL13.*;
 import static org.lwjgl.opengl.GL15.*;
 import static org.lwjgl.opengl.GL30.*;
 
@@ -32,13 +30,13 @@ public class FuzzyGame {
 
     private static Camera camera = new Camera(
             // position
-            new Vector3f(0.0f, 0.0f, 3.0f),
+            new Vector3f(-1.0f, 2.0f, 5.0f),
             // direction
-            new Vector3f(0.0f, 0.0f, -1.0f),
+            new Vector3f(0.0f, 0.0f, 0.0f),
             // world up
             new Vector3f(0.0f, 1.0f, 0.0f),
             // yaw and pitch angles
-            -90.0f, 0.0f,
+            -70.0f, -20.0f,
             // movementSpeed, mouseSensitivity, field of view (zoom)
             5.0f, 0.03f, 45.0f);
 
@@ -134,63 +132,67 @@ public class FuzzyGame {
         glfwGetFramebufferSize(window.getId(), width, height);
         glViewport(0, 0, width.get(), height.get());
 
-
-        ShaderProgram shaderProgram = new ShaderProgram(
-                Shader.load(Shader.Type.VERTEX, "assets/shaders/vertex/vertex.vert"),
-                Shader.load(Shader.Type.FRAGMENT, "assets/shaders/fragment/fragment.frag")
-        );
-
-        shaderProgram.link();
-
         // Setup OpenGL options
         glEnable(GL_DEPTH_TEST);
 
-        // Bind the Vertex Array Object first, then bind and set vertex buffer(s) and attribute pointer(s).
-        int VAO = glGenVertexArrays();
-        glBindVertexArray(VAO);
+        ShaderProgram lightingShader = new ShaderProgram(
+                Shader.load(Shader.Type.VERTEX, "assets/shaders/vertex/lighting.vert"),
+                Shader.load(Shader.Type.FRAGMENT, "assets/shaders/fragment/lighting.frag")
+        );
+        lightingShader.link();
 
+        ShaderProgram lampShader = new ShaderProgram(
+                Shader.load(Shader.Type.VERTEX, "assets/shaders/vertex/lamp.vert"),
+                Shader.load(Shader.Type.FRAGMENT, "assets/shaders/fragment/lamp.frag")
+        );
+        lampShader.link();
+
+        // Light attributes
+        Vector3f lightPos = new Vector3f(1.2f, 1.0f, 2.0f);
+
+        // Set up vertex data (and buffer(s)) and attribute pointers
         float[] vertices = {
-                -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-                0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
-                0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-                0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-                -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-                -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+                -0.5f, -0.5f, -0.5f,
+                0.5f, -0.5f, -0.5f,
+                0.5f,  0.5f, -0.5f,
+                0.5f,  0.5f, -0.5f,
+                -0.5f,  0.5f, -0.5f,
+                -0.5f, -0.5f, -0.5f,
 
-                -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-                0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-                0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-                0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-                -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
-                -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+                -0.5f, -0.5f,  0.5f,
+                0.5f, -0.5f,  0.5f,
+                0.5f,  0.5f,  0.5f,
+                0.5f,  0.5f,  0.5f,
+                -0.5f,  0.5f,  0.5f,
+                -0.5f, -0.5f,  0.5f,
 
-                -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-                -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-                -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-                -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-                -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-                -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+                -0.5f,  0.5f,  0.5f,
+                -0.5f,  0.5f, -0.5f,
+                -0.5f, -0.5f, -0.5f,
+                -0.5f, -0.5f, -0.5f,
+                -0.5f, -0.5f,  0.5f,
+                -0.5f,  0.5f,  0.5f,
 
-                0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-                0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-                0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-                0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-                0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-                0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+                0.5f,  0.5f,  0.5f,
+                0.5f,  0.5f, -0.5f,
+                0.5f, -0.5f, -0.5f,
+                0.5f, -0.5f, -0.5f,
+                0.5f, -0.5f,  0.5f,
+                0.5f,  0.5f,  0.5f,
 
-                -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-                0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
-                0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-                0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-                -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-                -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+                -0.5f, -0.5f, -0.5f,
+                0.5f, -0.5f, -0.5f,
+                0.5f, -0.5f,  0.5f,
+                0.5f, -0.5f,  0.5f,
+                -0.5f, -0.5f,  0.5f,
+                -0.5f, -0.5f, -0.5f,
 
-                -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-                0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-                0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-                0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-                -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
-                -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
+                -0.5f,  0.5f, -0.5f,
+                0.5f,  0.5f, -0.5f,
+                0.5f,  0.5f,  0.5f,
+                0.5f,  0.5f,  0.5f,
+                -0.5f,  0.5f,  0.5f,
+                -0.5f,  0.5f, -0.5f
         };
 
         FloatBuffer verticesBuffer = BufferUtils.createFloatBuffer(36 * 6);
@@ -198,45 +200,30 @@ public class FuzzyGame {
         for (float vertex : vertices) {
             verticesBuffer.put(vertex);
         }
-
-        // World space positions of our cubes
-        Vector3f[] cubePositions = {
-            new Vector3f(0.0f, 0.0f, 0.0f),
-            new Vector3f(2.0f, 5.0f, -15.0f),
-            new Vector3f(-1.5f, -2.2f, -2.5f),
-            new Vector3f(-3.8f, -2.0f, -12.3f),
-            new Vector3f(2.4f, -0.4f, -3.5f),
-            new Vector3f(-1.7f, 3.0f, -7.5f),
-            new Vector3f(1.3f, -2.0f, -2.5f),
-            new Vector3f(1.5f, 2.0f, -2.5f),
-            new Vector3f(1.5f, 0.2f, -1.5f),
-            new Vector3f(-1.3f, 1.0f, -1.5f)
-        };
-
-        // Passing the buffer without flipping will crash JVM because of a EXCEPTION_ACCESS_VIOLATION
         verticesBuffer.flip();
+
+        // First, set the container's VAO (and VBO)
+        int containerVAO = glGenVertexArrays();
+        glBindVertexArray(containerVAO);
 
         int VBO = glGenBuffers();
         glBindBuffer(GL_ARRAY_BUFFER, VBO);
         glBufferData(GL_ARRAY_BUFFER, verticesBuffer, GL_STATIC_DRAW);
 
-        // We need to specify the input to our vertex shader
-        shaderProgram.setVertexAttribute(0, 3, GL_FLOAT, false, 5 * Float.BYTES, 0);
-        shaderProgram.setVertexAttribute(2, 2, GL_FLOAT, false, 5 * Float.BYTES, 3 * Float.BYTES);
-
-        // This is allowed, the call to glVertexAttribPointer registered VBO as the currently bound
-        // vertex buffer object so afterwards we can safely unbind
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-        // Unbind VAO (it's always a good thing to unbind any buffer/array to prevent strange bugs),
+        lightingShader.setVertexAttribute(0, 3, GL_FLOAT, false, 3 * Float.BYTES, 0);
         glBindVertexArray(0);
 
-        // Load and create textures
-        Texture texture1 = Texture.load("assets/textures/container.jpg");
-        Texture texture2 = Texture.load("assets/textures/awesomeface.png");
+        // Then, we set the light's VAO (VBO stays the same.
+        // After all, the vertices are the same for the light object (also a 3D cube))
+        int lightVAO = glGenVertexArrays();
+        glBindVertexArray(lightVAO);
 
-        // Enable wireframe polygons
-        //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        // We only need to bind to the VBO (to link it with glVertexAttribPointer),
+        // no need to fill it; the VBO's data already contains all we need.
+        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        // Set the vertex attributes (only position data for the lamp))
+        lightingShader.setVertexAttribute(0, 3, GL_FLOAT, false, 3 * Float.BYTES, 0);
+        glBindVertexArray(0);
 
         // Game loop
         while (!window.isClosing()) {
@@ -250,55 +237,55 @@ public class FuzzyGame {
             glfwPollEvents();
             doMovement();
 
-            // Render
             // Clear the colorbuffer
-            glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+            glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-            // Bind Textures using texture units
-            glActiveTexture(GL_TEXTURE0);
-            texture1.bind();
-            shaderProgram.setUniform("ourTexture1", 0);
+            // Use cooresponding shader when setting uniforms/drawing objects
+            lightingShader.use();
 
-            glActiveTexture(GL_TEXTURE1);
-            texture2.bind();
-            shaderProgram.setUniform("ourTexture2", 1);
+            lightingShader.setUniform("objectColor", new Vector3f(1.0f, 0.5f, 0.31f));
+            lightingShader.setUniform("lightColor", new Vector3f(1.0f, 0.5f, 1.0f));
 
-            // Activate the shader
-            shaderProgram.use();
+            // Create camera transformations
+            lightingShader.setUniform("view", camera.getViewMatrix());
 
-            // Camera/View transformation
-            Matrix4f view = camera.getViewMatrix();
-            shaderProgram.setUniform("view", view);
-
-            // Projection
             Matrix4f projection = new Matrix4f().perspective(
                     (float) Math.toRadians(camera.getZoom()), WIDTH / HEIGHT, 0.1f, 100.0f);
-            shaderProgram.setUniform("projection", projection);
+            lightingShader.setUniform("projection", projection);
 
-            glBindVertexArray(VAO);
+            // Draw the container (using container's vertex attributes)
+            lightingShader.setUniform("model", new Matrix4f());
 
-            for (int i = 0; i < cubePositions.length; i++) {
-                // Calculate the model matrix for each object and pass it to shader before drawing
-                Matrix4f model = new Matrix4f().translate(cubePositions[i]);
-                float time= (float) glfwGetTime();
-                model.rotateXYZ(time * (i + 1) / 3.0f, time, time / (i + 1));
-                shaderProgram.setUniform("model", model);
+            glBindVertexArray(containerVAO);
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+            glBindVertexArray(0);
 
-                glDrawArrays(GL_TRIANGLES, 0, 36);
-            }
+            // Also draw the lamp object, again binding the appropriate shader
+            lampShader.use();
 
+            lampShader.setUniform("view", camera.getViewMatrix());
+
+            projection = new Matrix4f().perspective(
+                    (float) Math.toRadians(camera.getZoom()), WIDTH / HEIGHT, 0.1f, 100.0f);
+            lampShader.setUniform("projection", projection);
+
+            // Draw the light object (using light's vertex attributes)
+            lampShader.setUniform("model", new Matrix4f().translate(lightPos).scale(new Vector3f(0.2f)));
+
+            glBindVertexArray(lightVAO);
+            glDrawArrays(GL_TRIANGLES, 0, 36);
             glBindVertexArray(0);
 
             window.update();
         }
 
         // Properly de-allocate all resources once they've outlived their purpose
-        texture1.dispose();
-        texture2.dispose();
-        glDeleteVertexArrays(VAO);
+        glDeleteVertexArrays(containerVAO);
+        glDeleteVertexArrays(lightVAO);
         glDeleteBuffers(VBO);
-        shaderProgram.dispose();
+        lightingShader.dispose();
+        lampShader.dispose();
 
         window.dispose();
 
