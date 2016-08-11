@@ -1,5 +1,7 @@
-package com.wiranoid.fuzzy.graphics;
+package com.wiranoid.fuzzy.game;
 
+import com.wiranoid.fuzzy.graphics.Camera;
+import com.wiranoid.fuzzy.graphics.Window;
 import com.wiranoid.fuzzy.graphics.glutils.Shader;
 import com.wiranoid.fuzzy.graphics.glutils.ShaderProgram;
 import org.joml.Matrix4f;
@@ -30,13 +32,13 @@ public class FuzzyGame {
 
     private static Camera camera = new Camera(
             // position
-            new Vector3f(-1.0f, 2.0f, 5.0f),
+            new Vector3f(-1.0f, 2.0f, 7.0f),
             // direction
             new Vector3f(0.0f, 0.0f, 0.0f),
             // world up
             new Vector3f(0.0f, 1.0f, 0.0f),
             // yaw and pitch angles
-            -70.0f, -20.0f,
+            -80.0f, -10.0f,
             // movementSpeed, mouseSensitivity, field of view (zoom)
             5.0f, 0.03f, 45.0f);
 
@@ -117,7 +119,7 @@ public class FuzzyGame {
         }
     };
 
-    public static void run() {
+    public static void main(String[] args) {
         Window window = new Window(1200, 800, "Fuzzy", false, true);
 
         window.setKeyCallback(keyCallback);
@@ -152,47 +154,47 @@ public class FuzzyGame {
 
         // Set up vertex data (and buffer(s)) and attribute pointers
         float[] vertices = {
-                -0.5f, -0.5f, -0.5f,
-                0.5f, -0.5f, -0.5f,
-                0.5f,  0.5f, -0.5f,
-                0.5f,  0.5f, -0.5f,
-                -0.5f,  0.5f, -0.5f,
-                -0.5f, -0.5f, -0.5f,
+                -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+                0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+                0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+                0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+                -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+                -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
 
-                -0.5f, -0.5f,  0.5f,
-                0.5f, -0.5f,  0.5f,
-                0.5f,  0.5f,  0.5f,
-                0.5f,  0.5f,  0.5f,
-                -0.5f,  0.5f,  0.5f,
-                -0.5f, -0.5f,  0.5f,
+                -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+                0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+                0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+                0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+                -0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+                -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
 
-                -0.5f,  0.5f,  0.5f,
-                -0.5f,  0.5f, -0.5f,
-                -0.5f, -0.5f, -0.5f,
-                -0.5f, -0.5f, -0.5f,
-                -0.5f, -0.5f,  0.5f,
-                -0.5f,  0.5f,  0.5f,
+                -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+                -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+                -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+                -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+                -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+                -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
 
-                0.5f,  0.5f,  0.5f,
-                0.5f,  0.5f, -0.5f,
-                0.5f, -0.5f, -0.5f,
-                0.5f, -0.5f, -0.5f,
-                0.5f, -0.5f,  0.5f,
-                0.5f,  0.5f,  0.5f,
+                0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+                0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+                0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+                0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+                0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+                0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
 
-                -0.5f, -0.5f, -0.5f,
-                0.5f, -0.5f, -0.5f,
-                0.5f, -0.5f,  0.5f,
-                0.5f, -0.5f,  0.5f,
-                -0.5f, -0.5f,  0.5f,
-                -0.5f, -0.5f, -0.5f,
+                -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+                0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+                0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+                0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+                -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+                -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
 
-                -0.5f,  0.5f, -0.5f,
-                0.5f,  0.5f, -0.5f,
-                0.5f,  0.5f,  0.5f,
-                0.5f,  0.5f,  0.5f,
-                -0.5f,  0.5f,  0.5f,
-                -0.5f,  0.5f, -0.5f
+                -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
+                0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
+                0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+                0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+                -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+                -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f
         };
 
         FloatBuffer verticesBuffer = BufferUtils.createFloatBuffer(36 * 6);
@@ -210,7 +212,10 @@ public class FuzzyGame {
         glBindBuffer(GL_ARRAY_BUFFER, VBO);
         glBufferData(GL_ARRAY_BUFFER, verticesBuffer, GL_STATIC_DRAW);
 
-        lightingShader.setVertexAttribute(0, 3, GL_FLOAT, false, 3 * Float.BYTES, 0);
+        // Position attribute
+        lightingShader.setVertexAttribute(0, 3, GL_FLOAT, false, 6 * Float.BYTES, 0);
+        // Normal attribute
+        lightingShader.setVertexAttribute(1, 3, GL_FLOAT, false, 6 * Float.BYTES, 3 * Float.BYTES);
         glBindVertexArray(0);
 
         // Then, we set the light's VAO (VBO stays the same.
@@ -222,7 +227,7 @@ public class FuzzyGame {
         // no need to fill it; the VBO's data already contains all we need.
         glBindBuffer(GL_ARRAY_BUFFER, VBO);
         // Set the vertex attributes (only position data for the lamp))
-        lightingShader.setVertexAttribute(0, 3, GL_FLOAT, false, 3 * Float.BYTES, 0);
+        lightingShader.setVertexAttribute(0, 3, GL_FLOAT, false, 6 * Float.BYTES, 0);
         glBindVertexArray(0);
 
         // Game loop
@@ -241,11 +246,18 @@ public class FuzzyGame {
             glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-            // Use cooresponding shader when setting uniforms/drawing objects
+            // Change the light's position values over time (can be done anywhere
+            // in the game loop actually, but try to do it at least before using the light source positions)
+            lightPos.x = (float) Math.cos(glfwGetTime()) * 2.0f;
+            lightPos.z = (float) Math.sin(glfwGetTime()) * 2.0f;
+
+            // Use corresponding shader when setting uniforms/drawing objects
             lightingShader.use();
 
             lightingShader.setUniform("objectColor", new Vector3f(1.0f, 0.5f, 0.31f));
             lightingShader.setUniform("lightColor", new Vector3f(1.0f, 0.5f, 1.0f));
+            lightingShader.setUniform("lightPos", lightPos);
+            lightingShader.setUniform("viewPos", camera.getPosition());
 
             // Create camera transformations
             lightingShader.setUniform("view", camera.getViewMatrix());
