@@ -22,12 +22,16 @@ public class FuzzyGame {
     private static GLFWErrorCallback errorCallback
             = GLFWErrorCallback.createPrint(System.err);
 
+    private static Window window;
+
     static {
         glfwSetErrorCallback(errorCallback);
 
         if (!glfwInit()) {
             throw new IllegalStateException("Unable to initialize GLFW");
         }
+
+        window = new Window(1200, 800, "Fuzzy", false, true);
     }
 
     private static Camera camera = new Camera(
@@ -60,7 +64,7 @@ public class FuzzyGame {
         @Override
         public void invoke(long window, int key, int scancode, int action, int mods) {
             if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
-                glfwSetWindowShouldClose(window, true);
+                FuzzyGame.window.setIsShouldClose(true);
             }
 
             if (0 <= key && key < 1024) {
@@ -120,8 +124,6 @@ public class FuzzyGame {
     };
 
     public static void main(String[] args) {
-        Window window = new Window(1200, 800, "Fuzzy", false, true);
-
         window.setKeyCallback(keyCallback);
         window.setMouseCallback(mouseCallback);
         window.setScrollCallback(scrollCallback);
@@ -248,15 +250,35 @@ public class FuzzyGame {
 
             // Change the light's position values over time (can be done anywhere
             // in the game loop actually, but try to do it at least before using the light source positions)
-            lightPos.x = (float) Math.cos(glfwGetTime()) * 2.0f;
-            lightPos.z = (float) Math.sin(glfwGetTime()) * 2.0f;
+//            lightPos.x = (float) Math.cos(glfwGetTime()) * 2.0f;
+//            lightPos.z = (float) Math.sin(glfwGetTime()) * 2.0f;
 
             // Use corresponding shader when setting uniforms/drawing objects
             lightingShader.use();
 
-            lightingShader.setUniform("objectColor", new Vector3f(1.0f, 0.5f, 0.31f));
-            lightingShader.setUniform("lightColor", new Vector3f(1.0f, 0.5f, 1.0f));
-            lightingShader.setUniform("lightPos", lightPos);
+            // Set material properties
+            lightingShader.setUniform("material.ambient", new Vector3f(1.0f, 0.5f, 0.31f));
+            lightingShader.setUniform("material.diffuse", new Vector3f(1.0f, 0.5f, 0.31f));
+            lightingShader.setUniform("material.specular", new Vector3f(0.5f, 0.5f, 0.5f));
+            lightingShader.setUniform("material.shininess", 32.0f);
+
+            // Set lights properties
+            Vector3f lightColor = new Vector3f();
+            lightColor.x = (float) Math.sin(glfwGetTime() * 2.0f);
+            lightColor.y = (float) Math.sin(glfwGetTime() * 0.7f);
+            lightColor.z = (float) Math.sin(glfwGetTime() * 1.3f);
+
+            // Decrease the influence
+            Vector3f diffuseColor = lightColor.mul(new Vector3f(0.5f), new Vector3f());
+            // Low influence
+            Vector3f ambientColor = diffuseColor.mul(new Vector3f(0.2f), new Vector3f());
+
+            lightingShader.setUniform("light.ambient", ambientColor);
+            // Let's darken the light a bit to fit the scene
+            lightingShader.setUniform("light.diffuse", diffuseColor);
+            lightingShader.setUniform("light.specular", new Vector3f(1.0f, 1.0f, 1.0f));
+            lightingShader.setUniform("light.position", lightPos);
+
             lightingShader.setUniform("viewPos", camera.getPosition());
 
             // Create camera transformations
