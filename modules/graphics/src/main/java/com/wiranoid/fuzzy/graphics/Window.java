@@ -16,7 +16,6 @@ public class Window implements Disposable {
     private GLFWScrollCallback scrollCallback;
 
     private boolean vsync;
-    private boolean isShouldClose;
     private String title;
 
     public long getId() {
@@ -24,12 +23,11 @@ public class Window implements Disposable {
     }
 
     public boolean isClosing() {
-        return isShouldClose;
+        return glfwWindowShouldClose(id);
     }
 
     public void setIsShouldClose(boolean isShouldClose) {
         glfwSetWindowShouldClose(id, isShouldClose);
-        this.isShouldClose = isShouldClose;
     }
 
     public void setKeyCallback(GLFWKeyCallback keyCallback) {
@@ -70,7 +68,6 @@ public class Window implements Disposable {
 
     public Window(int width, int height, String title, boolean isFullScreen, boolean vsync) {
         this.vsync = vsync;
-        this.isShouldClose = false;
         this.title = title;
 
         glfwDefaultWindowHints();

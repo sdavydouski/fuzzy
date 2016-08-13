@@ -2,6 +2,7 @@ package com.wiranoid.fuzzy.game;
 
 import com.wiranoid.fuzzy.graphics.Camera;
 import com.wiranoid.fuzzy.graphics.Window;
+import com.wiranoid.fuzzy.graphics.g2d.Texture;
 import com.wiranoid.fuzzy.graphics.glutils.Shader;
 import com.wiranoid.fuzzy.graphics.glutils.ShaderProgram;
 import org.joml.Matrix4f;
@@ -14,6 +15,7 @@ import java.nio.IntBuffer;
 
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
+import static org.lwjgl.opengl.GL13.*;
 import static org.lwjgl.opengl.GL15.*;
 import static org.lwjgl.opengl.GL30.*;
 
@@ -156,50 +158,51 @@ public class FuzzyGame {
 
         // Set up vertex data (and buffer(s)) and attribute pointers
         float[] vertices = {
-                -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-                0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-                0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-                0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-                -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-                -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+                // Positions           // Normals           // Texture Coords
+                -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
+                0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 0.0f,
+                0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
+                0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
+                -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 1.0f,
+                -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
 
-                -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-                0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-                0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-                0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-                -0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-                -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+                -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 0.0f,
+                0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 0.0f,
+                0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 1.0f,
+                0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 1.0f,
+                -0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 1.0f,
+                -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 0.0f,
 
-                -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
-                -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-                -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-                -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-                -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
-                -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+                -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
+                -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
+                -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
+                -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
+                -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
+                -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
 
-                0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
-                0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-                0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-                0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-                0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
-                0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+                0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
+                0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
+                0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
+                0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
+                0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
+                0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
 
-                -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-                0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-                0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-                0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-                -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-                -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+                -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
+                0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 1.0f,
+                0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
+                0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
+                -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 0.0f,
+                -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
 
-                -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
-                0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
-                0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-                0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-                -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-                -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f
+                -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f,
+                0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 1.0f,
+                0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
+                0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
+                -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 0.0f,
+                -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f
         };
 
-        FloatBuffer verticesBuffer = BufferUtils.createFloatBuffer(36 * 6);
+        FloatBuffer verticesBuffer = BufferUtils.createFloatBuffer(36 * 8);
 
         for (float vertex : vertices) {
             verticesBuffer.put(vertex);
@@ -215,9 +218,11 @@ public class FuzzyGame {
         glBufferData(GL_ARRAY_BUFFER, verticesBuffer, GL_STATIC_DRAW);
 
         // Position attribute
-        lightingShader.setVertexAttribute(0, 3, GL_FLOAT, false, 6 * Float.BYTES, 0);
+        lightingShader.setVertexAttribute(0, 3, GL_FLOAT, false, 8 * Float.BYTES, 0);
         // Normal attribute
-        lightingShader.setVertexAttribute(1, 3, GL_FLOAT, false, 6 * Float.BYTES, 3 * Float.BYTES);
+        lightingShader.setVertexAttribute(1, 3, GL_FLOAT, false, 8 * Float.BYTES, 3 * Float.BYTES);
+        // Texture coords
+        lightingShader.setVertexAttribute(2, 2, GL_FLOAT, false, 8 * Float.BYTES, 6 * Float.BYTES);
         glBindVertexArray(0);
 
         // Then, we set the light's VAO (VBO stays the same.
@@ -229,8 +234,18 @@ public class FuzzyGame {
         // no need to fill it; the VBO's data already contains all we need.
         glBindBuffer(GL_ARRAY_BUFFER, VBO);
         // Set the vertex attributes (only position data for the lamp))
-        lightingShader.setVertexAttribute(0, 3, GL_FLOAT, false, 6 * Float.BYTES, 0);
+        lightingShader.setVertexAttribute(0, 3, GL_FLOAT, false, 8 * Float.BYTES, 0);
         glBindVertexArray(0);
+
+        lightingShader.use();
+        Texture diffuseMap = Texture.load("assets/textures/container2.png");
+        lightingShader.setUniform("material.diffuse", 0);
+
+        Texture specularMap = Texture.load("assets/textures/container2_specular.png");
+        lightingShader.setUniform("material.specular", 1);
+
+        Texture emissionMap = Texture.load("assets/textures/matrix.jpg");
+        lightingShader.setUniform("material.emission", 2);
 
         // Game loop
         while (!window.isClosing()) {
@@ -257,17 +272,11 @@ public class FuzzyGame {
             lightingShader.use();
 
             // Set material properties
-            lightingShader.setUniform("material.ambient", new Vector3f(1.0f, 0.5f, 0.31f));
-            lightingShader.setUniform("material.diffuse", new Vector3f(1.0f, 0.5f, 0.31f));
             lightingShader.setUniform("material.specular", new Vector3f(0.5f, 0.5f, 0.5f));
-            lightingShader.setUniform("material.shininess", 32.0f);
+            lightingShader.setUniform("material.shininess", 64.0f);
 
             // Set lights properties
-            Vector3f lightColor = new Vector3f();
-            lightColor.x = (float) Math.sin(glfwGetTime() * 2.0f);
-            lightColor.y = (float) Math.sin(glfwGetTime() * 0.7f);
-            lightColor.z = (float) Math.sin(glfwGetTime() * 1.3f);
-
+            Vector3f lightColor = new Vector3f(1.0f);
             // Decrease the influence
             Vector3f diffuseColor = lightColor.mul(new Vector3f(0.5f), new Vector3f());
             // Low influence
@@ -290,6 +299,16 @@ public class FuzzyGame {
 
             // Draw the container (using container's vertex attributes)
             lightingShader.setUniform("model", new Matrix4f());
+
+            // Bind diffuse map
+            glActiveTexture(GL_TEXTURE0);
+            diffuseMap.bind();
+            // Bind specular map
+            glActiveTexture(GL_TEXTURE1);
+            specularMap.bind();
+            // Bind emission map
+            glActiveTexture(GL_TEXTURE2);
+            emissionMap.bind();
 
             glBindVertexArray(containerVAO);
             glDrawArrays(GL_TRIANGLES, 0, 36);
