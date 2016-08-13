@@ -2,7 +2,7 @@ package com.wiranoid.fuzzy.game;
 
 import com.wiranoid.fuzzy.graphics.Camera;
 import com.wiranoid.fuzzy.graphics.Window;
-import com.wiranoid.fuzzy.graphics.g2d.Texture;
+import com.wiranoid.fuzzy.graphics.Texture;
 import com.wiranoid.fuzzy.graphics.glutils.Shader;
 import com.wiranoid.fuzzy.graphics.glutils.ShaderProgram;
 import org.joml.Matrix4f;
@@ -15,7 +15,6 @@ import java.nio.IntBuffer;
 
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
-import static org.lwjgl.opengl.GL13.*;
 import static org.lwjgl.opengl.GL15.*;
 import static org.lwjgl.opengl.GL30.*;
 
@@ -300,15 +299,9 @@ public class FuzzyGame {
             // Draw the container (using container's vertex attributes)
             lightingShader.setUniform("model", new Matrix4f());
 
-            // Bind diffuse map
-            glActiveTexture(GL_TEXTURE0);
-            diffuseMap.bind();
-            // Bind specular map
-            glActiveTexture(GL_TEXTURE1);
-            specularMap.bind();
-            // Bind emission map
-            glActiveTexture(GL_TEXTURE2);
-            emissionMap.bind();
+            diffuseMap.bind(0);
+            specularMap.bind(1);
+            emissionMap.bind(2);
 
             glBindVertexArray(containerVAO);
             glDrawArrays(GL_TRIANGLES, 0, 36);
@@ -337,6 +330,11 @@ public class FuzzyGame {
         glDeleteVertexArrays(containerVAO);
         glDeleteVertexArrays(lightVAO);
         glDeleteBuffers(VBO);
+
+        diffuseMap.dispose();
+        specularMap.dispose();
+        emissionMap.dispose();
+
         lightingShader.dispose();
         lampShader.dispose();
 

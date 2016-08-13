@@ -1,9 +1,10 @@
-package com.wiranoid.fuzzy.graphics.g2d;
+package com.wiranoid.fuzzy.graphics;
 
 import com.wiranoid.fuzzy.core.utils.Disposable;
 import org.lwjgl.BufferUtils;
 
 import static org.lwjgl.opengl.GL11.*;
+import static org.lwjgl.opengl.GL13.*;
 import static org.lwjgl.opengl.GL30.*;
 import static org.lwjgl.stb.STBImage.*;
 
@@ -49,6 +50,11 @@ public class Texture implements Disposable {
     }
 
     public void bind() {
+        glBindTexture(GL_TEXTURE_2D, id);
+    }
+
+    public void bind(int unit) {
+        glActiveTexture(GL_TEXTURE0 + unit);
         glBindTexture(GL_TEXTURE_2D, id);
     }
 
