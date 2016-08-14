@@ -25,12 +25,20 @@ public class FuzzyGame {
 
     private static Window window;
 
+    private static int WIDTH;
+    private static int HEIGHT;
+
     static {
         glfwSetErrorCallback(errorCallback);
 
         if (!glfwInit()) {
             throw new IllegalStateException("Unable to initialize GLFW");
         }
+
+        GLFWVidMode vidMode;
+        vidMode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+        WIDTH = vidMode.width();
+        HEIGHT = vidMode.height();
 
         window = new Window(1200, 800, "Fuzzy", false, true);
     }
@@ -46,11 +54,6 @@ public class FuzzyGame {
             -80.0f, -10.0f,
             // movementSpeed, mouseSensitivity, field of view (zoom)
             5.0f, 0.03f, 45.0f);
-
-    private static GLFWVidMode vidMode = glfwGetVideoMode(glfwGetPrimaryMonitor());
-
-    private static int WIDTH = vidMode.width();
-    private static int HEIGHT = vidMode.height();
 
     // Deltatime
     // Time between current frame and last frame
@@ -152,8 +155,22 @@ public class FuzzyGame {
         );
         lampShader.link();
 
+        // World space positions of our cubes
+        Vector3f[] cubePositions = {
+            new Vector3f(0.0f, 0.0f, 0.0f),
+            new Vector3f(2.0f, 5.0f, -15.0f),
+            new Vector3f(-1.5f, -2.2f, -2.5f),
+            new Vector3f(-3.8f, -2.0f, -12.3f),
+            new Vector3f(2.4f, -0.4f, -3.5f),
+            new Vector3f(-1.7f, 3.0f, -7.5f),
+            new Vector3f(1.3f, -2.0f, -2.5f),
+            new Vector3f(1.5f, 2.0f, -2.5f),
+            new Vector3f(1.5f, 0.2f, -1.5f),
+            new Vector3f(-1.3f, 1.0f, -1.5f)
+        };
+
         // Light attributes
-        Vector3f lightPos = new Vector3f(1.2f, 1.0f, 2.0f);
+        //Vector3f lightPos = new Vector3f(1.2f, 1.0f, 2.0f);
 
         // Set up vertex data (and buffer(s)) and attribute pointers
         float[] vertices = {
@@ -243,8 +260,15 @@ public class FuzzyGame {
         Texture specularMap = Texture.load("assets/textures/container2_specular.png");
         lightingShader.setUniform("material.specular", 1);
 
-        Texture emissionMap = Texture.load("assets/textures/matrix.jpg");
-        lightingShader.setUniform("material.emission", 2);
+        lightingShader.setUniform("light.constant", 1.0f);
+        lightingShader.setUniform("light.linear", 0.09f);
+        lightingShader.setUniform("light.quadratic", 0.032f);
+
+        lightingShader.setUniform("light.innerCutOff", (float) Math.cos(Math.toRadians(12.5f)));
+        lightingShader.setUniform("light.outerCutOff", (float) Math.cos(Math.toRadians(17.5f)));
+
+//        Texture emissionMap = Texture.load("assets/textures/matrix.jpg");
+//        lightingShader.setUniform("material.emission", 2);
 
         // Game loop
         while (!window.isClosing()) {
@@ -262,11 +286,6 @@ public class FuzzyGame {
             glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-            // Change the light's position values over time (can be done anywhere
-            // in the game loop actually, but try to do it at least before using the light source positions)
-//            lightPos.x = (float) Math.cos(glfwGetTime()) * 2.0f;
-//            lightPos.z = (float) Math.sin(glfwGetTime()) * 2.0f;
-
             // Use corresponding shader when setting uniforms/drawing objects
             lightingShader.use();
 
@@ -277,7 +296,11 @@ public class FuzzyGame {
             // Set lights properties
             Vector3f lightColor = new Vector3f(1.0f);
             // Decrease the influence
-            Vector3f diffuseColor = lightColor.mul(new Vector3f(0.5f), new Vector3f());
+            // We set the diffuse intensity a bit higher;
+            // note that the right lighting conditions differ with each lighting method and environment.
+            // Each environment and lighting type requires some tweaking of these variables to get the
+            // best out of your environment.
+            Vector3f diffuseColor = lightColor.mul(new Vector3f(0.8f), new Vector3f());
             // Low influence
             Vector3f ambientColor = diffuseColor.mul(new Vector3f(0.2f), new Vector3f());
 
@@ -285,7 +308,8 @@ public class FuzzyGame {
             // Let's darken the light a bit to fit the scene
             lightingShader.setUniform("light.diffuse", diffuseColor);
             lightingShader.setUniform("light.specular", new Vector3f(1.0f, 1.0f, 1.0f));
-            lightingShader.setUniform("light.position", lightPos);
+            lightingShader.setUniform("light.position", camera.getPosition());
+            lightingShader.setUniform("light.direction", camera.getDirection());
 
             lightingShader.setUniform("viewPos", camera.getPosition());
 
@@ -296,32 +320,40 @@ public class FuzzyGame {
                     (float) Math.toRadians(camera.getZoom()), WIDTH / HEIGHT, 0.1f, 100.0f);
             lightingShader.setUniform("projection", projection);
 
-            // Draw the container (using container's vertex attributes)
-            lightingShader.setUniform("model", new Matrix4f());
 
             diffuseMap.bind(0);
             specularMap.bind(1);
-            emissionMap.bind(2);
+            //emissionMap.bind(2);
 
             glBindVertexArray(containerVAO);
-            glDrawArrays(GL_TRIANGLES, 0, 36);
+            // Draw 10 containers with the same VAO and VBO information;
+            // only their world space coordinates differ
+            for (int i = 0; i < cubePositions.length; i++) {
+                Matrix4f model = new Matrix4f();
+                model.translate(cubePositions[i]);
+                float angle = 20.0f * i;
+                model.rotateXYZ(angle, 0.3f * angle, 0.7f * angle);
+                lightingShader.setUniform("model", model);
+
+                glDrawArrays(GL_TRIANGLES, 0, 36);
+            }
             glBindVertexArray(0);
 
             // Also draw the lamp object, again binding the appropriate shader
-            lampShader.use();
-
-            lampShader.setUniform("view", camera.getViewMatrix());
-
-            projection = new Matrix4f().perspective(
-                    (float) Math.toRadians(camera.getZoom()), WIDTH / HEIGHT, 0.1f, 100.0f);
-            lampShader.setUniform("projection", projection);
-
-            // Draw the light object (using light's vertex attributes)
-            lampShader.setUniform("model", new Matrix4f().translate(lightPos).scale(new Vector3f(0.2f)));
-
-            glBindVertexArray(lightVAO);
-            glDrawArrays(GL_TRIANGLES, 0, 36);
-            glBindVertexArray(0);
+//            lampShader.use();
+//
+//            lampShader.setUniform("view", camera.getViewMatrix());
+//
+//            projection = new Matrix4f().perspective(
+//                    (float) Math.toRadians(camera.getZoom()), WIDTH / HEIGHT, 0.1f, 100.0f);
+//            lampShader.setUniform("projection", projection);
+//
+//            // Draw the light object (using light's vertex attributes)
+//            lampShader.setUniform("model", new Matrix4f().translate(lightPos).scale(new Vector3f(0.2f)));
+//
+//            glBindVertexArray(lightVAO);
+//            glDrawArrays(GL_TRIANGLES, 0, 36);
+//            glBindVertexArray(0);
 
             window.update();
         }
@@ -333,7 +365,7 @@ public class FuzzyGame {
 
         diffuseMap.dispose();
         specularMap.dispose();
-        emissionMap.dispose();
+        //emissionMap.dispose();
 
         lightingShader.dispose();
         lampShader.dispose();

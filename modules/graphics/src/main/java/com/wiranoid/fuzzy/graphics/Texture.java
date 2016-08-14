@@ -17,10 +17,6 @@ public class Texture implements Disposable {
     private final int width;
     private final int height;
 
-    public int getId() {
-        return id;
-    }
-
     public int getWidth() {
         return width;
     }
