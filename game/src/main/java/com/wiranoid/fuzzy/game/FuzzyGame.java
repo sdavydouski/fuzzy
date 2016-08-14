@@ -61,7 +61,9 @@ public class FuzzyGame {
     // Time of last frame
     private static float lastFrame = 0.0f;
 
-    private static boolean[] keys = new boolean[1024];
+    private static boolean[] pressedKeys = new boolean[1024];
+    private static boolean[] toggleKeys = new boolean[1024];
+
 
     // Is called whenever a key is pressed/released via GLFW
     private static GLFWKeyCallback keyCallback = new GLFWKeyCallback() {
@@ -73,25 +75,31 @@ public class FuzzyGame {
 
             if (0 <= key && key < 1024) {
                 if (action == GLFW_PRESS) {
-                    keys[key] = true;
+                    pressedKeys[key] = true;
                 } else if (action == GLFW_RELEASE) {
-                    keys[key] = false;
+                    pressedKeys[key] = false;
+                }
+            }
+
+            if (0 <= key && key < 1024) {
+                if (action == GLFW_PRESS) {
+                    toggleKeys[key] = !toggleKeys[key];
                 }
             }
         }
     };
 
     private static void doMovement() {
-        if (keys[GLFW_KEY_W]) {
+        if (pressedKeys[GLFW_KEY_W]) {
             camera.processKeyboard(Camera.Movement.FORWARD, deltaTime);
         }
-        if (keys[GLFW_KEY_S]) {
+        if (pressedKeys[GLFW_KEY_S]) {
             camera.processKeyboard(Camera.Movement.BACKWARD, deltaTime);
         }
-        if (keys[GLFW_KEY_A]) {
+        if (pressedKeys[GLFW_KEY_A]) {
             camera.processKeyboard(Camera.Movement.LEFT, deltaTime);
         }
-        if (keys[GLFW_KEY_D]) {
+        if (pressedKeys[GLFW_KEY_D]) {
             camera.processKeyboard(Camera.Movement.RIGHT, deltaTime);
         }
     }
@@ -155,7 +163,7 @@ public class FuzzyGame {
         );
         lampShader.link();
 
-        // World space positions of our cubes
+        // Positions of all containers
         Vector3f[] cubePositions = {
             new Vector3f(0.0f, 0.0f, 0.0f),
             new Vector3f(2.0f, 5.0f, -15.0f),
@@ -169,8 +177,13 @@ public class FuzzyGame {
             new Vector3f(-1.3f, 1.0f, -1.5f)
         };
 
-        // Light attributes
-        //Vector3f lightPos = new Vector3f(1.2f, 1.0f, 2.0f);
+        // Positions of the point lights
+        Vector3f[] pointLightPositions = {
+            new Vector3f(0.7f, 0.2f, 2.0f),
+            new Vector3f(2.3f, -3.3f, -4.0f),
+            new Vector3f(-4.0f, 2.0f, -12.0f),
+            new Vector3f(0.0f, 0.0f, -3.0f)
+        };
 
         // Set up vertex data (and buffer(s)) and attribute pointers
         float[] vertices = {
@@ -260,15 +273,7 @@ public class FuzzyGame {
         Texture specularMap = Texture.load("assets/textures/container2_specular.png");
         lightingShader.setUniform("material.specular", 1);
 
-        lightingShader.setUniform("light.constant", 1.0f);
-        lightingShader.setUniform("light.linear", 0.09f);
-        lightingShader.setUniform("light.quadratic", 0.032f);
-
-        lightingShader.setUniform("light.innerCutOff", (float) Math.cos(Math.toRadians(12.5f)));
-        lightingShader.setUniform("light.outerCutOff", (float) Math.cos(Math.toRadians(17.5f)));
-
-//        Texture emissionMap = Texture.load("assets/textures/matrix.jpg");
-//        lightingShader.setUniform("material.emission", 2);
+        lightingShader.setUniform("material.shininess", 32.0f);
 
         // Game loop
         while (!window.isClosing()) {
@@ -289,29 +294,62 @@ public class FuzzyGame {
             // Use corresponding shader when setting uniforms/drawing objects
             lightingShader.use();
 
-            // Set material properties
-            lightingShader.setUniform("material.specular", new Vector3f(0.5f, 0.5f, 0.5f));
-            lightingShader.setUniform("material.shininess", 64.0f);
+            lightingShader.setUniform("viewPosition", camera.getPosition());
 
             // Set lights properties
-            Vector3f lightColor = new Vector3f(1.0f);
-            // Decrease the influence
-            // We set the diffuse intensity a bit higher;
-            // note that the right lighting conditions differ with each lighting method and environment.
-            // Each environment and lighting type requires some tweaking of these variables to get the
-            // best out of your environment.
-            Vector3f diffuseColor = lightColor.mul(new Vector3f(0.8f), new Vector3f());
-            // Low influence
-            Vector3f ambientColor = diffuseColor.mul(new Vector3f(0.2f), new Vector3f());
-
-            lightingShader.setUniform("light.ambient", ambientColor);
-            // Let's darken the light a bit to fit the scene
-            lightingShader.setUniform("light.diffuse", diffuseColor);
-            lightingShader.setUniform("light.specular", new Vector3f(1.0f, 1.0f, 1.0f));
-            lightingShader.setUniform("light.position", camera.getPosition());
-            lightingShader.setUniform("light.direction", camera.getDirection());
-
-            lightingShader.setUniform("viewPos", camera.getPosition());
+            // Directional light
+            lightingShader.setUniform("directionalLight.direction", new Vector3f(-0.2f, -1.0f, -0.3f));
+            lightingShader.setUniform("directionalLight.ambient", new Vector3f(0.05f));
+            lightingShader.setUniform("directionalLight.diffuse", new Vector3f(0.4f));
+            lightingShader.setUniform("directionalLight.specular", new Vector3f(0.5f));
+            // Point light 1
+            lightingShader.setUniform("pointLights[0].position", pointLightPositions[0]);
+            lightingShader.setUniform("pointLights[0].ambient", new Vector3f(0.05f));
+            lightingShader.setUniform("pointLights[0].diffuse", new Vector3f(0.8f));
+            lightingShader.setUniform("pointLights[0].specular", new Vector3f(1.0f));
+            lightingShader.setUniform("pointLights[0].constant", 1.0f);
+            lightingShader.setUniform("pointLights[0].linear", 0.09f);
+            lightingShader.setUniform("pointLights[0].quadratic", 0.032f);
+            // Point light 2
+            lightingShader.setUniform("pointLights[1].position", pointLightPositions[1]);
+            lightingShader.setUniform("pointLights[1].ambient", new Vector3f(0.05f));
+            lightingShader.setUniform("pointLights[1].diffuse", new Vector3f(0.8f));
+            lightingShader.setUniform("pointLights[1].specular", new Vector3f(1.0f));
+            lightingShader.setUniform("pointLights[1].constant", 1.0f);
+            lightingShader.setUniform("pointLights[1].linear", 0.09f);
+            lightingShader.setUniform("pointLights[1].quadratic", 0.032f);
+            // Point light 3
+            lightingShader.setUniform("pointLights[2].position", pointLightPositions[2]);
+            lightingShader.setUniform("pointLights[2].ambient", new Vector3f(0.05f));
+            lightingShader.setUniform("pointLights[2].diffuse", new Vector3f(0.8f));
+            lightingShader.setUniform("pointLights[2].specular", new Vector3f(1.0f));
+            lightingShader.setUniform("pointLights[2].constant", 1.0f);
+            lightingShader.setUniform("pointLights[2].linear", 0.09f);
+            lightingShader.setUniform("pointLights[2].quadratic", 0.032f);
+            // Point light 4
+            lightingShader.setUniform("pointLights[3].position", pointLightPositions[3]);
+            lightingShader.setUniform("pointLights[3].ambient", new Vector3f(0.05f));
+            lightingShader.setUniform("pointLights[3].diffuse", new Vector3f(0.8f));
+            lightingShader.setUniform("pointLights[3].specular", new Vector3f(1.0f));
+            lightingShader.setUniform("pointLights[3].constant", 1.0f);
+            lightingShader.setUniform("pointLights[3].linear", 0.09f);
+            lightingShader.setUniform("pointLights[3].quadratic", 0.032f);
+            // SpotLight
+            lightingShader.setUniform("spotLight.position", camera.getPosition());
+            lightingShader.setUniform("spotLight.direction", camera.getDirection());
+            lightingShader.setUniform("spotLight.ambient", new Vector3f(0.0f));
+            lightingShader.setUniform("spotLight.diffuse", new Vector3f(1.0f));
+            lightingShader.setUniform("spotLight.specular", new Vector3f(1.0f));
+            lightingShader.setUniform("spotLight.constant", 1.0f);
+            lightingShader.setUniform("spotLight.linear", 0.09f);
+            lightingShader.setUniform("spotLight.quadratic", 0.032f);
+            lightingShader.setUniform("spotLight.innerCutOff", (float) Math.cos(Math.toRadians(12.5f)));
+            lightingShader.setUniform("spotLight.outerCutOff", (float) Math.cos(Math.toRadians(15.0f)));
+            if (toggleKeys[GLFW.GLFW_KEY_SPACE]) {
+                lightingShader.setUniform("spotLight.enabled", true);
+            } else {
+                lightingShader.setUniform("spotLight.enabled", false);
+            }
 
             // Create camera transformations
             lightingShader.setUniform("view", camera.getViewMatrix());
@@ -320,10 +358,8 @@ public class FuzzyGame {
                     (float) Math.toRadians(camera.getZoom()), WIDTH / HEIGHT, 0.1f, 100.0f);
             lightingShader.setUniform("projection", projection);
 
-
             diffuseMap.bind(0);
             specularMap.bind(1);
-            //emissionMap.bind(2);
 
             glBindVertexArray(containerVAO);
             // Draw 10 containers with the same VAO and VBO information;
@@ -340,20 +376,25 @@ public class FuzzyGame {
             glBindVertexArray(0);
 
             // Also draw the lamp object, again binding the appropriate shader
-//            lampShader.use();
-//
-//            lampShader.setUniform("view", camera.getViewMatrix());
-//
-//            projection = new Matrix4f().perspective(
-//                    (float) Math.toRadians(camera.getZoom()), WIDTH / HEIGHT, 0.1f, 100.0f);
-//            lampShader.setUniform("projection", projection);
-//
-//            // Draw the light object (using light's vertex attributes)
-//            lampShader.setUniform("model", new Matrix4f().translate(lightPos).scale(new Vector3f(0.2f)));
-//
-//            glBindVertexArray(lightVAO);
-//            glDrawArrays(GL_TRIANGLES, 0, 36);
-//            glBindVertexArray(0);
+            lampShader.use();
+
+            lampShader.setUniform("view", camera.getViewMatrix());
+
+            projection = new Matrix4f().perspective(
+                    (float) Math.toRadians(camera.getZoom()), WIDTH / HEIGHT, 0.1f, 100.0f);
+            lampShader.setUniform("projection", projection);
+
+            // We now draw as many light bulbs as we have point lights
+            glBindVertexArray(lightVAO);
+            for (int i = 0; i < pointLightPositions.length; i++) {
+                Matrix4f model = new Matrix4f();
+                model.translate(pointLightPositions[i]);
+                model.scale(0.2f);
+                lampShader.setUniform("model", model);
+
+                glDrawArrays(GL_TRIANGLES, 0, 36);
+            }
+            glBindVertexArray(0);
 
             window.update();
         }
@@ -365,7 +406,6 @@ public class FuzzyGame {
 
         diffuseMap.dispose();
         specularMap.dispose();
-        //emissionMap.dispose();
 
         lightingShader.dispose();
         lampShader.dispose();

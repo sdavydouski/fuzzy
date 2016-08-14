@@ -103,6 +103,11 @@ public class ShaderProgram implements Disposable {
         glVertexAttribPointer(location, size, type, normalized, stride, offset);
     }
 
+    public void setUniform(String name, boolean value) {
+        uniforms.put(name, value);
+        glUniform1i(getUniformLocation(name), value ? 1 : 0);
+    }
+
     public void setUniform(String name, int value) {
         uniforms.put(name, value);
         glUniform1i(getUniformLocation(name), value);
