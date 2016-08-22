@@ -1,23 +1,24 @@
 package com.wiranoid.fuzzy.game;
 
 import com.wiranoid.fuzzy.graphics.Camera;
+import com.wiranoid.fuzzy.graphics.Mesh;
 import com.wiranoid.fuzzy.graphics.Window;
 import com.wiranoid.fuzzy.graphics.Texture;
 import com.wiranoid.fuzzy.graphics.glutils.Shader;
 import com.wiranoid.fuzzy.graphics.glutils.ShaderProgram;
+import com.wiranoid.fuzzy.graphics.glutils.Vertex;
+import com.wiranoid.fuzzy.graphics.glutils.VertexAttribute;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.glfw.*;
 
-import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
-import static org.lwjgl.opengl.GL15.*;
-import static org.lwjgl.opengl.GL30.*;
-
 
 public class FuzzyGame {
     private static GLFWErrorCallback errorCallback
@@ -185,8 +186,7 @@ public class FuzzyGame {
             new Vector3f(0.0f, 0.0f, -3.0f)
         };
 
-        // Set up vertex data (and buffer(s)) and attribute pointers
-        float[] vertices = {
+        float[] verticesData = {
                 // Positions           // Normals           // Texture Coords
                 -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
                 0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 0.0f,
@@ -231,40 +231,18 @@ public class FuzzyGame {
                 -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f
         };
 
-        FloatBuffer verticesBuffer = BufferUtils.createFloatBuffer(36 * 8);
 
-        for (float vertex : vertices) {
-            verticesBuffer.put(vertex);
+        List<Vertex> vertices = new ArrayList<>(36);
+        for (int i = 0; i < verticesData.length; i += 8) {
+            vertices.add(new Vertex(
+                    new VertexAttribute(VertexAttribute.Usage.Position, verticesData[i], verticesData[i + 1], verticesData[i + 2]),
+                    new VertexAttribute(VertexAttribute.Usage.Normal, verticesData[i + 3], verticesData[i + 4], verticesData[i + 5]),
+                    new VertexAttribute(VertexAttribute.Usage.TextureCoordinates, verticesData[i + 6], verticesData[i + 7])
+            ));
         }
-        verticesBuffer.flip();
 
-        // First, set the container's VAO (and VBO)
-        int containerVAO = glGenVertexArrays();
-        glBindVertexArray(containerVAO);
-
-        int VBO = glGenBuffers();
-        glBindBuffer(GL_ARRAY_BUFFER, VBO);
-        glBufferData(GL_ARRAY_BUFFER, verticesBuffer, GL_STATIC_DRAW);
-
-        // Position attribute
-        lightingShader.setVertexAttribute(0, 3, GL_FLOAT, false, 8 * Float.BYTES, 0);
-        // Normal attribute
-        lightingShader.setVertexAttribute(1, 3, GL_FLOAT, false, 8 * Float.BYTES, 3 * Float.BYTES);
-        // Texture coords
-        lightingShader.setVertexAttribute(2, 2, GL_FLOAT, false, 8 * Float.BYTES, 6 * Float.BYTES);
-        glBindVertexArray(0);
-
-        // Then, we set the light's VAO (VBO stays the same.
-        // After all, the vertices are the same for the light object (also a 3D cube))
-        int lightVAO = glGenVertexArrays();
-        glBindVertexArray(lightVAO);
-
-        // We only need to bind to the VBO (to link it with glVertexAttribPointer),
-        // no need to fill it; the VBO's data already contains all we need.
-        glBindBuffer(GL_ARRAY_BUFFER, VBO);
-        // Set the vertex attributes (only position data for the lamp))
-        lightingShader.setVertexAttribute(0, 3, GL_FLOAT, false, 8 * Float.BYTES, 0);
-        glBindVertexArray(0);
+        Mesh box = new Mesh(vertices, lightingShader);
+        Mesh light = new Mesh(vertices, lampShader);
 
         lightingShader.use();
         Texture diffuseMap = Texture.load("assets/textures/container2.png");
@@ -361,7 +339,6 @@ public class FuzzyGame {
             diffuseMap.bind(0);
             specularMap.bind(1);
 
-            glBindVertexArray(containerVAO);
             // Draw 10 containers with the same VAO and VBO information;
             // only their world space coordinates differ
             for (int i = 0; i < cubePositions.length; i++) {
@@ -371,9 +348,8 @@ public class FuzzyGame {
                 model.rotateXYZ(angle, 0.3f * angle, 0.7f * angle);
                 lightingShader.setUniform("model", model);
 
-                glDrawArrays(GL_TRIANGLES, 0, 36);
+                box.render();
             }
-            glBindVertexArray(0);
 
             // Also draw the lamp object, again binding the appropriate shader
             lampShader.use();
@@ -385,24 +361,21 @@ public class FuzzyGame {
             lampShader.setUniform("projection", projection);
 
             // We now draw as many light bulbs as we have point lights
-            glBindVertexArray(lightVAO);
-            for (int i = 0; i < pointLightPositions.length; i++) {
+            for (Vector3f pointLightPosition : pointLightPositions) {
                 Matrix4f model = new Matrix4f();
-                model.translate(pointLightPositions[i]);
+                model.translate(pointLightPosition);
                 model.scale(0.2f);
                 lampShader.setUniform("model", model);
 
-                glDrawArrays(GL_TRIANGLES, 0, 36);
+                light.render();
             }
-            glBindVertexArray(0);
 
             window.update();
         }
 
         // Properly de-allocate all resources once they've outlived their purpose
-        glDeleteVertexArrays(containerVAO);
-        glDeleteVertexArrays(lightVAO);
-        glDeleteBuffers(VBO);
+        box.dispose();
+        light.dispose();
 
         diffuseMap.dispose();
         specularMap.dispose();
