@@ -14,8 +14,6 @@ import org.lwjgl.BufferUtils;
 import org.lwjgl.glfw.*;
 
 import java.nio.IntBuffer;
-import java.util.ArrayList;
-import java.util.List;
 
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
@@ -232,13 +230,14 @@ public class FuzzyGame {
         };
 
 
-        List<Vertex> vertices = new ArrayList<>(36);
+        Vertex[] vertices = new Vertex[36];
+        int index = 0;
         for (int i = 0; i < verticesData.length; i += 8) {
-            vertices.add(new Vertex(
+            vertices[index++] = new Vertex(
                     new VertexAttribute(VertexAttribute.Usage.Position, verticesData[i], verticesData[i + 1], verticesData[i + 2]),
                     new VertexAttribute(VertexAttribute.Usage.Normal, verticesData[i + 3], verticesData[i + 4], verticesData[i + 5]),
                     new VertexAttribute(VertexAttribute.Usage.TextureCoordinates, verticesData[i + 6], verticesData[i + 7])
-            ));
+            );
         }
 
         Mesh box = new Mesh(vertices, lightingShader);

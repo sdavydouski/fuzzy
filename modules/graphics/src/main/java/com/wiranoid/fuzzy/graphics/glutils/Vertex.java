@@ -46,17 +46,6 @@ public class Vertex implements Iterable<VertexAttribute> {
     }
 
     public float[] getData() {
-        /*
-        * I would like to write something like this:
-        *
-        * return Arrays.stream(this.attributes)
-        *           .flatMapToDouble(attribute -> Arrays.stream(attribute.getData()))
-        *           .toArray()
-        *
-        * But the problem is there is no Arrays.stream(float[] values) method.
-        * And I do not want to cast floats to doubles because of performance issues.
-        *
-        * */
         float[] data = new float[this.numberOfComponents];
 
         int index = 0;

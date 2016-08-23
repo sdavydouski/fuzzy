@@ -39,10 +39,6 @@ public class VertexAttribute {
 
         switch (usage) {
             case Position:
-                if (data.length == 2 || data.length == 3) {
-                    this.data = data;
-                }
-                break;
             case Normal:
             case Color:
                 if (data.length == 3) {
