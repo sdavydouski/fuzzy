@@ -404,6 +404,8 @@ public class FuzzyGame {
         // Properly de-allocate all resources once they've outlived their purpose
         nanosuit.dispose();
         dragon.dispose();
+        bunny.dispose();
+
         box.dispose();
         light.dispose();
 
