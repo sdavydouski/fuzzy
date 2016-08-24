@@ -9,10 +9,6 @@ public class Vertex implements Iterable<VertexAttribute> {
     private VertexAttribute[] attributes;
     private int numberOfComponents = -1;
 
-    public VertexAttribute[] getAttributes() {
-        return this.attributes;
-    }
-
     public int getNumberOfComponents() {
         return this.numberOfComponents;
     }
@@ -23,10 +19,6 @@ public class Vertex implements Iterable<VertexAttribute> {
         this.numberOfComponents = countNumberOfComponents();
         calculateOffsets();
         setLocations();
-    }
-
-    public int size() {
-        return this.attributes.length;
     }
 
     public int sizeInBytes() {

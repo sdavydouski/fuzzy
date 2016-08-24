@@ -4,6 +4,7 @@ import com.wiranoid.fuzzy.graphics.Camera;
 import com.wiranoid.fuzzy.graphics.Mesh;
 import com.wiranoid.fuzzy.graphics.Window;
 import com.wiranoid.fuzzy.graphics.Texture;
+import com.wiranoid.fuzzy.graphics.g3d.loaders.ObjLoader;
 import com.wiranoid.fuzzy.graphics.glutils.Shader;
 import com.wiranoid.fuzzy.graphics.glutils.ShaderProgram;
 import com.wiranoid.fuzzy.graphics.glutils.Vertex;
@@ -39,20 +40,20 @@ public class FuzzyGame {
         WIDTH = vidMode.width();
         HEIGHT = vidMode.height();
 
-        window = new Window(1200, 800, "Fuzzy", false, true);
+        window = new Window(WIDTH, HEIGHT, "Fuzzy", true, true);
     }
 
     private static Camera camera = new Camera(
             // position
-            new Vector3f(-1.0f, 2.0f, 7.0f),
+            new Vector3f(0.0f, 3.0f, 10.0f),
             // direction
             new Vector3f(0.0f, 0.0f, 0.0f),
             // world up
             new Vector3f(0.0f, 1.0f, 0.0f),
             // yaw and pitch angles
-            -80.0f, -10.0f,
+            -90.0f, 0.0f,
             // movementSpeed, mouseSensitivity, field of view (zoom)
-            5.0f, 0.03f, 45.0f);
+            6.0f, 0.03f, 45.0f);
 
     // Deltatime
     // Time between current frame and last frame
@@ -229,6 +230,14 @@ public class FuzzyGame {
                 -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f
         };
 
+        Mesh nanosuit = ObjLoader.loadMesh("assets/models/nanosuit/nanosuit.obj");
+        nanosuit.bind(lampShader);
+
+        Mesh dragon = ObjLoader.loadMesh("assets/models/dragon/dragon.obj");
+        dragon.bind(lampShader);
+
+        Mesh bunny = ObjLoader.loadMesh("assets/models/bunny/bunny.obj");
+        bunny.bind(lampShader);
 
         Vertex[] vertices = new Vertex[36];
         int index = 0;
@@ -240,8 +249,10 @@ public class FuzzyGame {
             );
         }
 
-        Mesh box = new Mesh(vertices, lightingShader);
-        Mesh light = new Mesh(vertices, lampShader);
+        Mesh box = new Mesh(vertices);
+        box.bind(lightingShader);
+        Mesh light = new Mesh(vertices);
+        light.bind(lightingShader);
 
         lightingShader.use();
         Texture diffuseMap = Texture.load("assets/textures/container2.png");
@@ -251,6 +262,8 @@ public class FuzzyGame {
         lightingShader.setUniform("material.specular", 1);
 
         lightingShader.setUniform("material.shininess", 32.0f);
+
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
         // Game loop
         while (!window.isClosing()) {
@@ -347,7 +360,7 @@ public class FuzzyGame {
                 model.rotateXYZ(angle, 0.3f * angle, 0.7f * angle);
                 lightingShader.setUniform("model", model);
 
-                box.render();
+                //box.render();
             }
 
             // Also draw the lamp object, again binding the appropriate shader
@@ -359,6 +372,22 @@ public class FuzzyGame {
                     (float) Math.toRadians(camera.getZoom()), WIDTH / HEIGHT, 0.1f, 100.0f);
             lampShader.setUniform("projection", projection);
 
+            // mesh rendering
+            lampShader.setUniform("model",
+                    new Matrix4f().scale(0.2f).translate(-15.0f, 0.0f, 50.0f).rotateY((float) Math.toRadians(140)));
+
+            nanosuit.render();
+
+            lampShader.setUniform("model",
+                    new Matrix4f().scale(0.6f).rotateY((float) Math.toRadians(90.0f)));
+
+            dragon.render();
+
+            lampShader.setUniform("model",
+                    new Matrix4f().scale(4.0f).translate(2.7f, 0.0f, 1.5f).rotateY((float) Math.toRadians(-20.0f)));
+
+            bunny.render();
+
             // We now draw as many light bulbs as we have point lights
             for (Vector3f pointLightPosition : pointLightPositions) {
                 Matrix4f model = new Matrix4f();
@@ -366,13 +395,15 @@ public class FuzzyGame {
                 model.scale(0.2f);
                 lampShader.setUniform("model", model);
 
-                light.render();
+                //light.render();
             }
 
             window.update();
         }
 
         // Properly de-allocate all resources once they've outlived their purpose
+        nanosuit.dispose();
+        dragon.dispose();
         box.dispose();
         light.dispose();
 

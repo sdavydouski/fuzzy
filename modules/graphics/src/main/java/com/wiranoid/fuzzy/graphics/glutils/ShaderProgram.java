@@ -10,7 +10,6 @@ import java.util.LinkedHashMap;
 import static org.lwjgl.opengl.GL11.GL_TRUE;
 import static org.lwjgl.opengl.GL20.*;
 
-
 public class ShaderProgram implements Disposable {
     private final int id;
 
@@ -18,21 +17,7 @@ public class ShaderProgram implements Disposable {
     private Shader geometryShader;
     private Shader fragmentShader;
 
-    //todo: implement VertexAttribute class
-    //private LinkedHashMap<String, Object> vertexAttributes;
     private LinkedHashMap<String, Object> uniforms;
-
-    public Shader getVertexShader() {
-        return vertexShader;
-    }
-
-    public Shader getGeometryShader() {
-        return geometryShader;
-    }
-
-    public Shader getFragmentShader() {
-        return fragmentShader;
-    }
 
     public LinkedHashMap<String, Object> getUniforms() {
         return uniforms;
@@ -88,17 +73,6 @@ public class ShaderProgram implements Disposable {
                                    boolean normalized,
                                    int stride,
                                    int offset) {
-        glEnableVertexAttribArray(location);
-        glVertexAttribPointer(location, size, type, normalized, stride, offset);
-    }
-
-    public void setVertexAttribute(String name,
-                                   int size,
-                                   int type,
-                                   boolean normalized,
-                                   int stride,
-                                   int offset) {
-        int location = getAttributeLocation(name);
         glEnableVertexAttribArray(location);
         glVertexAttribPointer(location, size, type, normalized, stride, offset);
     }
@@ -165,18 +139,6 @@ public class ShaderProgram implements Disposable {
         if (status != GL_TRUE) {
             throw new RuntimeException(glGetProgramInfoLog(id));
         }
-    }
-
-    /*
-    * You should stop using glGetAttribLocation. Assign each attribute a location,
-    * either with glBindAttribLocation before linking the program or with explicit attribute locations
-    * */
-    private int getAttributeLocation(String name) {
-        int location = glGetAttribLocation(id, name);
-        if (location == -1) {
-            throw new RuntimeException("Unable to find attribute '" + name + "' in the shaders!");
-        }
-        return location;
     }
 
     private int getUniformLocation(String name) {

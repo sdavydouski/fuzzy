@@ -21,38 +21,47 @@ public class Mesh implements Disposable {
     private final int vboId;
     private final int eboId;
 
-    public Mesh(Vertex[] vertices, ShaderProgram shaderProgram) {
+    public Mesh(Vertex[] vertices) {
         this.vertices = vertices;
-
         this.vaoId = glGenVertexArrays();
-        glBindVertexArray(vaoId);
-
         this.vboId = glGenBuffers();
-        fillVBO(shaderProgram);
-
         this.eboId = -1;
-
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        glBindVertexArray(0);
     }
 
-    public Mesh(Vertex[] vertices, int[] indices, ShaderProgram shaderProgram) {
+    public Mesh(Vertex[] vertices, int[] indices) {
         this.vertices = vertices;
-
         this.vaoId = glGenVertexArrays();
-        glBindVertexArray(vaoId);
-
         this.vboId = glGenBuffers();
-        fillVBO(shaderProgram);
-
         this.indices = convertToBuffer(indices);
-
         this.eboId = glGenBuffers();
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this.eboId);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices, GL_STATIC_DRAW);
+    }
+
+    public void bind(ShaderProgram shaderProgram) {
+        glBindVertexArray(this.vaoId);
+
+        glBindBuffer(GL_ARRAY_BUFFER, this.vboId);
+        glBufferData(GL_ARRAY_BUFFER, convertToBuffer(vertices), GL_STATIC_DRAW);
+
+        Vertex vertex = vertices[0];
+
+        for (VertexAttribute attribute : vertex) {
+            shaderProgram.setVertexAttribute(
+                    attribute.getLocation(),
+                    attribute.size(),
+                    GL_FLOAT,
+                    false,
+                    vertex.sizeInBytes(),
+                    attribute.getOffset()
+            );
+        }
+
+        if (this.eboId != -1) {
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this.eboId);
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices, GL_STATIC_DRAW);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+        }
 
         glBindBuffer(GL_ARRAY_BUFFER, 0);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
         glBindVertexArray(0);
     }
 
@@ -71,24 +80,6 @@ public class Mesh implements Disposable {
     public void dispose() {
         glDeleteVertexArrays(this.vaoId);
         glDeleteBuffers(this.vboId);
-    }
-
-    private void fillVBO(ShaderProgram shaderProgram) {
-        glBindBuffer(GL_ARRAY_BUFFER, this.vboId);
-        glBufferData(GL_ARRAY_BUFFER, convertToBuffer(vertices), GL_STATIC_DRAW);
-
-        Vertex vertex = vertices[0];
-
-        for (VertexAttribute attribute : vertex) {
-            shaderProgram.setVertexAttribute(
-                    attribute.getLocation(),
-                    attribute.size(),
-                    GL_FLOAT,
-                    false,
-                    vertex.sizeInBytes(),
-                    attribute.getOffset()
-            );
-        }
     }
 
     private FloatBuffer convertToBuffer(Vertex[] vertices) {
