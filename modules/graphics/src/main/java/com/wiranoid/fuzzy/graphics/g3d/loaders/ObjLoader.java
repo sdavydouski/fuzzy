@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+//todo: mtl loader
 public class ObjLoader {
 
     private final static String DELIMITER = "\\s+";

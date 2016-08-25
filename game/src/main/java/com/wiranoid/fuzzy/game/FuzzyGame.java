@@ -151,119 +151,137 @@ public class FuzzyGame {
         // Setup OpenGL options
         glEnable(GL_DEPTH_TEST);
 
-        ShaderProgram lightingShader = new ShaderProgram(
-                Shader.load(Shader.Type.VERTEX, "assets/shaders/vertex/lighting.vert"),
-                Shader.load(Shader.Type.FRAGMENT, "assets/shaders/fragment/lighting.frag")
+//        ShaderProgram lightingShader = new ShaderProgram(
+//                Shader.load(Shader.Type.VERTEX, "assets/shaders/lighting/lighting.vert"),
+//                Shader.load(Shader.Type.FRAGMENT, "assets/shaders/lighting/lighting.frag")
+//        );
+//        lightingShader.link();
+//
+//        ShaderProgram lampShader = new ShaderProgram(
+//                Shader.load(Shader.Type.VERTEX, "assets/shaders/lighting/lamp.vert"),
+//                Shader.load(Shader.Type.FRAGMENT, "assets/shaders/lighting/lamp.frag")
+//        );
+//        lampShader.link();
+//
+//        // Positions of all containers
+//        Vector3f[] cubePositions = {
+//            new Vector3f(0.0f, 0.0f, 0.0f),
+//            new Vector3f(2.0f, 5.0f, -15.0f),
+//            new Vector3f(-1.5f, -2.2f, -2.5f),
+//            new Vector3f(-3.8f, -2.0f, -12.3f),
+//            new Vector3f(2.4f, -0.4f, -3.5f),
+//            new Vector3f(-1.7f, 3.0f, -7.5f),
+//            new Vector3f(1.3f, -2.0f, -2.5f),
+//            new Vector3f(1.5f, 2.0f, -2.5f),
+//            new Vector3f(1.5f, 0.2f, -1.5f),
+//            new Vector3f(-1.3f, 1.0f, -1.5f)
+//        };
+//
+//        // Positions of the point lights
+//        Vector3f[] pointLightPositions = {
+//            new Vector3f(0.7f, 0.2f, 2.0f),
+//            new Vector3f(2.3f, -3.3f, -4.0f),
+//            new Vector3f(-4.0f, 2.0f, -12.0f),
+//            new Vector3f(0.0f, 0.0f, -3.0f)
+//        };
+//
+//        float[] verticesData = {
+//                // Positions           // Normals           // Texture Coords
+//                -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
+//                0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 0.0f,
+//                0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
+//                0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
+//                -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 1.0f,
+//                -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
+//
+//                -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 0.0f,
+//                0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 0.0f,
+//                0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 1.0f,
+//                0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 1.0f,
+//                -0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 1.0f,
+//                -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 0.0f,
+//
+//                -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
+//                -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
+//                -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
+//                -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
+//                -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
+//                -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
+//
+//                0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
+//                0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
+//                0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
+//                0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
+//                0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
+//                0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
+//
+//                -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
+//                0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 1.0f,
+//                0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
+//                0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
+//                -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 0.0f,
+//                -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
+//
+//                -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f,
+//                0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 1.0f,
+//                0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
+//                0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
+//                -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 0.0f,
+//                -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f
+//        };
+
+        ShaderProgram nanosuitShader = new ShaderProgram(
+                Shader.load(Shader.Type.VERTEX, "assets/shaders/models/nanosuit/model.vert"),
+                Shader.load(Shader.Type.FRAGMENT, "assets/shaders/models/nanosuit/model.frag")
         );
-        lightingShader.link();
-
-        ShaderProgram lampShader = new ShaderProgram(
-                Shader.load(Shader.Type.VERTEX, "assets/shaders/vertex/lamp.vert"),
-                Shader.load(Shader.Type.FRAGMENT, "assets/shaders/fragment/lamp.frag")
-        );
-        lampShader.link();
-
-        // Positions of all containers
-        Vector3f[] cubePositions = {
-            new Vector3f(0.0f, 0.0f, 0.0f),
-            new Vector3f(2.0f, 5.0f, -15.0f),
-            new Vector3f(-1.5f, -2.2f, -2.5f),
-            new Vector3f(-3.8f, -2.0f, -12.3f),
-            new Vector3f(2.4f, -0.4f, -3.5f),
-            new Vector3f(-1.7f, 3.0f, -7.5f),
-            new Vector3f(1.3f, -2.0f, -2.5f),
-            new Vector3f(1.5f, 2.0f, -2.5f),
-            new Vector3f(1.5f, 0.2f, -1.5f),
-            new Vector3f(-1.3f, 1.0f, -1.5f)
-        };
-
-        // Positions of the point lights
-        Vector3f[] pointLightPositions = {
-            new Vector3f(0.7f, 0.2f, 2.0f),
-            new Vector3f(2.3f, -3.3f, -4.0f),
-            new Vector3f(-4.0f, 2.0f, -12.0f),
-            new Vector3f(0.0f, 0.0f, -3.0f)
-        };
-
-        float[] verticesData = {
-                // Positions           // Normals           // Texture Coords
-                -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
-                0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 0.0f,
-                0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
-                0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
-                -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 1.0f,
-                -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
-
-                -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 0.0f,
-                0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 0.0f,
-                0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 1.0f,
-                0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 1.0f,
-                -0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 1.0f,
-                -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 0.0f,
-
-                -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-                -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
-                -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-                -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-                -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
-                -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-
-                0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-                0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
-                0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-                0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-                0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
-                0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-
-                -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
-                0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 1.0f,
-                0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
-                0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
-                -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 0.0f,
-                -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
-
-                -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f,
-                0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 1.0f,
-                0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
-                0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
-                -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 0.0f,
-                -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f
-        };
+        nanosuitShader.link();
 
         Mesh nanosuit = ObjLoader.loadMesh("assets/models/nanosuit/nanosuit.obj");
-        nanosuit.bind(lampShader);
+        nanosuit.bind(nanosuitShader);
+
+        ShaderProgram dragonShader = new ShaderProgram(
+                Shader.load(Shader.Type.VERTEX, "assets/shaders/models/dragon/model.vert"),
+                Shader.load(Shader.Type.FRAGMENT, "assets/shaders/models/dragon/model.frag")
+        );
+        dragonShader.link();
 
         Mesh dragon = ObjLoader.loadMesh("assets/models/dragon/dragon.obj");
-        dragon.bind(lampShader);
+        dragon.bind(dragonShader);
+
+        ShaderProgram bunnyShader = new ShaderProgram(
+                Shader.load(Shader.Type.VERTEX, "assets/shaders/models/bunny/model.vert"),
+                Shader.load(Shader.Type.FRAGMENT, "assets/shaders/models/bunny/model.frag")
+        );
+        bunnyShader.link();
 
         Mesh bunny = ObjLoader.loadMesh("assets/models/bunny/bunny.obj");
-        bunny.bind(lampShader);
+        bunny.bind(bunnyShader);
 
-        Vertex[] vertices = new Vertex[36];
-        int index = 0;
-        for (int i = 0; i < verticesData.length; i += 8) {
-            vertices[index++] = new Vertex(
-                    new VertexAttribute(VertexAttribute.Usage.Position, verticesData[i], verticesData[i + 1], verticesData[i + 2]),
-                    new VertexAttribute(VertexAttribute.Usage.Normal, verticesData[i + 3], verticesData[i + 4], verticesData[i + 5]),
-                    new VertexAttribute(VertexAttribute.Usage.TextureCoordinates, verticesData[i + 6], verticesData[i + 7])
-            );
-        }
+//        Vertex[] vertices = new Vertex[36];
+//        int index = 0;
+//        for (int i = 0; i < verticesData.length; i += 8) {
+//            vertices[index++] = new Vertex(
+//                    new VertexAttribute(VertexAttribute.Usage.Position, verticesData[i], verticesData[i + 1], verticesData[i + 2]),
+//                    new VertexAttribute(VertexAttribute.Usage.Normal, verticesData[i + 3], verticesData[i + 4], verticesData[i + 5]),
+//                    new VertexAttribute(VertexAttribute.Usage.TextureCoordinates, verticesData[i + 6], verticesData[i + 7])
+//            );
+//        }
 
-        Mesh box = new Mesh(vertices);
-        box.bind(lightingShader);
-        Mesh light = new Mesh(vertices);
-        light.bind(lightingShader);
+//        Mesh box = new Mesh(vertices);
+//        box.bind(lightingShader);
+//        Mesh light = new Mesh(vertices);
+//        light.bind(lightingShader);
+//
+//        lightingShader.use();
+//        Texture diffuseMap = Texture.load("assets/textures/container2.png");
+//        lightingShader.setUniform("material.diffuse", 0);
+//
+//        Texture specularMap = Texture.load("assets/textures/container2_specular.png");
+//        lightingShader.setUniform("material.specular", 1);
+//
+//        lightingShader.setUniform("material.shininess", 32.0f);
 
-        lightingShader.use();
-        Texture diffuseMap = Texture.load("assets/textures/container2.png");
-        lightingShader.setUniform("material.diffuse", 0);
-
-        Texture specularMap = Texture.load("assets/textures/container2_specular.png");
-        lightingShader.setUniform("material.specular", 1);
-
-        lightingShader.setUniform("material.shininess", 32.0f);
-
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
         // Game loop
         while (!window.isClosing()) {
@@ -282,121 +300,146 @@ public class FuzzyGame {
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             // Use corresponding shader when setting uniforms/drawing objects
-            lightingShader.use();
+//            lightingShader.use();
+//
+//            lightingShader.setUniform("viewPosition", camera.getPosition());
+//
+//            // Set lights properties
+//            // Directional light
+//            lightingShader.setUniform("directionalLight.direction", new Vector3f(-0.2f, -1.0f, -0.3f));
+//            lightingShader.setUniform("directionalLight.ambient", new Vector3f(0.05f));
+//            lightingShader.setUniform("directionalLight.diffuse", new Vector3f(0.4f));
+//            lightingShader.setUniform("directionalLight.specular", new Vector3f(0.5f));
+//            // Point light 1
+//            lightingShader.setUniform("pointLights[0].position", pointLightPositions[0]);
+//            lightingShader.setUniform("pointLights[0].ambient", new Vector3f(0.05f));
+//            lightingShader.setUniform("pointLights[0].diffuse", new Vector3f(0.8f));
+//            lightingShader.setUniform("pointLights[0].specular", new Vector3f(1.0f));
+//            lightingShader.setUniform("pointLights[0].constant", 1.0f);
+//            lightingShader.setUniform("pointLights[0].linear", 0.09f);
+//            lightingShader.setUniform("pointLights[0].quadratic", 0.032f);
+//            // Point light 2
+//            lightingShader.setUniform("pointLights[1].position", pointLightPositions[1]);
+//            lightingShader.setUniform("pointLights[1].ambient", new Vector3f(0.05f));
+//            lightingShader.setUniform("pointLights[1].diffuse", new Vector3f(0.8f));
+//            lightingShader.setUniform("pointLights[1].specular", new Vector3f(1.0f));
+//            lightingShader.setUniform("pointLights[1].constant", 1.0f);
+//            lightingShader.setUniform("pointLights[1].linear", 0.09f);
+//            lightingShader.setUniform("pointLights[1].quadratic", 0.032f);
+//            // Point light 3
+//            lightingShader.setUniform("pointLights[2].position", pointLightPositions[2]);
+//            lightingShader.setUniform("pointLights[2].ambient", new Vector3f(0.05f));
+//            lightingShader.setUniform("pointLights[2].diffuse", new Vector3f(0.8f));
+//            lightingShader.setUniform("pointLights[2].specular", new Vector3f(1.0f));
+//            lightingShader.setUniform("pointLights[2].constant", 1.0f);
+//            lightingShader.setUniform("pointLights[2].linear", 0.09f);
+//            lightingShader.setUniform("pointLights[2].quadratic", 0.032f);
+//            // Point light 4
+//            lightingShader.setUniform("pointLights[3].position", pointLightPositions[3]);
+//            lightingShader.setUniform("pointLights[3].ambient", new Vector3f(0.05f));
+//            lightingShader.setUniform("pointLights[3].diffuse", new Vector3f(0.8f));
+//            lightingShader.setUniform("pointLights[3].specular", new Vector3f(1.0f));
+//            lightingShader.setUniform("pointLights[3].constant", 1.0f);
+//            lightingShader.setUniform("pointLights[3].linear", 0.09f);
+//            lightingShader.setUniform("pointLights[3].quadratic", 0.032f);
+//            // SpotLight
+//            lightingShader.setUniform("spotLight.position", camera.getPosition());
+//            lightingShader.setUniform("spotLight.direction", camera.getDirection());
+//            lightingShader.setUniform("spotLight.ambient", new Vector3f(0.0f));
+//            lightingShader.setUniform("spotLight.diffuse", new Vector3f(1.0f));
+//            lightingShader.setUniform("spotLight.specular", new Vector3f(1.0f));
+//            lightingShader.setUniform("spotLight.constant", 1.0f);
+//            lightingShader.setUniform("spotLight.linear", 0.09f);
+//            lightingShader.setUniform("spotLight.quadratic", 0.032f);
+//            lightingShader.setUniform("spotLight.innerCutOff", (float) Math.cos(Math.toRadians(12.5f)));
+//            lightingShader.setUniform("spotLight.outerCutOff", (float) Math.cos(Math.toRadians(15.0f)));
+//            if (toggleKeys[GLFW.GLFW_KEY_SPACE]) {
+//                lightingShader.setUniform("spotLight.enabled", true);
+//            } else {
+//                lightingShader.setUniform("spotLight.enabled", false);
+//            }
+//
+//            // Create camera transformations
+//            lightingShader.setUniform("view", camera.getViewMatrix());
+//
+//            Matrix4f projection = new Matrix4f().perspective(
+//                    (float) Math.toRadians(camera.getZoom()), WIDTH / HEIGHT, 0.1f, 100.0f);
+//            lightingShader.setUniform("projection", projection);
+//
+//            diffuseMap.bind(0);
+//            specularMap.bind(1);
+//
+//            // Draw 10 containers with the same VAO and VBO information;
+//            // only their world space coordinates differ
+//            for (int i = 0; i < cubePositions.length; i++) {
+//                Matrix4f model = new Matrix4f();
+//                model.translate(cubePositions[i]);
+//                float angle = 20.0f * i;
+//                model.rotateXYZ(angle, 0.3f * angle, 0.7f * angle);
+//                lightingShader.setUniform("model", model);
+//
+//                //box.render();
+//            }
+//
+//            // Also draw the lamp object, again binding the appropriate shader
+//            lampShader.use();
+//
+//            lampShader.setUniform("view", camera.getViewMatrix());
+//
+//            projection = new Matrix4f().perspective(
+//                    (float) Math.toRadians(camera.getZoom()), WIDTH / HEIGHT, 0.1f, 100.0f);
+//            lampShader.setUniform("projection", projection);
+//
+//            // mesh rendering
+//            lampShader.setUniform("model",
+//                    new Matrix4f().scale(0.2f).translate(-15.0f, 0.0f, 50.0f).rotateY((float) Math.toRadians(140)));
+//
+//            nanosuit.render();
+//
+//            lampShader.setUniform("model",
+//                    new Matrix4f().scale(0.6f).rotateY((float) Math.toRadians(90.0f)));
+//
+//            dragon.render();
+//
+//            lampShader.setUniform("model",
+//                    new Matrix4f().scale(4.0f).translate(2.7f, 0.0f, 1.5f).rotateY((float) Math.toRadians(-20.0f)));
+//
+//            bunny.render();
+//
+//            // We now draw as many light bulbs as we have point lights
+//            for (Vector3f pointLightPosition : pointLightPositions) {
+//                Matrix4f model = new Matrix4f();
+//                model.translate(pointLightPosition);
+//                model.scale(0.2f);
+//                lampShader.setUniform("model", model);
+//
+//                //light.render();
+//            }
 
-            lightingShader.setUniform("viewPosition", camera.getPosition());
-
-            // Set lights properties
-            // Directional light
-            lightingShader.setUniform("directionalLight.direction", new Vector3f(-0.2f, -1.0f, -0.3f));
-            lightingShader.setUniform("directionalLight.ambient", new Vector3f(0.05f));
-            lightingShader.setUniform("directionalLight.diffuse", new Vector3f(0.4f));
-            lightingShader.setUniform("directionalLight.specular", new Vector3f(0.5f));
-            // Point light 1
-            lightingShader.setUniform("pointLights[0].position", pointLightPositions[0]);
-            lightingShader.setUniform("pointLights[0].ambient", new Vector3f(0.05f));
-            lightingShader.setUniform("pointLights[0].diffuse", new Vector3f(0.8f));
-            lightingShader.setUniform("pointLights[0].specular", new Vector3f(1.0f));
-            lightingShader.setUniform("pointLights[0].constant", 1.0f);
-            lightingShader.setUniform("pointLights[0].linear", 0.09f);
-            lightingShader.setUniform("pointLights[0].quadratic", 0.032f);
-            // Point light 2
-            lightingShader.setUniform("pointLights[1].position", pointLightPositions[1]);
-            lightingShader.setUniform("pointLights[1].ambient", new Vector3f(0.05f));
-            lightingShader.setUniform("pointLights[1].diffuse", new Vector3f(0.8f));
-            lightingShader.setUniform("pointLights[1].specular", new Vector3f(1.0f));
-            lightingShader.setUniform("pointLights[1].constant", 1.0f);
-            lightingShader.setUniform("pointLights[1].linear", 0.09f);
-            lightingShader.setUniform("pointLights[1].quadratic", 0.032f);
-            // Point light 3
-            lightingShader.setUniform("pointLights[2].position", pointLightPositions[2]);
-            lightingShader.setUniform("pointLights[2].ambient", new Vector3f(0.05f));
-            lightingShader.setUniform("pointLights[2].diffuse", new Vector3f(0.8f));
-            lightingShader.setUniform("pointLights[2].specular", new Vector3f(1.0f));
-            lightingShader.setUniform("pointLights[2].constant", 1.0f);
-            lightingShader.setUniform("pointLights[2].linear", 0.09f);
-            lightingShader.setUniform("pointLights[2].quadratic", 0.032f);
-            // Point light 4
-            lightingShader.setUniform("pointLights[3].position", pointLightPositions[3]);
-            lightingShader.setUniform("pointLights[3].ambient", new Vector3f(0.05f));
-            lightingShader.setUniform("pointLights[3].diffuse", new Vector3f(0.8f));
-            lightingShader.setUniform("pointLights[3].specular", new Vector3f(1.0f));
-            lightingShader.setUniform("pointLights[3].constant", 1.0f);
-            lightingShader.setUniform("pointLights[3].linear", 0.09f);
-            lightingShader.setUniform("pointLights[3].quadratic", 0.032f);
-            // SpotLight
-            lightingShader.setUniform("spotLight.position", camera.getPosition());
-            lightingShader.setUniform("spotLight.direction", camera.getDirection());
-            lightingShader.setUniform("spotLight.ambient", new Vector3f(0.0f));
-            lightingShader.setUniform("spotLight.diffuse", new Vector3f(1.0f));
-            lightingShader.setUniform("spotLight.specular", new Vector3f(1.0f));
-            lightingShader.setUniform("spotLight.constant", 1.0f);
-            lightingShader.setUniform("spotLight.linear", 0.09f);
-            lightingShader.setUniform("spotLight.quadratic", 0.032f);
-            lightingShader.setUniform("spotLight.innerCutOff", (float) Math.cos(Math.toRadians(12.5f)));
-            lightingShader.setUniform("spotLight.outerCutOff", (float) Math.cos(Math.toRadians(15.0f)));
-            if (toggleKeys[GLFW.GLFW_KEY_SPACE]) {
-                lightingShader.setUniform("spotLight.enabled", true);
-            } else {
-                lightingShader.setUniform("spotLight.enabled", false);
-            }
-
-            // Create camera transformations
-            lightingShader.setUniform("view", camera.getViewMatrix());
-
-            Matrix4f projection = new Matrix4f().perspective(
-                    (float) Math.toRadians(camera.getZoom()), WIDTH / HEIGHT, 0.1f, 100.0f);
-            lightingShader.setUniform("projection", projection);
-
-            diffuseMap.bind(0);
-            specularMap.bind(1);
-
-            // Draw 10 containers with the same VAO and VBO information;
-            // only their world space coordinates differ
-            for (int i = 0; i < cubePositions.length; i++) {
-                Matrix4f model = new Matrix4f();
-                model.translate(cubePositions[i]);
-                float angle = 20.0f * i;
-                model.rotateXYZ(angle, 0.3f * angle, 0.7f * angle);
-                lightingShader.setUniform("model", model);
-
-                //box.render();
-            }
-
-            // Also draw the lamp object, again binding the appropriate shader
-            lampShader.use();
-
-            lampShader.setUniform("view", camera.getViewMatrix());
-
-            projection = new Matrix4f().perspective(
-                    (float) Math.toRadians(camera.getZoom()), WIDTH / HEIGHT, 0.1f, 100.0f);
-            lampShader.setUniform("projection", projection);
+            nanosuitShader.use();
+            setupShader(nanosuitShader);
 
             // mesh rendering
-            lampShader.setUniform("model",
+            nanosuitShader.setUniform("model",
                     new Matrix4f().scale(0.2f).translate(-15.0f, 0.0f, 50.0f).rotateY((float) Math.toRadians(140)));
 
             nanosuit.render();
 
-            lampShader.setUniform("model",
+            dragonShader.use();
+            setupShader(dragonShader);
+
+            dragonShader.setUniform("model",
                     new Matrix4f().scale(0.6f).rotateY((float) Math.toRadians(90.0f)));
 
             dragon.render();
 
-            lampShader.setUniform("model",
+            bunnyShader.use();
+            setupShader(bunnyShader);
+
+            bunnyShader.setUniform("model",
                     new Matrix4f().scale(4.0f).translate(2.7f, 0.0f, 1.5f).rotateY((float) Math.toRadians(-20.0f)));
 
             bunny.render();
-
-            // We now draw as many light bulbs as we have point lights
-            for (Vector3f pointLightPosition : pointLightPositions) {
-                Matrix4f model = new Matrix4f();
-                model.translate(pointLightPosition);
-                model.scale(0.2f);
-                lampShader.setUniform("model", model);
-
-                //light.render();
-            }
 
             window.update();
         }
@@ -406,20 +449,60 @@ public class FuzzyGame {
         dragon.dispose();
         bunny.dispose();
 
-        box.dispose();
-        light.dispose();
-
-        diffuseMap.dispose();
-        specularMap.dispose();
-
-        lightingShader.dispose();
-        lampShader.dispose();
+//        box.dispose();
+//        light.dispose();
+//
+//        diffuseMap.dispose();
+//        specularMap.dispose();
+//
+//        lightingShader.dispose();
+//        lampShader.dispose();
+        nanosuitShader.dispose();
+        dragonShader.dispose();
+        bunnyShader.dispose();
 
         window.dispose();
 
         // Terminate GLFW, clearing any resources allocated by GLFW
         glfwTerminate();
         errorCallback.free();
+    }
+
+    private static void setupShader(ShaderProgram shader) {
+        shader.setUniform("viewPosition", camera.getPosition());
+
+        // Set lights properties
+        // Directional light
+        shader.setUniform("directionalLight.direction", new Vector3f(-0.2f, -1.0f, -0.3f));
+        shader.setUniform("directionalLight.ambient", new Vector3f(0.05f));
+        shader.setUniform("directionalLight.diffuse", new Vector3f(0.4f));
+        shader.setUniform("directionalLight.specular", new Vector3f(0.5f));
+
+        // SpotLight
+        shader.setUniform("spotLight.position", camera.getPosition());
+        shader.setUniform("spotLight.direction", camera.getDirection());
+        shader.setUniform("spotLight.ambient", new Vector3f(0.0f));
+        shader.setUniform("spotLight.diffuse", new Vector3f(1.0f));
+        shader.setUniform("spotLight.specular", new Vector3f(1.0f));
+        shader.setUniform("spotLight.constant", 1.0f);
+        shader.setUniform("spotLight.linear", 0.09f);
+        shader.setUniform("spotLight.quadratic", 0.032f);
+        shader.setUniform("spotLight.innerCutOff", (float) Math.cos(Math.toRadians(12.5f)));
+        shader.setUniform("spotLight.outerCutOff", (float) Math.cos(Math.toRadians(15.0f)));
+        if (toggleKeys[GLFW.GLFW_KEY_SPACE]) {
+            shader.setUniform("spotLight.enabled", true);
+        } else {
+            shader.setUniform("spotLight.enabled", false);
+        }
+
+        // Create camera transformations
+        shader.setUniform("view", camera.getViewMatrix());
+
+        Matrix4f projection = new Matrix4f().perspective(
+                (float) Math.toRadians(camera.getZoom()), WIDTH / HEIGHT, 0.1f, 100.0f);
+        shader.setUniform("projection", projection);
+
+        shader.setUniform("model", new Matrix4f());
     }
 
 }
