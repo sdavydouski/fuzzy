@@ -33,6 +33,8 @@ public class ShaderProgram implements Disposable {
 
         attachShader(vertexShader);
         attachShader(fragmentShader);
+
+        link();
     }
 
     public void attachShader(Shader shader) {
