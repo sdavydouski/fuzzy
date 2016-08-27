@@ -47,7 +47,7 @@ public class ObjLoader {
 
                 if (hasTextures) {
                     textureCoordinates[index * 2] = textureCoordinatesList.get(group.textureCoordinate).x;
-                    textureCoordinates[index * 2 + 1] = 1 - textureCoordinatesList.get(group.textureCoordinate).y;
+                    textureCoordinates[index * 2 + 1] = textureCoordinatesList.get(group.textureCoordinate).y;
                 }
 
                 normals[index * 3] = normalsList.get(group.normal).x;

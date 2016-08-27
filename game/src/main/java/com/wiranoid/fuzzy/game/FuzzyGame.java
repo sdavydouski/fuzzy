@@ -38,18 +38,18 @@ public class FuzzyGame {
         WIDTH = vidMode.width();
         HEIGHT = vidMode.height();
 
-        window = new Window(1200, 700, "Fuzzy", false, true);
+        window = new Window(1600, 900, "Fuzzy", false, true);
     }
 
     private static Camera camera = new Camera(
             // position
-            new Vector3f(0.0f, 3.0f, 10.0f),
+            new Vector3f(0.0f, 3.0f, -10.0f),
             // direction
             new Vector3f(0.0f, 0.0f, 0.0f),
             // world up
             new Vector3f(0.0f, 1.0f, 0.0f),
             // yaw and pitch angles
-            -90.0f, 0.0f,
+            90.0f, 0.0f,
             // movementSpeed, mouseSensitivity, field of view (zoom)
             6.0f, 0.03f, 45.0f);
 
@@ -142,17 +142,25 @@ public class FuzzyGame {
         glEnable(GL_DEPTH_TEST);
 
         ShaderProgram shader = new ShaderProgram(
-                Shader.load(Shader.Type.VERTEX, "assets/shaders/models/box/box.vert"),
-                Shader.load(Shader.Type.FRAGMENT, "assets/shaders/models/box/box.frag")
+                Shader.load(Shader.Type.VERTEX, "assets/shaders/shader.vert"),
+                Shader.load(Shader.Type.FRAGMENT, "assets/shaders/shader.frag")
         );
+
+        Mesh floor = ObjLoader.loadMesh("assets/models/floor/floor.obj");
+        floor.bind(shader);
 
         Mesh box = ObjLoader.loadMesh("assets/models/box/box.obj");
         box.bind(shader);
-        Mesh sphere = ObjLoader.loadMesh("assets/models/sphere/sphere.obj");
-        sphere.bind(shader);
 
-        Texture boxTexture = Texture.load("assets/textures/metal.jpg");
-        Texture sphereTexture = Texture.load("assets/textures/triangles.jpg");
+        Mesh stall = ObjLoader.loadMesh("assets/models/stall/stall.obj");
+        stall.bind(shader);
+
+        Mesh nanosuit = ObjLoader.loadMesh("assets/models/nanosuit/nanosuit.obj");
+        nanosuit.bind(shader);
+
+        Texture grassTexture = Texture.load("assets/textures/grass.png");
+        Texture crateTexture = Texture.load("assets/textures/box.jpg");
+        Texture stallTexture = Texture.load("assets/textures/stall.png");
 
         // Game loop
         while (!window.isClosing()) {
@@ -178,22 +186,36 @@ public class FuzzyGame {
             Matrix4f model = new Matrix4f();
             shader.setUniform("model", model);
 
-            boxTexture.bind();
-            box.render();
+            shader.setUniform("useTexture", true);
 
-            shader.setUniform("model", model.translate(0.0f, 5.0f, 0.0f));
+            grassTexture.bind();
+            floor.render();
 
-            sphereTexture.bind();
-            sphere.render();
+            shader.setUniform("model", new Matrix4f().scale(0.5f));
+
+            stallTexture.bind();
+            stall.render();
+
+            shader.setUniform("useTexture", false);
+
+            shader.setUniform("model", new Matrix4f().scale(0.13f).translate(0.0f, 0.0f, -9.0f));
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+            nanosuit.render();
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
             window.update();
         }
 
+        floor.dispose();
         box.dispose();
-        sphere.dispose();
+        stall.dispose();
+        nanosuit.dispose();
+
         shader.dispose();
-        boxTexture.dispose();
-        sphereTexture.dispose();
+
+        grassTexture.dispose();
+        crateTexture.dispose();
+        stallTexture.dispose();
 
         window.dispose();
 
