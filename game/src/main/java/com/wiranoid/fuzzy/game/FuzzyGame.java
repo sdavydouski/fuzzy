@@ -140,6 +140,7 @@ public class FuzzyGame {
 
         // Setup OpenGL options
         glEnable(GL_DEPTH_TEST);
+        glEnable(GL_STENCIL_TEST);
 
         ShaderProgram shader = new ShaderProgram(
                 Shader.load(Shader.Type.VERTEX, "assets/shaders/shader.vert"),
@@ -159,7 +160,7 @@ public class FuzzyGame {
         nanosuit.bind(shader);
 
         Texture grassTexture = Texture.load("assets/textures/grass.png");
-        Texture crateTexture = Texture.load("assets/textures/box.jpg");
+        Texture boxTexture = Texture.load("assets/textures/box.jpg");
         Texture stallTexture = Texture.load("assets/textures/stall.png");
 
         // Game loop
@@ -173,7 +174,7 @@ public class FuzzyGame {
             doMovement();
 
             glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
             shader.use();
 
@@ -196,9 +197,23 @@ public class FuzzyGame {
             stallTexture.bind();
             stall.render();
 
+            boxTexture.bind();
+            for (int i = 1; i < 10; i += 2) {
+                for (int j = 7; j < 30; j += 3) {
+                    for (int k = -18; k < 19; k += 3) {
+                        shader.setUniform("model", new Matrix4f()
+                                .scale(0.5f).translate(k, i, j));
+                        box.render();
+                    }
+                }
+            }
+
             shader.setUniform("useTexture", false);
 
-            shader.setUniform("model", new Matrix4f().scale(0.13f).translate(0.0f, 0.0f, -9.0f));
+            shader.setUniform("model", new Matrix4f()
+                    .scale(0.13f)
+                    .rotateY((float) Math.toRadians(180.0f))
+                    .translate(0.0f, 0.0f, -9.0f));
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
             nanosuit.render();
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -214,7 +229,7 @@ public class FuzzyGame {
         shader.dispose();
 
         grassTexture.dispose();
-        crateTexture.dispose();
+        boxTexture.dispose();
         stallTexture.dispose();
 
         window.dispose();
