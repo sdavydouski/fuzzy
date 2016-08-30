@@ -1,90 +1,104 @@
 package com.wiranoid.fuzzy.graphics.glutils;
 
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.Optional;
+import org.joml.Vector2f;
+import org.joml.Vector3f;
 
-public class Vertex implements Iterable<VertexAttribute> {
+public class Vertex {
 
-    private VertexAttribute[] attributes;
-    private int numberOfComponents = -1;
+    private Vector3f position;
+    private Vector3f normal;
+    private Vector2f uv;
 
-    public int getNumberOfComponents() {
-        return this.numberOfComponents;
+    private int numberOfAttributes;
+    private int size;
+    private int sizeInBytes;
+
+    private float[] data;
+
+    private int[] sizes;
+    private int[] offsets;
+    private int[] locations;
+
+    public Vector3f getPosition() {
+        return position;
     }
 
-    //max 16 attributes
-    public Vertex(VertexAttribute... attributes) {
-        this.attributes = attributes;
-        this.numberOfComponents = countNumberOfComponents();
-        calculateOffsets();
-        setLocations();
+    public Vector3f getNormal() {
+        return normal;
     }
 
-    public int sizeInBytes() {
-        return Arrays.stream(this.attributes)
-                .mapToInt(VertexAttribute::sizeInBytes)
-                .sum();
+    public Vector2f getUv() {
+        return uv;
     }
 
-    public VertexAttribute findByUsage(VertexAttribute.Usage usage) {
-        Optional<VertexAttribute> optional = Arrays.stream(this.attributes)
-                .filter(attribute -> attribute.getUsage() == usage)
-                .findFirst();
+    public int getNumberOfAttributes() {
+        return numberOfAttributes;
+    }
 
-        return optional.isPresent() ?
-                optional.get() :
-                null;
+    public int getSize() {
+        return size;
+    }
+
+    public int getSizeInBytes() {
+        return sizeInBytes;
     }
 
     public float[] getData() {
-        float[] data = new float[this.numberOfComponents];
-
-        int index = 0;
-        for (VertexAttribute attribute : attributes) {
-            for (int j = 0; j < attribute.size(); j++) {
-                data[index++] = attribute.getData()[j];
-            }
-        }
-
         return data;
     }
 
-    private int countNumberOfComponents() {
-        return this.numberOfComponents = Arrays.stream(this.attributes)
-                .mapToInt(VertexAttribute::size)
-                .sum();
+    public int[] getSizes() {
+        return sizes;
     }
 
-    private void calculateOffsets() {
-        int prevSizes = 0;
-
-        for (VertexAttribute attribute : this.attributes) {
-            attribute.setOffset(prevSizes);
-            prevSizes += attribute.sizeInBytes();
-        }
+    public int[] getOffsets() {
+        return offsets;
     }
 
-    private void setLocations() {
-        for (int i = 0; i < this.attributes.length; i++) {
-            this.attributes[i].setLocation(i);
-        }
+    public int[] getLocations() {
+        return locations;
     }
 
-    @Override
-    public Iterator<VertexAttribute> iterator() {
-        return new Iterator<VertexAttribute>() {
-            private int position;
+    public Vertex(Vector3f position) {
+        this.position = position;
+        this.numberOfAttributes = 1;
+        this.size = 3;
+        this.sizeInBytes = this.size * Float.BYTES;
+        this.data = new float[] { position.x, position.y, position.z };
+        this.sizes = new int[] { 3 };
+        this.offsets = new int[] { 0 };
+        this.locations = new int[] { 0 };
+    }
 
-            @Override
-            public boolean hasNext() {
-                return attributes.length > position;
-            }
-
-            @Override
-            public VertexAttribute next() {
-                return attributes[position++];
-            }
+    public Vertex(Vector3f position, Vector3f normal) {
+        this.position = position;
+        this.normal = normal;
+        this.numberOfAttributes = 2;
+        this.size = 6;
+        this.sizeInBytes = this.size * Float.BYTES;
+        this.data = new float[] {
+            position.x, position.y, position.z,
+            normal.x, normal.y, normal.z
         };
+        this.sizes = new int[] { 3, 3 };
+        this.offsets = new int[] { 0, 3 * Float.BYTES };
+        this.locations = new int[] { 0, 1 };
+    }
+
+    public Vertex(Vector3f position, Vector3f normal, Vector2f uv) {
+        this.position = position;
+        this.normal = normal;
+        this.uv = uv;
+        this.numberOfAttributes = 3;
+        this.size = 8;
+        this.sizeInBytes = this.size * Float.BYTES;
+        this.data = new float[] {
+            position.x, position.y, position.z,
+            normal.x, normal.y, normal.z,
+            uv.x, uv.y
+        };
+        this.sizes = new int[] { 3, 3, 2 };
+        this.offsets = new int[] { 0, 3 * Float.BYTES, 6 * Float.BYTES };
+        this.locations = new int[] { 0, 1, 2 };
     }
 }

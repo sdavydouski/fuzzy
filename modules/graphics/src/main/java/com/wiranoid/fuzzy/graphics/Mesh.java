@@ -3,7 +3,6 @@ package com.wiranoid.fuzzy.graphics;
 import com.wiranoid.fuzzy.core.utils.Disposable;
 import com.wiranoid.fuzzy.graphics.glutils.ShaderProgram;
 import com.wiranoid.fuzzy.graphics.glutils.Vertex;
-import com.wiranoid.fuzzy.graphics.glutils.VertexAttribute;
 import org.lwjgl.BufferUtils;
 
 import java.nio.FloatBuffer;
@@ -42,16 +41,16 @@ public class Mesh implements Disposable {
         glBindBuffer(GL_ARRAY_BUFFER, this.vboId);
         glBufferData(GL_ARRAY_BUFFER, convertToBuffer(vertices), GL_STATIC_DRAW);
 
-        Vertex vertex = vertices[0];
+        Vertex vertex = this.vertices[0];
 
-        for (VertexAttribute attribute : vertex) {
+        for (int i = 0; i < vertex.getNumberOfAttributes(); i++) {
             shaderProgram.setVertexAttribute(
-                    attribute.getLocation(),
-                    attribute.size(),
+                    vertex.getLocations()[i],
+                    vertex.getSizes()[i],
                     GL_FLOAT,
                     false,
-                    vertex.sizeInBytes(),
-                    attribute.getOffset()
+                    vertex.getSizeInBytes(),
+                    vertex.getOffsets()[i]
             );
         }
 
@@ -83,7 +82,7 @@ public class Mesh implements Disposable {
     }
 
     private FloatBuffer convertToBuffer(Vertex[] vertices) {
-        int capacity = vertices.length * vertices[0].getNumberOfComponents();
+        int capacity = vertices.length * vertices[0].getSize();
 
         FloatBuffer buffer = BufferUtils.createFloatBuffer(capacity);
         for (Vertex vertex: vertices) {

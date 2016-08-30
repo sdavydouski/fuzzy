@@ -159,6 +159,9 @@ public class FuzzyGame {
         Mesh nanosuit = ObjLoader.loadMesh("assets/models/nanosuit/nanosuit.obj");
         nanosuit.bind(shader);
 
+        Mesh bunny = ObjLoader.loadMesh("assets/models/bunny/bunny.obj");
+        bunny.bind(shader);
+
         Texture grassTexture = Texture.load("assets/textures/grass.png");
         Texture boxTexture = Texture.load("assets/textures/box.jpg");
         Texture stallTexture = Texture.load("assets/textures/stall.png");
@@ -210,12 +213,22 @@ public class FuzzyGame {
 
             shader.setUniform("useTexture", false);
 
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
             shader.setUniform("model", new Matrix4f()
                     .scale(0.13f)
                     .rotateY((float) Math.toRadians(180.0f))
                     .translate(0.0f, 0.0f, -9.0f));
-            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
             nanosuit.render();
+
+            shader.setUniform("model", new Matrix4f()
+                    .scale(0.4f)
+                    .translate(-9.0f, 0.0f, -9.0f)
+                    .rotateY((float) Math.toRadians(120.0f)));
+
+            bunny.render();
+
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
             window.update();
