@@ -1,4 +1,5 @@
 #include "../include/Window.h"
+#include <stdexcept>
 
 Window::Window(int width, int height, std::string title, bool isFullScreen, bool vsync) {
     this->width = width;
