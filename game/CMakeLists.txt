@@ -1,0 +1,11 @@
+cmake_minimum_required(VERSION 2.8)
+project(fuzzy.game)
+
+include_directories(../modules/graphics/include)
+include_directories(../externals/glew/include)
+
+set(sources src/main.cpp)
+
+add_executable(fuzzy.game ${sources})
+
+target_link_libraries(fuzzy.game fuzzy.graphics)

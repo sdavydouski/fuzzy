@@ -1,8 +1,0 @@
-apply plugin: 'java'
-apply plugin: 'application'
-
-mainClassName = 'com.wiranoid.fuzzy.game.FuzzyGame'
-
-dependencies {
-    compile project(':modules:graphics')
-}

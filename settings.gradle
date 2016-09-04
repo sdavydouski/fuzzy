@@ -1,6 +1,0 @@
-rootProject.name = 'fuzzy'
-
-include 'modules:core'
-include 'modules:graphics'
-include 'modules:input'
-include 'game'
