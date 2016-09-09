@@ -14,7 +14,7 @@ add_library(glew STATIC ${root_dir}/externals/glew/src/glew.c)
 include_directories(${root_dir}/externals/glfw/include)
 include_directories(${root_dir}/externals/glew/include)
 
-set(sources include/Window.h src/Window.cpp)
+set(sources include/Window.h src/Window.cpp include/WindowManager.h src/WindowManager.cpp)
 
 add_library(fuzzy.graphics SHARED ${sources})
 

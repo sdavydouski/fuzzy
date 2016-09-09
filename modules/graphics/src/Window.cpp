@@ -1,66 +1,74 @@
 #include "../include/Window.h"
 #include <stdexcept>
+#include <string>
+#include <iostream>
 
-Window::Window(int width, int height, std::string title, bool isFullScreen, bool vsync) {
-    this->width = width;
-    this->height = height;
-    this->title = title;
-    this->vsync = vsync;
+using namespace graphics;
 
-    glfwDefaultWindowHints();
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+Window::Window(int width,
+               int height,
+               std::string title,
+               bool isFullScreen,
+               bool vsync) :
+        _width(width), _height(height), _title(title), _vsync(vsync) {
+    std::cout << "Creating window" << std::endl;
 
     if (isFullScreen) {
-        this->window = glfwCreateWindow(width, height, title.c_str(), glfwGetPrimaryMonitor(), nullptr);
+        this->_window = glfwCreateWindow(width, height, title.c_str(), glfwGetPrimaryMonitor(), nullptr);
     } else {
-        this->window = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
+        this->_window = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
 
         // Center window on screen
         auto vidMode = glfwGetVideoMode(glfwGetPrimaryMonitor());
-        glfwSetWindowPos(this->window,
+        glfwSetWindowPos(this->_window,
                          (vidMode->width - width) / 2,
                          (vidMode->height - height) / 2);
     }
 
-    if (this->window == nullptr) {
-        glfwTerminate();
+    if (this->_window == nullptr) {
         throw std::runtime_error("Failed to create GLFW window");
     }
 
     // Create OpenGL context
-    glfwMakeContextCurrent(this->window);
+    glfwMakeContextCurrent(this->_window);
 
     // Enable v-sync
     if (vsync) {
         glfwSwapInterval(1);
     }
+
+    // Define the viewport dimensions
+    int frameBufferWidth, frameBufferHeight;
+    glfwGetFramebufferSize(this->_window, &frameBufferWidth, &frameBufferHeight);
+    glViewport(0, 0, frameBufferWidth, frameBufferHeight);
 }
 
-Window::~Window() {
-    glfwDestroyWindow(this->window);
+void Window::setKeyCallback(GLFWkeyfun callback) {
+    glfwSetKeyCallback(this->_window, callback);
 }
 
-GLFWwindow* Window::get() {
-    return this->window;
+void Window::setMouseCallback(GLFWcursorposfun callback) {
+    glfwSetCursorPosCallback(this->_window, callback);
+}
+
+void Window::setScrollCallback(GLFWscrollfun callback) {
+    glfwSetScrollCallback(this->_window, callback);
 }
 
 bool Window::isClosing() {
-    return glfwWindowShouldClose(this->window) != 0;
+    return (bool) glfwWindowShouldClose(this->_window);
 }
 
 void Window::setIsShoudClose(bool isShoudClose) {
-    glfwSetWindowShouldClose(this->window, isShoudClose);
+    glfwSetWindowShouldClose(this->_window, isShoudClose);
 }
 
 bool Window::isVSyncEnabled() {
-    return this->vsync;
+    return this->_vsync;
 }
 
 void Window::setVSync(bool vsync) {
-    this->vsync = vsync;
+    this->_vsync = vsync;
     if (vsync) {
         glfwSwapInterval(1);
     } else {
@@ -68,10 +76,19 @@ void Window::setVSync(bool vsync) {
     }
 }
 
-void Window::setInputMode(int mode, int value) {
-    glfwSetInputMode(this->window, mode, value);
+void Window::makeContextCurrent() {
+    glfwMakeContextCurrent(this->_window);
 }
 
-void Window::update() {
-    glfwSwapBuffers(this->window);
+void Window::setInputMode(int mode, int value) {
+    glfwSetInputMode(this->_window, mode, value);
+}
+
+void Window::swapBuffers() {
+    glfwSwapBuffers(this->_window);
+}
+
+Window::~Window() {
+    std::cout << "Destroying window" << std::endl;
+    glfwDestroyWindow(this->_window);
 }

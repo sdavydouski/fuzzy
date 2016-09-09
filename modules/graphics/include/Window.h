@@ -1,28 +1,45 @@
-#ifndef FUZZY_MODULES_GRAPHICS_WINDOW_H
-#define FUZZY_MODULES_GRAPHICS_WINDOW_H
+#ifndef FUZZY_GRAPHICS_WINDOW_H
+#define FUZZY_GRAPHICS_WINDOW_H
 
 #include "GLFW/glfw3.h"
 #include <iostream>
 
-class Window {
-public:
-    int width;
-    int height;
-    std::string title;
+namespace graphics {
 
-    Window(int width, int height, std::string title, bool isFullScreen, bool vsync);
-    ~Window();
+    class Window {
+    public:
+        Window(int width, int height, std::string title, bool isFullScreen, bool vsync);
 
-    GLFWwindow* get();
-    bool isClosing();
-    void setIsShoudClose(bool isShoudClose);
-    bool isVSyncEnabled();
-    void setVSync(bool vsync);
-    void setInputMode(int mode, int value);
-    void update();
-private:
-    GLFWwindow* window;
-    bool vsync;
-};
+        ~Window();
 
-#endif //FUZZY_MODULES_GRAPHICS_WINDOW_H
+        void setKeyCallback(GLFWkeyfun callback);
+
+        void setMouseCallback(GLFWcursorposfun callback);
+
+        void setScrollCallback(GLFWscrollfun callback);
+
+        bool isClosing();
+
+        void setIsShoudClose(bool isShoudClose);
+
+        bool isVSyncEnabled();
+
+        void setVSync(bool vsync);
+
+        void makeContextCurrent();
+
+        void setInputMode(int mode, int value);
+
+        void swapBuffers();
+
+    private:
+        GLFWwindow *_window;
+        int _width;
+        int _height;
+        std::string _title;
+        bool _vsync;
+    };
+
+}
+
+#endif //FUZZY_GRAPHICS_WINDOW_H
