@@ -3,6 +3,8 @@
 #include <math.h>
 #include "Window.h"
 #include "WindowManager.h"
+#include <iostream>
+#include "glutils/ShaderProgram.h";
 
 using namespace graphics;
 
@@ -11,7 +13,7 @@ auto& windowManager = WindowManager::Instance();
 int main(int argc, char* argv[]) {
     windowManager.startUp();
 
-    Window window(1600, 900, "Fuzzy", false, true);
+    Window window(1600, 900, "Fuzzy");
     window.setKeyCallback([](GLFWwindow* window,
                              int key,
                              int scancode,

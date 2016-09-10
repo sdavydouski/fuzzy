@@ -1,7 +1,6 @@
 #include "../include/Window.h"
 #include <stdexcept>
 #include <string>
-#include <iostream>
 
 using namespace graphics;
 

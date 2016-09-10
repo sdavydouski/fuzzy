@@ -1,8 +1,6 @@
 #pragma once
 
 #include "Window.h"
-#include <string>
-#include <iostream>
 
 namespace graphics {
 
