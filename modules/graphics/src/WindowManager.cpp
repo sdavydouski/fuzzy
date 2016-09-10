@@ -8,7 +8,15 @@
 using namespace graphics;
 
 WindowManager::WindowManager() {
-    std::cout << "Init WindowManager" << std::endl;
+    //empty constructor
+}
+
+WindowManager& WindowManager::Instance() {
+    static WindowManager instance;
+    return instance;
+}
+
+void WindowManager::startUp() {
     glfwSetErrorCallback([] (int errorCode, const char* description) -> void {
         std::cout << description << std::endl;
     });
@@ -24,20 +32,10 @@ WindowManager::WindowManager() {
     glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 }
 
-WindowManager& WindowManager::Instance() {
-    static WindowManager instance;
-    return instance;
-}
-
-Window WindowManager::createWindow(int width,
-                                   int height,
-                                   std::string title,
-                                   bool isFullScreen,
-                                   bool vsync) {
-    return Window(width, height, title, isFullScreen, vsync);
+void WindowManager::shutDown() {
+    glfwTerminate();
 }
 
 WindowManager::~WindowManager() {
-    std::cout << "Destroying WindowManager" << std::endl;
-    glfwTerminate();
+    //empty destructor
 }

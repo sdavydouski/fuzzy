@@ -1,5 +1,4 @@
-#ifndef FUZZY_GRAPHICS_WINDOWMANAGER_H
-#define FUZZY_GRAPHICS_WINDOWMANAGER_H
+#pragma once
 
 #include "Window.h"
 #include <string>
@@ -13,16 +12,11 @@ namespace graphics {
         WindowManager(WindowManager const&) = delete;
         void operator =(WindowManager const&) = delete;
 
-        Window createWindow(int width,
-                            int height,
-                            std::string title,
-                            bool isFullScreen = false,
-                            bool vsync = true);
+        void startUp();
+        void shutDown();
     private:
         WindowManager();
         ~WindowManager();
     };
 
 };
-
-#endif //FUZZY_GRAPHICS_WINDOWMANAGER_H

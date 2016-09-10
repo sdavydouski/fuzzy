@@ -11,8 +11,6 @@ Window::Window(int width,
                bool isFullScreen,
                bool vsync) :
         _width(width), _height(height), _title(title), _vsync(vsync) {
-    std::cout << "Creating window" << std::endl;
-
     if (isFullScreen) {
         this->_window = glfwCreateWindow(width, height, title.c_str(), glfwGetPrimaryMonitor(), nullptr);
     } else {
@@ -59,8 +57,8 @@ bool Window::isClosing() {
     return (bool) glfwWindowShouldClose(this->_window);
 }
 
-void Window::setIsShoudClose(bool isShoudClose) {
-    glfwSetWindowShouldClose(this->_window, isShoudClose);
+void Window::setIsShoudClose(bool isShouldClose) {
+    glfwSetWindowShouldClose(this->_window, isShouldClose);
 }
 
 bool Window::isVSyncEnabled() {
@@ -88,7 +86,10 @@ void Window::swapBuffers() {
     glfwSwapBuffers(this->_window);
 }
 
-Window::~Window() {
-    std::cout << "Destroying window" << std::endl;
+void Window::destroy() {
     glfwDestroyWindow(this->_window);
+}
+
+Window::~Window() {
+    //empty destructor
 }

@@ -4,12 +4,14 @@
 #include "Window.h"
 #include "WindowManager.h"
 
-using graphics::WindowManager;
-using graphics::Window;
+using namespace graphics;
+
+auto& windowManager = WindowManager::Instance();
 
 int main(int argc, char* argv[]) {
-    WindowManager& windowManager = WindowManager::Instance();
-    Window window = windowManager.createWindow(1600, 900, "Fuzzy");
+    windowManager.startUp();
+
+    Window window(1600, 900, "Fuzzy", false, true);
     window.setKeyCallback([](GLFWwindow* window,
                              int key,
                              int scancode,
@@ -35,6 +37,9 @@ int main(int argc, char* argv[]) {
 
         window.swapBuffers();
     }
+
+    window.destroy();
+    windowManager.shutDown();
 
     return 0;
 }

@@ -1,5 +1,4 @@
-#ifndef FUZZY_GRAPHICS_WINDOW_H
-#define FUZZY_GRAPHICS_WINDOW_H
+#pragma once
 
 #include "GLFW/glfw3.h"
 #include <iostream>
@@ -8,7 +7,11 @@ namespace graphics {
 
     class Window {
     public:
-        Window(int width, int height, std::string title, bool isFullScreen, bool vsync);
+        Window(int width,
+               int height,
+               std::string title,
+               bool isFullScreen = false,
+               bool vsync = true);
 
         ~Window();
 
@@ -20,7 +23,7 @@ namespace graphics {
 
         bool isClosing();
 
-        void setIsShoudClose(bool isShoudClose);
+        void setIsShoudClose(bool isShouldClose);
 
         bool isVSyncEnabled();
 
@@ -32,6 +35,8 @@ namespace graphics {
 
         void swapBuffers();
 
+        void destroy();
+
     private:
         GLFWwindow *_window;
         int _width;
@@ -41,5 +46,3 @@ namespace graphics {
     };
 
 }
-
-#endif //FUZZY_GRAPHICS_WINDOW_H
