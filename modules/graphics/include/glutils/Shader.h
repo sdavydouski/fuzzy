@@ -7,7 +7,7 @@ namespace graphics {
 
     class Shader {
     public:
-        static enum Type {
+        enum Type {
             VERTEX = GL_VERTEX_SHADER,
             FRAGMENT = GL_FRAGMENT_SHADER
         };

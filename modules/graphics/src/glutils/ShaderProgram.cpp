@@ -5,11 +5,12 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <string>
 #include <stdexcept>
+#include <iostream>
 
 using namespace graphics;
 
-ShaderProgram::ShaderProgram(Shader& const vertexShader,
-                             Shader& const fragmentShader) :
+ShaderProgram::ShaderProgram(Shader& vertexShader,
+                             Shader& fragmentShader) :
         _vertexShader(vertexShader), _fragmentShader(fragmentShader) {
     this->_id = glCreateProgram();
 
@@ -20,11 +21,12 @@ ShaderProgram::ShaderProgram(Shader& const vertexShader,
 }
 
 ShaderProgram::~ShaderProgram() {
+    std::cout << "Deleting shaderProgram" << std::endl;
     this->end();
     glDeleteProgram(this->_id);
 }
 
-void ShaderProgram::attachShader(Shader& const shader) {
+void ShaderProgram::attachShader(Shader& shader) {
     switch (shader.getType()) {
         case Shader::VERTEX:
             this->_vertexShader = shader;

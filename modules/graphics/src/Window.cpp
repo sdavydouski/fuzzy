@@ -10,20 +10,20 @@ Window::Window(int width,
                bool isFullScreen,
                bool vsync) :
         _width(width), _height(height), _title(title), _vsync(vsync) {
-    if (isFullScreen) {
-        this->_window = glfwCreateWindow(width, height, title.c_str(), glfwGetPrimaryMonitor(), nullptr);
-    } else {
-        this->_window = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
+    this->_window = isFullScreen ?
+                    glfwCreateWindow(width, height, title.c_str(), glfwGetPrimaryMonitor(), nullptr) :
+                    glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
 
+    if (this->_window == nullptr) {
+        throw std::runtime_error("Failed to create GLFW window");
+    }
+
+    if (!isFullScreen) {
         // Center window on screen
         auto vidMode = glfwGetVideoMode(glfwGetPrimaryMonitor());
         glfwSetWindowPos(this->_window,
                          (vidMode->width - width) / 2,
                          (vidMode->height - height) / 2);
-    }
-
-    if (this->_window == nullptr) {
-        throw std::runtime_error("Failed to create GLFW window");
     }
 
     // Create OpenGL context

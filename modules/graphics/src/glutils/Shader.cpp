@@ -36,7 +36,8 @@ Shader Shader::load(Shader::Type type, std::string path) {
     std::ifstream shaderFile;
 
     // ensures ifstream objects can throw exceptions
-    shaderFile.exceptions(std::ifstream::badbit);
+    // update: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=66145
+    shaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
     try {
         // Open file
         shaderFile.open(path);
@@ -49,7 +50,7 @@ Shader Shader::load(Shader::Type type, std::string path) {
         source = shaderStream.str();
     }
     catch(std::ifstream::failure ex) {
-        throw std::runtime_error("Failed to load shader file");
+        throw std::runtime_error("Failed to load shader file " + path);
     }
 
     return Shader(type, source);

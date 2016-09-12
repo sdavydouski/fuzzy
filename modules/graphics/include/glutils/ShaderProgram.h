@@ -9,9 +9,9 @@ namespace graphics {
     
     class ShaderProgram {
     public:
-        ShaderProgram(Shader& const vertexShader, Shader& const fragmentShader);
+        ShaderProgram(Shader& vertexShader, Shader& fragmentShader);
         ~ShaderProgram();
-        void attachShader(Shader& const shader);
+        void attachShader(Shader& shader);
         void link();
         void use();
         void end();
