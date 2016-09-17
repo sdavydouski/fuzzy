@@ -9,9 +9,8 @@ namespace graphics {
     
     class ShaderProgram {
     public:
-        ShaderProgram(Shader& vertexShader, Shader& fragmentShader);
+        ShaderProgram(const Shader& vertexShader, const Shader& fragmentShader);
         ~ShaderProgram();
-        void attachShader(Shader& shader);
         void link();
         void use();
         void end();
@@ -33,8 +32,8 @@ namespace graphics {
 
     private:
         GLuint _id;
-        Shader& _vertexShader;
-        Shader& _fragmentShader;
+        const Shader& _vertexShader;
+        const Shader& _fragmentShader;
 
         void checkLinkageStatus();
         GLint getUniformLocation(std::string name);

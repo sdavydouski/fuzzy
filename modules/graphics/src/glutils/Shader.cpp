@@ -23,7 +23,7 @@ Shader::~Shader() {
     glDeleteShader(this->_id);
 }
 
-GLuint Shader::getId() {
+GLuint Shader::getId() const {
     return this->_id;
 }
 

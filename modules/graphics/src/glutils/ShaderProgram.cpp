@@ -9,13 +9,13 @@
 
 using namespace graphics;
 
-ShaderProgram::ShaderProgram(Shader& vertexShader,
-                             Shader& fragmentShader) :
+ShaderProgram::ShaderProgram(const Shader& vertexShader,
+                             const Shader& fragmentShader) :
         _vertexShader(vertexShader), _fragmentShader(fragmentShader) {
     this->_id = glCreateProgram();
 
-    this->attachShader(vertexShader);
-    this->attachShader(fragmentShader);
+    glAttachShader(this->_id, vertexShader.getId());
+    glAttachShader(this->_id, fragmentShader.getId());
 
     this->link();
 }
@@ -24,19 +24,6 @@ ShaderProgram::~ShaderProgram() {
     std::cout << "Deleting shaderProgram" << std::endl;
     this->end();
     glDeleteProgram(this->_id);
-}
-
-void ShaderProgram::attachShader(Shader& shader) {
-    switch (shader.getType()) {
-        case Shader::VERTEX:
-            this->_vertexShader = shader;
-            break;
-        case Shader::FRAGMENT:
-            this->_fragmentShader = shader;
-            break;
-    }
-
-    glAttachShader(this->_id, shader.getId());
 }
 
 void ShaderProgram::link() {

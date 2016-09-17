@@ -14,7 +14,7 @@ namespace graphics {
 
         Shader(Shader::Type type, std::string source);
         ~Shader();
-        GLuint getId();
+        GLuint getId() const;
         Shader::Type getType();
         static Shader load(Shader::Type type, std::string path);
     private:
