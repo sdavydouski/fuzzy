@@ -11,3 +11,5 @@ set(sources src/main.cpp)
 add_executable(fuzzy.game ${sources})
 
 target_link_libraries(fuzzy.game fuzzy.graphics)
+
+add_definitions(-DGLEW_STATIC)

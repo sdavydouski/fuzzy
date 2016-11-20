@@ -24,10 +24,9 @@ include_directories(${root_dir}/externals/assimp/include)
 
 set(sources include/Window.h src/Window.cpp include/WindowManager.h src/WindowManager.cpp include/glutils/Shader.h include/glutils/ShaderProgram.h src/glutils/Shader.cpp src/glutils/ShaderProgram.cpp include/Texture.h src/Texture.cpp include/Camera.h src/Camera.cpp)
 
-add_library(fuzzy.graphics SHARED ${sources})
+add_library(fuzzy.graphics STATIC ${sources})
 
 target_link_libraries(fuzzy.graphics
         assimp glfw glew ${GLFW_LIBRARIES} ${GLEW_LIBRARIES} ${OPENGL_LIBRARY})
 
 add_definitions(-DGLEW_STATIC)
-#add_definitions(-DSTB_IMAGE_IMPLEMENTATION)
