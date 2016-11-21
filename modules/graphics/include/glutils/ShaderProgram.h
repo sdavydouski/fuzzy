@@ -14,14 +14,15 @@ namespace graphics {
         void link();
         void use();
         void end();
-        void setVertexAttribute(GLuint location,
-                                GLuint size,
-                                GLuint type,
-                                GLboolean normalized,
-                                GLuint stride,
-                                GLuint offset);
+//        void setVertexAttribute(GLuint location,
+//                                GLuint size,
+//                                GLuint type,
+//                                GLboolean normalized,
+//                                GLuint stride,
+//                                GLuint offset);
         void setUniform(std::string name, GLboolean value);
         void setUniform(std::string name, GLint value);
+        void setUniform(std::string name, GLuint value);
         void setUniform(std::string name, GLfloat value);
         void setUniform(std::string name, glm::vec2 value);
         void setUniform(std::string name, glm::vec3 value);

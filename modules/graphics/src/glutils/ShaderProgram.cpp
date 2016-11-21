@@ -39,21 +39,25 @@ void ShaderProgram::end() {
     glUseProgram(0);
 }
 
-void ShaderProgram::setVertexAttribute(GLuint location,
-                                       GLuint size,
-                                       GLuint type,
-                                       GLboolean normalized,
-                                       GLuint stride,
-                                       GLuint offset) {
-    glVertexAttribPointer(location, size, type, normalized, stride, (GLvoid*) offset);
-    glEnableVertexAttribArray(location);
-}
+//void ShaderProgram::setVertexAttribute(GLuint location,
+//                                       GLuint size,
+//                                       GLuint type,
+//                                       GLboolean normalized,
+//                                       GLuint stride,
+//                                       GLuint offset) {
+//    glVertexAttribPointer(location, size, type, normalized, stride, (GLvoid*) offset);
+//    glEnableVertexAttribArray(location);
+//}
 
 void ShaderProgram::setUniform(std::string name, GLboolean value) {
     glUniform1i(this->getUniformLocation(name), value);
 }
 
 void ShaderProgram::setUniform(std::string name, GLint value) {
+    glUniform1i(this->getUniformLocation(name), value);
+}
+
+void ShaderProgram::setUniform(std::string name, GLuint value) {
     glUniform1i(this->getUniformLocation(name), value);
 }
 
