@@ -104,7 +104,8 @@ void ShaderProgram::checkLinkageStatus() {
 GLint ShaderProgram::getUniformLocation(std::string name) {
     GLint location = glGetUniformLocation(this->_id, name.c_str());
     if (location == -1) {
-        throw std::runtime_error("Unable to find uniform " + name);
+        // too strict
+        //throw std::runtime_error("Unable to find uniform " + name);
     }
     return location;
 }

@@ -5,6 +5,7 @@ include_directories(../modules/graphics/include)
 include_directories(../externals/glew/include)
 include_directories(../externals/glm)
 include_directories(../externals/stb)
+include_directories(../externals/assimp/include)
 
 set(sources src/main.cpp)
 

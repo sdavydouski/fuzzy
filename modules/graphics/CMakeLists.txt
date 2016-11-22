@@ -22,7 +22,7 @@ include_directories(${root_dir}/externals/glm)
 include_directories(${root_dir}/externals/stb)
 include_directories(${root_dir}/externals/assimp/include)
 
-set(sources include/Window.h src/Window.cpp include/WindowManager.h src/WindowManager.cpp include/glutils/Shader.h include/glutils/ShaderProgram.h src/glutils/Shader.cpp src/glutils/ShaderProgram.cpp include/Texture.h src/Texture.cpp include/Camera.h src/Camera.cpp include/g3d/Mesh.h include/glutils/VertexData.h include/glutils/TextureData.h src/g3d/Mesh.cpp)
+set(sources include/Window.h src/Window.cpp include/WindowManager.h src/WindowManager.cpp include/glutils/Shader.h include/glutils/ShaderProgram.h src/glutils/Shader.cpp src/glutils/ShaderProgram.cpp include/Texture.h src/Texture.cpp include/Camera.h src/Camera.cpp include/g3d/Mesh.h include/glutils/VertexData.h include/glutils/TextureData.h src/g3d/Mesh.cpp include/g3d/Model.h src/g3d/Model.cpp)
 
 add_library(fuzzy.graphics STATIC ${sources})
 

@@ -1,15 +1,16 @@
 #include <GL/glew.h>
-#include "Window.h"
-#include "WindowManager.h"
-#include "glutils/ShaderProgram.h"
-#include "glutils/Shader.h"
-#include "Texture.h"
-#include "Camera.h"
 #include "../../externals/glfw/deps/linmath.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
 #include <math.h>
+#include "Window.h"
+#include "WindowManager.h"
+#include "glutils/ShaderProgram.h"
+#include "glutils/Shader.h"
+#include "g3d/Model.h"
+#include "Texture.h"
+#include "Camera.h"
 
 using namespace graphics;
 
@@ -99,83 +100,10 @@ int main(int argc, char* argv[]) {
         Shader::load(Shader::FRAGMENT, "resources/shaders/basic/shader.frag")
     );
 
-    glm::vec3 cubePositions[] = {
-            glm::vec3( 0.0f,  0.0f,  0.0f),
-            glm::vec3( 2.0f,  5.0f, -15.0f),
-            glm::vec3(-1.5f, -2.2f, -2.5f),
-            glm::vec3(-3.8f, -2.0f, -12.3f),
-            glm::vec3( 2.4f, -0.4f, -3.5f),
-            glm::vec3(-1.7f,  3.0f, -7.5f),
-            glm::vec3( 1.3f, -2.0f, -2.5f),
-            glm::vec3( 1.5f,  2.0f, -2.5f),
-            glm::vec3( 1.5f,  0.2f, -1.5f),
-            glm::vec3(-1.3f,  1.0f, -1.5f)
-    };
+    Model nanosuit("resources/models/nanosuit/nanosuit.obj");
 
-    GLfloat vertices[] = {
-            -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-            0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
-            0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-            0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-            -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-            -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-
-            -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-            0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-            0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-            0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-            -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
-            -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-
-            -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-            -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-            -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-            -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-            -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-            -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-
-            0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-            0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-            0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-            0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-            0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-            0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-
-            -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-            0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
-            0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-            0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-            -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-            -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-
-            -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-            0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-            0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-            0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-            -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
-            -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
-    };
-
-    GLuint VBO, VAO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-
-    glBindVertexArray(VAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    // Position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (GLvoid*)0);
-    glEnableVertexAttribArray(0);
-    // TexCoord attribute
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
-    glEnableVertexAttribArray(1);
-
-    glBindVertexArray(0); // Unbind VAO
-
-    Texture texture1 = Texture::load("resources/textures/boxes/wooden_container.jpg");
-    Texture texture2 = Texture::load("resources/textures/boxes/awesomeface.png");
+    // Draw in wireframe
+    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
     while(!window.isClosing()) {
         // Set frame time
@@ -187,14 +115,9 @@ int main(int argc, char* argv[]) {
         glfwPollEvents();
         Do_Movement();
 
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        // Clear the colorbuffer
+        glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        // Bind Textures using texture units
-        texture1.bind(0);
-        shaderProgram.setUniform("ourTexture1", 0);
-        texture2.bind(1);
-        shaderProgram.setUniform("ourTexture2", 1);
 
         // Activate shader
         shaderProgram.use();
@@ -207,26 +130,21 @@ int main(int argc, char* argv[]) {
         shaderProgram.setUniform("view", view);
         shaderProgram.setUniform("projection", projection);
 
-        glBindVertexArray(VAO);
-        for(GLuint i = 0; i < 10; i++)
-        {
-            // Calculate the model matrix for each object and pass it to shader before drawing
-            glm::mat4 model;
-            model = glm::translate(model, cubePositions[i]);
-            GLfloat angle = 20.0f * i;
-            model = glm::rotate(model, angle, glm::vec3(1.0f, 0.3f, 0.5f));
-            shaderProgram.setUniform("model", model);
+        // Draw the loaded model
+        glm::mat4 model;
+        // Translate it down a bit so it's at the center of the scene
+        model = glm::translate(model, glm::vec3(0.0f, -1.75f, 0.0f));
+        // It's a bit too big for our scene, so scale it down
+        model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
+        shaderProgram.setUniform("model", model);
 
-            glDrawArrays(GL_TRIANGLES, 0, 36);
-        }
-        glBindVertexArray(0);
+        // finally...
+        nanosuit.Draw(shaderProgram);
 
         window.swapBuffers();
     }
 
-    // Properly de-allocate all resources once they've outlived their purpose
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteBuffers(1, &VBO);
+    //todo: delete all model buffers (vao, vbo, ebo)
 
     window.destroy();
     windowManager.shutDown();

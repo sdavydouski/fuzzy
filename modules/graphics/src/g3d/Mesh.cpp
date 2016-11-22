@@ -1,5 +1,5 @@
-#include "../../include/g3d/Mesh.h";
-#include "../../include/glutils/ShaderProgram.h";
+#include "../../include/g3d/Mesh.h"
+#include "../../include/glutils/ShaderProgram.h"
 #include <GL/glew.h>
 #include <vector>
 #include <sstream>
@@ -15,7 +15,7 @@ Mesh::Mesh(const std::vector<VertexData>& vertices,
     this->setupMesh();
 }
 
-void Mesh::Draw(ShaderProgram shader) {
+void Mesh::Draw(ShaderProgram& shader) {
     GLuint diffuseNumber = 1;
     GLuint specularNumber = 1;
 
@@ -30,7 +30,7 @@ void Mesh::Draw(ShaderProgram shader) {
                              std::to_string(specularNumber++);
 
         // Now set the sampler to the correct texture unit
-        shader.setUniform("material." + type + number, i);
+        shader.setUniform(type + number, i);
         // And finally bind the texture
         glBindTexture(GL_TEXTURE_2D, this->textures[i].id);
     }
