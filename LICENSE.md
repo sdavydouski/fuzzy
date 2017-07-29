@@ -1,6 +1,6 @@
 The MIT License (MIT)
 
-Copyright © 2016, Sergey Davydovsky
+Copyright © 2017, Sergey Davydovsky
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
