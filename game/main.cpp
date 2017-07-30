@@ -1,6 +1,6 @@
 #include <iostream>
 
 int main(int argc, char* argv[]) {
-    std::cout << "Fuzzy engine" << std::endl;
+    std::cout << "Hello, Fuzzy!" << std::endl;
     getchar();
 }
