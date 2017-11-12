@@ -43,7 +43,15 @@ int main(int argc, char* argv[])
 
     glfwMakeContextCurrent(window);
 
+    glfwSwapInterval(1);
+
+    double lastTime = glfwGetTime();
+    double currentTime;
+    double delta;
+
     while (!glfwWindowShouldClose(window)) {
+        currentTime = glfwGetTime();
+
         glfwPollEvents();
 
         processInput();
@@ -52,6 +60,11 @@ int main(int argc, char* argv[])
         glClear(GL_COLOR_BUFFER_BIT);
 
         glfwSwapBuffers(window);
+
+        delta = currentTime - lastTime;
+        lastTime = currentTime;
+
+        std::cout << delta * 1000.f << " ms" << std::endl;
     }
 
     glfwTerminate();
