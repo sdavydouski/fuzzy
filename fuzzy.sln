@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.27004.2005
+VisualStudioVersion = 15.0.27004.2008
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fuzzy", "src\fuzzy.vcxproj", "{81B2D33D-A0A9-4B3E-8C28-836E0880785F}"
 EndProject
@@ -10,7 +10,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "misc", "misc", "{B8071DF9-9
 		.gitignore = .gitignore
 		.gitmodules = .gitmodules
 		clean.bat = clean.bat
-		fuzzy_build.bat = fuzzy_build.bat
+		glad_generate.bat = glad_generate.bat
 		glfw_build.bat = glfw_build.bat
 		LICENSE.md = LICENSE.md
 		README.md = README.md

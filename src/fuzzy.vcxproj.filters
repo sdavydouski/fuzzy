@@ -2,5 +2,13 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="fuzzy.cpp" />
+    <ClCompile Include="..\generated\glad\src\glad.c">
+      <Filter>generated</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="generated">
+      <UniqueIdentifier>{d0cec970-4af6-4843-9325-9d652eead848}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
 </Project>

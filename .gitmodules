@@ -1,4 +1,4 @@
 [submodule "externals/glfw"]
-	path = externals/glfw
-	url = https://github.com/glfw/glfw.git
+    path = externals/glfw
+    url = https://github.com/glfw/glfw.git
     ignore = untracked
