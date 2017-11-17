@@ -11,6 +11,9 @@
 #error windows.h was included!
 #endif
 
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 #include <cstdlib>
 #include <string>
 #include <cassert>
@@ -22,10 +25,14 @@
 const int WIDTH = 1280;
 const int HEIGHT = 720;
 
-float blueOffset = 0;
-float greenOffset = 0;
+float greenOffset = 0.6f;
+float blueOffset = 0.92f;
 
 bool keys[512];
+
+const float SIZE = 50.f;
+
+glm::vec2 topLeftPosition = glm::vec2(WIDTH / 2 - SIZE, HEIGHT / 2 - SIZE);
 
 std::string readTextFile(const std::string& path);
 void processInput();
@@ -71,7 +78,7 @@ int main(int argc, char* argv[])
 
     glfwMakeContextCurrent(window);
 
-    glfwSwapInterval(0);
+    glfwSwapInterval(1);
 
     if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress)) {
         std::cout << "Failed to initialize OpenGL context" << std::endl;
@@ -81,12 +88,12 @@ int main(int argc, char* argv[])
     std::cout << glGetString(GL_VERSION) << std::endl;
 
     glViewport(0, 0, WIDTH, HEIGHT);
-
+    
     float vertices[] = {
-        -0.2f, -0.2f, 0.0f,
-        -0.2f, 0.2f, 0.0f,
-        0.2f, -0.2f, 0.0f,
-        0.2f, 0.2f, 0.0f
+        0.f, 0.f,
+        0.f, 1.0f,
+        1.0f, 0.f,
+        1.0f, 1.0f
     };
 
     GLuint VBO;
@@ -157,7 +164,16 @@ int main(int argc, char* argv[])
     
     glUseProgram(shaderProgram);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*) 0);
+    glm::mat4 projection = glm::ortho(0.0f, (float) WIDTH, (float) HEIGHT, 0.0f);
+    
+    GLint projectionUniformLocation = glGetUniformLocation(shaderProgram, "projection");
+    assert(projectionUniformLocation != -1);
+    glUniformMatrix4fv(projectionUniformLocation, 1, GL_FALSE, glm::value_ptr(projection));
+
+    GLint modelUniformLocation = glGetUniformLocation(shaderProgram, "model");
+    assert(modelUniformLocation != -1);
+    
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*) 0);
     glEnableVertexAttribArray(0);
 
     double lastTime = glfwGetTime();
@@ -170,6 +186,11 @@ int main(int argc, char* argv[])
         glfwPollEvents();
 
         processInput();
+
+        glm::mat4 model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(topLeftPosition, 0.0f));
+        model = glm::scale(model, glm::vec3(SIZE, SIZE, 1.0f));
+        glUniformMatrix4fv(modelUniformLocation, 1, GL_FALSE, glm::value_ptr(model));
 
         glClearColor(0.5f, greenOffset, blueOffset, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -189,25 +210,25 @@ int main(int argc, char* argv[])
 }
 
 void processInput() {
-    float step = 0.0005f;
+    float step = 8.f;
     if (keys[GLFW_KEY_UP] == GLFW_PRESS) {
-        if (blueOffset < 1.0f) {
-            blueOffset += step;
+        if (topLeftPosition.y > 0.f) {
+            topLeftPosition.y -= step;
         }
     }
     if (keys[GLFW_KEY_DOWN] == GLFW_PRESS) {
-        if (blueOffset > 0.f) {
-            blueOffset -= step;
-        }
-    }
-    if (keys[GLFW_KEY_RIGHT] == GLFW_PRESS) {
-        if (greenOffset < 1.0f) {
-            greenOffset += step;
+        if (topLeftPosition.y < HEIGHT - SIZE) {
+            topLeftPosition.y += step;
         }
     }
     if (keys[GLFW_KEY_LEFT] == GLFW_PRESS) {
-        if (greenOffset > 0.f) {
-            greenOffset -= step;
+        if (topLeftPosition.x > 0.f) {
+            topLeftPosition.x -= step;
+        }
+    }
+    if (keys[GLFW_KEY_RIGHT] == GLFW_PRESS) {
+        if (topLeftPosition.x < WIDTH - SIZE) {
+            topLeftPosition.x += step;
         }
     }
 }
