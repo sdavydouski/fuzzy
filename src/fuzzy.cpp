@@ -17,6 +17,7 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <vector>
 
 const int WIDTH = 1280;
 const int HEIGHT = 720;
@@ -81,9 +82,83 @@ int main(int argc, char* argv[])
 
     glViewport(0, 0, WIDTH, HEIGHT);
 
-    auto text = readTextFile("shaders/test.txt");
-    std::cout << text << std::endl;
+    float vertices[] = {
+        -0.2f, -0.2f, 0.0f,
+        -0.2f, 0.2f, 0.0f,
+        0.2f, -0.2f, 0.0f,
+        0.2f, 0.2f, 0.0f
+    };
 
+    GLuint VBO;
+    glGenBuffers(1, &VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    
+    // vertex shader
+    GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
+    std::string vertexShaderSource = readTextFile("shaders/basic.vert");
+    const GLchar* vertexShaderSourcePtr = vertexShaderSource.c_str();
+    glShaderSource(vertexShader, 1, &vertexShaderSourcePtr, nullptr);
+    glCompileShader(vertexShader);
+
+    GLint isVertexShaderCompiled;
+    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &isVertexShaderCompiled);
+    if (!isVertexShaderCompiled) {
+        GLint LOG_LENGTH;
+        glGetShaderiv(vertexShader, GL_INFO_LOG_LENGTH, &LOG_LENGTH);
+
+        std::vector<GLchar> errorLog(LOG_LENGTH);
+
+        glGetShaderInfoLog(vertexShader, LOG_LENGTH, nullptr, &errorLog[0]);
+        std::cerr << "Vertex shader compilation failed:" << std::endl << &errorLog[0] << std::endl;
+    }
+    assert(isVertexShaderCompiled);
+    
+    // fragment shader
+    GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+    std::string fragmentShaderSource = readTextFile("shaders/basic.frag");
+    const GLchar* fragmentShaderSourcePtr = fragmentShaderSource.c_str();
+    glShaderSource(fragmentShader, 1, &fragmentShaderSourcePtr, nullptr);
+    glCompileShader(fragmentShader);
+
+    GLint isFragmentShaderCompiled;
+    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &isFragmentShaderCompiled);
+    if (!isFragmentShaderCompiled) {
+        GLint LOG_LENGTH;
+        glGetShaderiv(fragmentShader, GL_INFO_LOG_LENGTH, &LOG_LENGTH);
+
+        std::vector<GLchar> errorLog(LOG_LENGTH);
+
+        glGetShaderInfoLog(fragmentShader, LOG_LENGTH, nullptr, &errorLog[0]);
+        std::cerr << "Fragment shader compilation failed:" << std::endl << &errorLog[0] << std::endl;
+    }
+    assert(isFragmentShaderCompiled);
+
+    GLuint shaderProgram = glCreateProgram();
+    glAttachShader(shaderProgram, vertexShader);
+    glAttachShader(shaderProgram, fragmentShader);
+    glLinkProgram(shaderProgram);
+    glDeleteShader(vertexShader);
+    glDeleteShader(fragmentShader);
+
+    GLint isShaderProgramLinked;
+    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &isShaderProgramLinked);
+
+    if (!isShaderProgramLinked) {
+        GLint LOG_LENGTH;
+        glGetProgramiv(shaderProgram, GL_INFO_LOG_LENGTH, &LOG_LENGTH);
+
+        std::vector<GLchar> errorLog(LOG_LENGTH);
+
+        glGetProgramInfoLog(shaderProgram, LOG_LENGTH, nullptr, &errorLog[0]);
+        std::cerr << "Shader program linkage failed:" << std::endl << &errorLog[0] << std::endl;
+    }
+    assert(isShaderProgramLinked);
+    
+    glUseProgram(shaderProgram);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*) 0);
+    glEnableVertexAttribArray(0);
 
     double lastTime = glfwGetTime();
     double currentTime;
@@ -98,6 +173,8 @@ int main(int argc, char* argv[])
 
         glClearColor(0.5f, greenOffset, blueOffset, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
+
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
         glfwSwapBuffers(window);
 

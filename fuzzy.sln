@@ -16,6 +16,14 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "misc", "misc", "{B8071DF9-9
 		README.md = README.md
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "data", "data", "{40618B3B-D41E-41B0-A0E0-30EAED9F756A}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "shaders", "shaders", "{849DEA6D-56FE-4DD0-BF45-650BC17E3E72}"
+	ProjectSection(SolutionItems) = preProject
+		data\shaders\basic.frag = data\shaders\basic.frag
+		data\shaders\basic.vert = data\shaders\basic.vert
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -35,6 +43,9 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{849DEA6D-56FE-4DD0-BF45-650BC17E3E72} = {40618B3B-D41E-41B0-A0E0-30EAED9F756A}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {6CB12932-8CAA-433E-822D-8A13813D9D25}
