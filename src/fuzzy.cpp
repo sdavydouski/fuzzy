@@ -12,6 +12,10 @@
 #endif
 
 #include <cstdlib>
+#include <string>
+#include <cassert>
+#include <fstream>
+#include <sstream>
 #include <iostream>
 
 const int WIDTH = 1280;
@@ -22,6 +26,7 @@ float greenOffset = 0;
 
 bool keys[512];
 
+std::string readTextFile(const std::string& path);
 void processInput();
 
 int main(int argc, char* argv[])
@@ -34,8 +39,8 @@ int main(int argc, char* argv[])
 //    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 //    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 //    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+//    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
     GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "Fuzzy", nullptr, nullptr);
     if (!window) {
         std::cout << "Failed to create GLFW window" << std::endl;
@@ -59,6 +64,10 @@ int main(int argc, char* argv[])
         }
     });
 
+    glfwSetFramebufferSizeCallback(window, [](GLFWwindow* window, int width, int height) {
+        glViewport(0, 0, width, height);
+    });
+
     glfwMakeContextCurrent(window);
 
     glfwSwapInterval(0);
@@ -69,6 +78,12 @@ int main(int argc, char* argv[])
     }
 
     std::cout << glGetString(GL_VERSION) << std::endl;
+
+    glViewport(0, 0, WIDTH, HEIGHT);
+
+    auto text = readTextFile("shaders/test.txt");
+    std::cout << text << std::endl;
+
 
     double lastTime = glfwGetTime();
     double currentTime;
@@ -89,7 +104,7 @@ int main(int argc, char* argv[])
         delta = currentTime - lastTime;
         lastTime = currentTime;
 
-        //std::cout << delta * 1000.f << " ms" << std::endl;
+//        std::cout << delta * 1000.f << " ms" << std::endl;
     }
 
     glfwTerminate();
@@ -118,4 +133,14 @@ void processInput() {
             greenOffset -= step;
         }
     }
+}
+
+std::string readTextFile(const std::string& path) {
+    std::ifstream in(path);
+
+    assert(in.good());
+
+    std::ostringstream ss;
+    ss << in.rdbuf();
+    return ss.str();
 }
