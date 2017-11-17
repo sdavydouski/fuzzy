@@ -25,10 +25,12 @@
 const int WIDTH = 1280;
 const int HEIGHT = 720;
 
+float redOffset = 0.5f;
 float greenOffset = 0.6f;
 float blueOffset = 0.92f;
 
 bool keys[512];
+bool processedKeys[512];
 
 const float SIZE = 50.f;
 
@@ -69,6 +71,7 @@ int main(int argc, char* argv[])
             keys[key] = true;
         } else if (action == GLFW_RELEASE) {
             keys[key] = false;
+            processedKeys[key] = false;
         }
     });
 
@@ -192,7 +195,7 @@ int main(int argc, char* argv[])
         model = glm::scale(model, glm::vec3(SIZE, SIZE, 1.0f));
         glUniformMatrix4fv(modelUniformLocation, 1, GL_FALSE, glm::value_ptr(model));
 
-        glClearColor(0.5f, greenOffset, blueOffset, 1.0f);
+        glClearColor(redOffset, greenOffset, blueOffset, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -230,6 +233,12 @@ void processInput() {
         if (topLeftPosition.x < WIDTH - SIZE) {
             topLeftPosition.x += step;
         }
+    }
+    if (keys[GLFW_KEY_SPACE] == GLFW_PRESS && !processedKeys[GLFW_KEY_SPACE]) {
+        processedKeys[GLFW_KEY_SPACE] = true;
+        redOffset = (float) (rand()) / (float) RAND_MAX;
+        greenOffset = (float) (rand()) / (float) RAND_MAX;
+        blueOffset = (float) (rand()) / (float) RAND_MAX;
     }
 }
 
