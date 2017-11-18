@@ -39,6 +39,8 @@ glm::vec2 topLeftPosition = glm::vec2(WIDTH / 2 - SIZE, HEIGHT / 2 - SIZE);
 std::string readTextFile(const std::string& path);
 void processInput();
 
+GLuint createAndCompileShader(GLenum shaderType, const std::string& path);
+
 int main(int argc, char* argv[])
 {
     if (!glfwInit()) {
@@ -94,9 +96,9 @@ int main(int argc, char* argv[])
     
     float vertices[] = {
         0.f, 0.f,
-        0.f, 1.0f,
-        1.0f, 0.f,
-        1.0f, 1.0f
+        0.f, SIZE,
+        SIZE, 0.f,
+        SIZE, SIZE
     };
 
     GLuint VBO;
@@ -104,45 +106,8 @@ int main(int argc, char* argv[])
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
     
-    // vertex shader
-    GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    std::string vertexShaderSource = readTextFile("shaders/basic.vert");
-    const GLchar* vertexShaderSourcePtr = vertexShaderSource.c_str();
-    glShaderSource(vertexShader, 1, &vertexShaderSourcePtr, nullptr);
-    glCompileShader(vertexShader);
-
-    GLint isVertexShaderCompiled;
-    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &isVertexShaderCompiled);
-    if (!isVertexShaderCompiled) {
-        GLint LOG_LENGTH;
-        glGetShaderiv(vertexShader, GL_INFO_LOG_LENGTH, &LOG_LENGTH);
-
-        std::vector<GLchar> errorLog(LOG_LENGTH);
-
-        glGetShaderInfoLog(vertexShader, LOG_LENGTH, nullptr, &errorLog[0]);
-        std::cerr << "Vertex shader compilation failed:" << std::endl << &errorLog[0] << std::endl;
-    }
-    assert(isVertexShaderCompiled);
-    
-    // fragment shader
-    GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    std::string fragmentShaderSource = readTextFile("shaders/basic.frag");
-    const GLchar* fragmentShaderSourcePtr = fragmentShaderSource.c_str();
-    glShaderSource(fragmentShader, 1, &fragmentShaderSourcePtr, nullptr);
-    glCompileShader(fragmentShader);
-
-    GLint isFragmentShaderCompiled;
-    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &isFragmentShaderCompiled);
-    if (!isFragmentShaderCompiled) {
-        GLint LOG_LENGTH;
-        glGetShaderiv(fragmentShader, GL_INFO_LOG_LENGTH, &LOG_LENGTH);
-
-        std::vector<GLchar> errorLog(LOG_LENGTH);
-
-        glGetShaderInfoLog(fragmentShader, LOG_LENGTH, nullptr, &errorLog[0]);
-        std::cerr << "Fragment shader compilation failed:" << std::endl << &errorLog[0] << std::endl;
-    }
-    assert(isFragmentShaderCompiled);
+    GLuint vertexShader = createAndCompileShader(GL_VERTEX_SHADER, "shaders/basic.vert");
+    GLuint fragmentShader = createAndCompileShader(GL_FRAGMENT_SHADER, "shaders/basic.frag");
 
     GLuint shaderProgram = glCreateProgram();
     glAttachShader(shaderProgram, vertexShader);
@@ -192,7 +157,6 @@ int main(int argc, char* argv[])
 
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::translate(model, glm::vec3(topLeftPosition, 0.0f));
-        model = glm::scale(model, glm::vec3(SIZE, SIZE, 1.0f));
         glUniformMatrix4fv(modelUniformLocation, 1, GL_FALSE, glm::value_ptr(model));
 
         glClearColor(redOffset, greenOffset, blueOffset, 1.0f);
@@ -240,6 +204,29 @@ void processInput() {
         greenOffset = (float) (rand()) / (float) RAND_MAX;
         blueOffset = (float) (rand()) / (float) RAND_MAX;
     }
+}
+
+GLuint createAndCompileShader(GLenum shaderType, const std::string& path) {
+    GLuint shader = glCreateShader(shaderType);
+    std::string shaderSource = readTextFile(path);
+    const GLchar* shaderSourcePtr = shaderSource.c_str();
+    glShaderSource(shader, 1, &shaderSourcePtr, nullptr);
+    glCompileShader(shader);
+
+    GLint isShaderCompiled;
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &isShaderCompiled);
+    if (!isShaderCompiled) {
+        GLint LOG_LENGTH;
+        glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &LOG_LENGTH);
+
+        std::vector<GLchar> errorLog(LOG_LENGTH);
+
+        glGetShaderInfoLog(shader, LOG_LENGTH, nullptr, &errorLog[0]);
+        std::cerr << "Shader compilation failed:" << std::endl << &errorLog[0] << std::endl;
+    }
+    assert(isShaderCompiled);
+
+    return shader;
 }
 
 std::string readTextFile(const std::string& path) {
