@@ -24,6 +24,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "shaders", "shaders", "{849D
 		data\shaders\basic.vert = data\shaders\basic.vert
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "textures", "textures", "{403821E1-DD33-43B6-8927-BB1E7C53B811}"
+	ProjectSection(SolutionItems) = preProject
+		data\textures\retro_sprite_sheet.png = data\textures\retro_sprite_sheet.png
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -46,6 +51,7 @@ Global
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{849DEA6D-56FE-4DD0-BF45-650BC17E3E72} = {40618B3B-D41E-41B0-A0E0-30EAED9F756A}
+		{403821E1-DD33-43B6-8927-BB1E7C53B811} = {40618B3B-D41E-41B0-A0E0-30EAED9F756A}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {6CB12932-8CAA-433E-822D-8A13813D9D25}
