@@ -14,6 +14,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#define STBI_FAILURE_USERMSG
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
@@ -25,6 +26,10 @@
 #include <iostream>
 #include <vector>
 
+
+/*
+ * Global constants
+ */
 const int WIDTH = 1280;
 const int HEIGHT = 720;
 
@@ -35,17 +40,22 @@ float blueOffset = 0.92f;
 bool keys[512];
 bool processedKeys[512];
 
-const float SIZE = 50.f;
+const float SIZE = 75.f;
 
 glm::vec2 topLeftPosition = glm::vec2(WIDTH / 2 - SIZE, HEIGHT / 2 - SIZE);
 
+
+/*
+ * Function declarations
+ */
 std::string readTextFile(const std::string& path);
 void processInput();
-
 GLuint createAndCompileShader(GLenum shaderType, const std::string& path);
 
-int main(int argc, char* argv[])
-{
+
+
+int main(int argc, char* argv[]) {
+
     if (!glfwInit()) {
         std::cout << "Failed to initialize GLFW" << std::endl;
         return EXIT_FAILURE;
@@ -98,10 +108,10 @@ int main(int argc, char* argv[])
     glViewport(0, 0, WIDTH, HEIGHT);
     
     float vertices[] = {
-        0.f, 0.f,
-        0.f, SIZE,
-        SIZE, 0.f,
-        SIZE, SIZE
+        0.f, 0.f, 0.0f, 0.0f,
+        0.f, SIZE, 0.0f, 1.0f,
+        SIZE, 0.f, 1.0f, 0.0f,
+        SIZE, SIZE, 1.0f, 1.0f
     };
 
     GLuint VBO;
@@ -144,8 +154,32 @@ int main(int argc, char* argv[])
     GLint modelUniformLocation = glGetUniformLocation(shaderProgram, "model");
     assert(modelUniformLocation != -1);
     
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*) 0);
+
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*) 0);
     glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*) (2 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+
+    int textureWidth, textureHeight, textureChannels;
+    unsigned char* textureImage = stbi_load("textures/wooden_container.jpg", 
+                                            &textureWidth, &textureHeight, &textureChannels, 0);
+    if (!textureImage) {
+        std::cout << "Texture loading failed:" << std::endl << stbi_failure_reason() << std::endl;
+    }
+    assert(textureImage);
+
+    GLuint texture;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    
+    // note: default value for this parameter is GL_NEAREST_MIPMAP_LINEAR
+    // since we do not use mipmaps we must override this value
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, textureWidth, textureHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, textureImage);
+
+    stbi_image_free(textureImage);
 
     double lastTime = glfwGetTime();
     double currentTime;
@@ -179,6 +213,10 @@ int main(int argc, char* argv[])
     return EXIT_SUCCESS;
 }
 
+
+/*
+ * Function definitions
+ */
 void processInput() {
     float step = 8.f;
     if (keys[GLFW_KEY_UP] == GLFW_PRESS) {

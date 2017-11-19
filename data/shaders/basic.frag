@@ -1,6 +1,9 @@
 #version 330 core
+in vec2 uv;
 out vec4 color;
 
+uniform sampler2D spriteTexture;
+
 void main() {
-    color = vec4(1.0f, 0.99f, 0.7f, 1.0f);
+    color = texture(spriteTexture, uv);
 }

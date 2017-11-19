@@ -27,6 +27,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "textures", "textures", "{403821E1-DD33-43B6-8927-BB1E7C53B811}"
 	ProjectSection(SolutionItems) = preProject
 		data\textures\retro_sprite_sheet.png = data\textures\retro_sprite_sheet.png
+		data\textures\wooden_container.jpg = data\textures\wooden_container.jpg
 	EndProjectSection
 EndProject
 Global
