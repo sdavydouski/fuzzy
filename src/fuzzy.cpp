@@ -33,9 +33,9 @@
 const int WIDTH = 1280;
 const int HEIGHT = 720;
 
-float redOffset = 0.5f;
-float greenOffset = 0.6f;
-float blueOffset = 0.92f;
+float redOffset = 0.f;
+float greenOffset = 144.f / 255.f;
+float blueOffset = 49.f / 255.f;
 
 bool keys[512];
 bool processedKeys[512];
@@ -55,11 +55,12 @@ GLuint createAndCompileShader(GLenum shaderType, const std::string& path);
 
 
 int main(int argc, char* argv[]) {
-
     if (!glfwInit()) {
         std::cout << "Failed to initialize GLFW" << std::endl;
         return EXIT_FAILURE;
     }
+
+    srand((unsigned int) glfwGetTimerValue());
 
 //    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 //    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -103,15 +104,33 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
     std::cout << glGetString(GL_VERSION) << std::endl;
 
     glViewport(0, 0, WIDTH, HEIGHT);
     
+    // todo: this should be a uniform
+    // ideally pass only sprite index each frame
+    // vertex shader will handle the rest
+    struct frame {
+        float x;
+        float y;
+        float width;
+        float height;
+    } spriteFrame;
+
+    spriteFrame.x = 8.f / 534.f;
+    spriteFrame.y = 33.f / 799.f;
+    spriteFrame.width = 117.f / 534.f;
+    spriteFrame.height = 150.f / 799.f;
+
     float vertices[] = {
-        0.f, 0.f, 0.0f, 0.0f,
-        0.f, SIZE, 0.0f, 1.0f,
-        SIZE, 0.f, 1.0f, 0.0f,
-        SIZE, SIZE, 1.0f, 1.0f
+        0.f, 0.f, spriteFrame.x, spriteFrame.y,
+        0.f, SIZE, spriteFrame.x, spriteFrame.y + spriteFrame.height,
+        SIZE, 0.f, spriteFrame.x + spriteFrame.width, spriteFrame.y,
+        SIZE, SIZE, spriteFrame.x + spriteFrame.width, spriteFrame.y + spriteFrame.height,
     };
 
     GLuint VBO;
@@ -162,7 +181,7 @@ int main(int argc, char* argv[]) {
 
 
     int textureWidth, textureHeight, textureChannels;
-    unsigned char* textureImage = stbi_load("textures/wooden_container.jpg", 
+    unsigned char* textureImage = stbi_load("textures/retro_sprite_sheet.png", 
                                             &textureWidth, &textureHeight, &textureChannels, 0);
     if (!textureImage) {
         std::cout << "Texture loading failed:" << std::endl << stbi_failure_reason() << std::endl;
@@ -177,7 +196,7 @@ int main(int argc, char* argv[]) {
     // since we do not use mipmaps we must override this value
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, textureWidth, textureHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, textureImage);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, textureWidth, textureHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, textureImage);
 
     stbi_image_free(textureImage);
 
