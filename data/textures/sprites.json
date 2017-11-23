@@ -1,0 +1,16 @@
+{
+  "width": 512,
+  "height": 512,
+  "sprites": [{
+    "name":  "Bob",
+    "x": 1,
+    "y": 258,
+    "width": 13,
+    "height": 14,
+    "animations": [{
+      "title": "idle",
+      "xOffset": 3,
+      "frames":  3
+    }]
+  }]
+}
