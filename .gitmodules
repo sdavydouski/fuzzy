@@ -10,3 +10,7 @@
     path = externals/stb
     url = https://github.com/nothings/stb
     ignore = untracked
+[submodule "externals/json"]
+    path = externals/json
+    url = https://github.com/nlohmann/json
+    ignore = untracked

@@ -11,6 +11,8 @@
 #error windows.h was included!
 #endif
 
+#include "json.hpp"
+
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -37,9 +39,9 @@ constexpr float color(float intensity) {
 const int WIDTH = 1280;
 const int HEIGHT = 720;
 
-float red = color(29);
-float green = color(33);
-float blue = color(45);
+const float red = color(29);
+const float green = color(33);
+const float blue = color(45);
 
 bool keys[512];
 bool processedKeys[512];
@@ -57,9 +59,19 @@ std::string readTextFile(const std::string& path);
 void processInput();
 GLuint createAndCompileShader(GLenum shaderType, const std::string& path);
 
-
+// for convenience
+using json = nlohmann::json;
 
 int main(int argc, char* argv[]) {
+
+    std::fstream dataIn("textures/sprites.json");
+    nlohmann::json data;
+    dataIn >> data;
+
+    std::string name = data["sprites"][0]["name"];
+
+    std::cout << name << std::endl;
+
     if (!glfwInit()) {
         std::cout << "Failed to initialize GLFW" << std::endl;
         return EXIT_FAILURE;
@@ -283,12 +295,12 @@ void processInput() {
             topLeftPosition.x += step;
         }
     }
-    if (keys[GLFW_KEY_SPACE] == GLFW_PRESS && !processedKeys[GLFW_KEY_SPACE]) {
-        processedKeys[GLFW_KEY_SPACE] = true;
-        red = (float) (rand()) / (float) RAND_MAX;
-        green = (float) (rand()) / (float) RAND_MAX;
-        blue = (float) (rand()) / (float) RAND_MAX;
-    }
+//    if (keys[GLFW_KEY_SPACE] == GLFW_PRESS && !processedKeys[GLFW_KEY_SPACE]) {
+//        processedKeys[GLFW_KEY_SPACE] = true;
+//        red = (float) (rand()) / (float) RAND_MAX;
+//        green = (float) (rand()) / (float) RAND_MAX;
+//        blue = (float) (rand()) / (float) RAND_MAX;
+//    }
 }
 
 GLuint createAndCompileShader(GLenum shaderType, const std::string& path) {
