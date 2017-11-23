@@ -27,22 +27,27 @@
 #include <vector>
 
 
+constexpr float color(float intensity) {
+    return intensity / 255.f;
+}
+
 /*
  * Global constants
  */
 const int WIDTH = 1280;
 const int HEIGHT = 720;
 
-float redOffset = 0.f;
-float greenOffset = 144.f / 255.f;
-float blueOffset = 49.f / 255.f;
+float red = color(29);
+float green = color(33);
+float blue = color(45);
 
 bool keys[512];
 bool processedKeys[512];
 
-const float SIZE = 75.f;
+const float SPRITE_WIDTH = 13.f * 4;
+const float SPRITE_HEIGHT = 14.f * 4;
 
-glm::vec2 topLeftPosition = glm::vec2(WIDTH / 2 - SIZE, HEIGHT / 2 - SIZE);
+glm::vec2 topLeftPosition = glm::vec2(WIDTH / 2 - SPRITE_WIDTH, HEIGHT / 2 - SPRITE_HEIGHT);
 
 
 /*
@@ -111,33 +116,6 @@ int main(int argc, char* argv[]) {
 
     glViewport(0, 0, WIDTH, HEIGHT);
     
-    // todo: this should be a uniform
-    // ideally pass only sprite index each frame
-    // vertex shader will handle the rest
-    struct frame {
-        float x;
-        float y;
-        float width;
-        float height;
-    } spriteFrame;
-
-    spriteFrame.x = 8.f / 534.f;
-    spriteFrame.y = 33.f / 799.f;
-    spriteFrame.width = 117.f / 534.f;
-    spriteFrame.height = 150.f / 799.f;
-
-    float vertices[] = {
-        0.f, 0.f, spriteFrame.x, spriteFrame.y,
-        0.f, SIZE, spriteFrame.x, spriteFrame.y + spriteFrame.height,
-        SIZE, 0.f, spriteFrame.x + spriteFrame.width, spriteFrame.y,
-        SIZE, SIZE, spriteFrame.x + spriteFrame.width, spriteFrame.y + spriteFrame.height,
-    };
-
-    GLuint VBO;
-    glGenBuffers(1, &VBO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    
     GLuint vertexShader = createAndCompileShader(GL_VERTEX_SHADER, "shaders/basic.vert");
     GLuint fragmentShader = createAndCompileShader(GL_FRAGMENT_SHADER, "shaders/basic.frag");
 
@@ -172,16 +150,13 @@ int main(int argc, char* argv[]) {
 
     GLint modelUniformLocation = glGetUniformLocation(shaderProgram, "model");
     assert(modelUniformLocation != -1);
-    
 
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*) 0);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*) (2 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-
+    GLint spriteOffsetUniformLocation = glGetUniformLocation(shaderProgram, "spriteOffset");
+    assert(spriteOffsetUniformLocation != -1);
+    glUniform2f(spriteOffsetUniformLocation, 0.f, 0.f);
 
     int textureWidth, textureHeight, textureChannels;
-    unsigned char* textureImage = stbi_load("textures/retro_sprite_sheet.png", 
+    unsigned char* textureImage = stbi_load("textures/industrial_tileset.png", 
                                             &textureWidth, &textureHeight, &textureChannels, 0);
     if (!textureImage) {
         std::cout << "Texture loading failed:" << std::endl << stbi_failure_reason() << std::endl;
@@ -192,19 +167,59 @@ int main(int argc, char* argv[]) {
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
     
-    // note: default value for this parameter is GL_NEAREST_MIPMAP_LINEAR
+    // note: default value for GL_TEXTURE_MIN_FILTER is GL_NEAREST_MIPMAP_LINEAR
     // since we do not use mipmaps we must override this value
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, textureWidth, textureHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, textureImage);
 
     stbi_image_free(textureImage);
 
+    struct frame {
+        float x;
+        float y;
+        float width;
+        float height;
+        float xOffset;
+        float yOffset;
+    } spriteFrame;
+
+    spriteFrame.x = 1.f / textureWidth;
+    spriteFrame.y = 258.f / textureHeight;
+    spriteFrame.width = 13.f / textureWidth;
+    spriteFrame.height = 14.f / textureHeight;
+    spriteFrame.xOffset = 0.f;
+    spriteFrame.yOffset = 0.f;
+
+    float vertices[] = {
+        0.f, 0.f, spriteFrame.x, spriteFrame.y,
+        0.f, SPRITE_HEIGHT, spriteFrame.x, spriteFrame.y + spriteFrame.height,
+        SPRITE_WIDTH, 0.f, spriteFrame.x + spriteFrame.width, spriteFrame.y,
+        SPRITE_WIDTH, SPRITE_HEIGHT, spriteFrame.x + spriteFrame.width, spriteFrame.y + spriteFrame.height,
+    };
+
+    GLuint VBO;
+    glGenBuffers(1, &VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+
     double lastTime = glfwGetTime();
     double currentTime;
     double delta;
+    
+    float xOffset = 3.f / textureWidth;
+    float yOffset = 0.f / textureHeight;
+    
+    int counter = 0;
 
     while (!glfwWindowShouldClose(window)) {
+        ++counter;
         currentTime = glfwGetTime();
 
         glfwPollEvents();
@@ -214,8 +229,18 @@ int main(int argc, char* argv[]) {
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::translate(model, glm::vec3(topLeftPosition, 0.0f));
         glUniformMatrix4fv(modelUniformLocation, 1, GL_FALSE, glm::value_ptr(model));
+        
+        if (counter > 15) {
+            spriteFrame.xOffset += spriteFrame.width + xOffset;
+            if (spriteFrame.xOffset > 45.f / 512.f) {
+                spriteFrame.xOffset = 0.f;
+            }
+  
+            counter = 0;
+        }
+        glUniform2f(spriteOffsetUniformLocation, spriteFrame.xOffset, 0.f);
 
-        glClearColor(redOffset, greenOffset, blueOffset, 1.0f);
+        glClearColor(red, green, blue, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -237,14 +262,14 @@ int main(int argc, char* argv[]) {
  * Function definitions
  */
 void processInput() {
-    float step = 8.f;
+    float step = 6.f;
     if (keys[GLFW_KEY_UP] == GLFW_PRESS) {
         if (topLeftPosition.y > 0.f) {
             topLeftPosition.y -= step;
         }
     }
     if (keys[GLFW_KEY_DOWN] == GLFW_PRESS) {
-        if (topLeftPosition.y < HEIGHT - SIZE) {
+        if (topLeftPosition.y < HEIGHT - SPRITE_HEIGHT) {
             topLeftPosition.y += step;
         }
     }
@@ -254,15 +279,15 @@ void processInput() {
         }
     }
     if (keys[GLFW_KEY_RIGHT] == GLFW_PRESS) {
-        if (topLeftPosition.x < WIDTH - SIZE) {
+        if (topLeftPosition.x < WIDTH - SPRITE_WIDTH) {
             topLeftPosition.x += step;
         }
     }
     if (keys[GLFW_KEY_SPACE] == GLFW_PRESS && !processedKeys[GLFW_KEY_SPACE]) {
         processedKeys[GLFW_KEY_SPACE] = true;
-        redOffset = (float) (rand()) / (float) RAND_MAX;
-        greenOffset = (float) (rand()) / (float) RAND_MAX;
-        blueOffset = (float) (rand()) / (float) RAND_MAX;
+        red = (float) (rand()) / (float) RAND_MAX;
+        green = (float) (rand()) / (float) RAND_MAX;
+        blue = (float) (rand()) / (float) RAND_MAX;
     }
 }
 
