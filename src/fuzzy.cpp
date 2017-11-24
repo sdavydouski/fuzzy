@@ -29,8 +29,9 @@
 #include <vector>
 
 
-constexpr float color(float intensity) {
-    return intensity / 255.f;
+constexpr glm::vec3 normalizeRGB(int red, int green, int blue) {
+    const float MAX = 255.f;
+    return glm::vec3(red / MAX, green / MAX, blue / MAX);
 }
 
 /*
@@ -39,9 +40,7 @@ constexpr float color(float intensity) {
 const int WIDTH = 1280;
 const int HEIGHT = 720;
 
-const float red = color(29);
-const float green = color(33);
-const float blue = color(45);
+constexpr glm::vec3 backgroundColor = normalizeRGB(29, 33, 45);
 
 bool keys[512];
 bool processedKeys[512];
@@ -252,7 +251,7 @@ int main(int argc, char* argv[]) {
         }
         glUniform2f(spriteOffsetUniformLocation, spriteFrame.xOffset, 0.f);
 
-        glClearColor(red, green, blue, 1.0f);
+        glClearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
