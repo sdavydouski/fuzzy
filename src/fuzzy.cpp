@@ -11,7 +11,7 @@
 #error windows.h was included!
 #endif
 
-#include "json.hpp"
+#include <json.hpp>
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -64,7 +64,7 @@ using json = nlohmann::json;
 int main(int argc, char* argv[]) {
 
     std::fstream dataIn("textures/sprites.json");
-    nlohmann::json data;
+    json data;
     dataIn >> data;
 
     std::string name = data["sprites"][0]["name"];
@@ -223,14 +223,13 @@ int main(int argc, char* argv[]) {
     double lastTime = glfwGetTime();
     double currentTime;
     double delta;
+
+    double frameTime = 0.f;
     
     float xOffset = 3.f / textureWidth;
     float yOffset = 0.f / textureHeight;
     
-    int counter = 0;
-
     while (!glfwWindowShouldClose(window)) {
-        ++counter;
         currentTime = glfwGetTime();
 
         glfwPollEvents();
@@ -240,14 +239,14 @@ int main(int argc, char* argv[]) {
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::translate(model, glm::vec3(topLeftPosition, 0.0f));
         glUniformMatrix4fv(modelUniformLocation, 1, GL_FALSE, glm::value_ptr(model));
-        
-        if (counter > 15) {
+
+        if (frameTime > 0.3f) {
             spriteFrame.xOffset += spriteFrame.width + xOffset;
             if (spriteFrame.xOffset > 45.f / 512.f) {
                 spriteFrame.xOffset = 0.f;
             }
-  
-            counter = 0;
+            
+            frameTime = 0.0f;
         }
         glUniform2f(spriteOffsetUniformLocation, spriteFrame.xOffset, 0.f);
 
@@ -261,7 +260,9 @@ int main(int argc, char* argv[]) {
         delta = currentTime - lastTime;
         lastTime = currentTime;
 
-//        std::cout << delta * 1000.f << " ms" << std::endl;
+        frameTime += delta;
+
+        //std::cout << delta * 1000.f << " ms" << std::endl;
     }
 
     glfwTerminate();
