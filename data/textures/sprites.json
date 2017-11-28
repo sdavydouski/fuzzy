@@ -1,16 +1,30 @@
 {
-  "width": 512,
-  "height": 512,
+  "tileWidth": 16,
+  "tileHeight": 16,
   "sprites": [{
     "name":  "Bob",
-    "x": 1,
-    "y": 258,
-    "width": 13,
-    "height": 14,
-    "animations": [{
-      "title": "idle",
-      "xOffset": 3,
-      "frames":  3
-    }]
+    "animations": [
+      {
+        "title": "idle",
+        "x": 0,
+        "y": 16,
+        "frames": 3,
+        "delay": 0.2
+      },
+      {
+        "title": "squash",
+        "x": 3,
+        "y": 16,
+        "frames": 5,
+        "delay": 0.1
+      },
+      {
+        "title": "run",
+        "x": 0,
+        "y": 17,
+        "frames": 8,
+        "delay": 0.1
+      }
+    ]
   }]
 }

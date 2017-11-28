@@ -45,10 +45,9 @@ constexpr glm::vec3 backgroundColor = normalizeRGB(29, 33, 45);
 bool keys[512];
 bool processedKeys[512];
 
-const float SPRITE_WIDTH = 13.f * 4;
-const float SPRITE_HEIGHT = 14.f * 4;
+const float SPRITE_SIZE = 16.f * 4;
 
-glm::vec2 topLeftPosition = glm::vec2(WIDTH / 2 - SPRITE_WIDTH, HEIGHT / 2 - SPRITE_HEIGHT);
+glm::vec2 topLeftPosition = glm::vec2(WIDTH / 2 - SPRITE_SIZE, HEIGHT / 2 - SPRITE_SIZE);
 
 
 /*
@@ -62,14 +61,6 @@ GLuint createAndCompileShader(GLenum shaderType, const std::string& path);
 using json = nlohmann::json;
 
 int main(int argc, char* argv[]) {
-
-    std::fstream dataIn("textures/sprites.json");
-    json data;
-    dataIn >> data;
-
-    std::string name = data["sprites"][0]["name"];
-
-    std::cout << name << std::endl;
 
     if (!glfwInit()) {
         std::cout << "Failed to initialize GLFW" << std::endl;
@@ -187,27 +178,37 @@ int main(int argc, char* argv[]) {
 
     stbi_image_free(textureImage);
 
+    std::fstream spritesConfigIn("textures/sprites.json");
+    json spritesConfig;
+    spritesConfigIn >> spritesConfig;
+
+    int tileWidth = spritesConfig["tileWidth"];
+    int tileHeight = spritesConfig["tileHeight"];
+
+    auto bob = spritesConfig["sprites"][0];
+    auto animation = bob["animations"][2];
+
     struct frame {
         float x;
         float y;
         float width;
         float height;
         float xOffset;
-        float yOffset;
+        int frameIndex;
     } spriteFrame;
 
-    spriteFrame.x = 1.f / textureWidth;
-    spriteFrame.y = 258.f / textureHeight;
-    spriteFrame.width = 13.f / textureWidth;
-    spriteFrame.height = 14.f / textureHeight;
-    spriteFrame.xOffset = 0.f;
-    spriteFrame.yOffset = 0.f;
+    spriteFrame.x = (tileWidth * (float) animation["x"]) / textureWidth;
+    spriteFrame.y = (tileHeight * (float) animation["y"]) / textureHeight;
+    spriteFrame.width = ((float) tileWidth) / textureWidth;
+    spriteFrame.height = ((float) tileHeight) / textureHeight;
+    spriteFrame.xOffset = 0;
+    spriteFrame.frameIndex = 0;
 
     float vertices[] = {
         0.f, 0.f, spriteFrame.x, spriteFrame.y,
-        0.f, SPRITE_HEIGHT, spriteFrame.x, spriteFrame.y + spriteFrame.height,
-        SPRITE_WIDTH, 0.f, spriteFrame.x + spriteFrame.width, spriteFrame.y,
-        SPRITE_WIDTH, SPRITE_HEIGHT, spriteFrame.x + spriteFrame.width, spriteFrame.y + spriteFrame.height,
+        0.f, SPRITE_SIZE, spriteFrame.x, spriteFrame.y + spriteFrame.height,
+        SPRITE_SIZE, 0.f, spriteFrame.x + spriteFrame.width, spriteFrame.y,
+        SPRITE_SIZE, SPRITE_SIZE, spriteFrame.x + spriteFrame.width, spriteFrame.y + spriteFrame.height,
     };
 
     GLuint VBO;
@@ -226,9 +227,6 @@ int main(int argc, char* argv[]) {
 
     double frameTime = 0.f;
     
-    float xOffset = 3.f / textureWidth;
-    float yOffset = 0.f / textureHeight;
-    
     while (!glfwWindowShouldClose(window)) {
         currentTime = glfwGetTime();
 
@@ -240,10 +238,12 @@ int main(int argc, char* argv[]) {
         model = glm::translate(model, glm::vec3(topLeftPosition, 0.0f));
         glUniformMatrix4fv(modelUniformLocation, 1, GL_FALSE, glm::value_ptr(model));
 
-        if (frameTime > 0.3f) {
-            spriteFrame.xOffset += spriteFrame.width + xOffset;
-            if (spriteFrame.xOffset > 45.f / 512.f) {
-                spriteFrame.xOffset = 0.f;
+        if (frameTime >= animation["delay"]) {
+            spriteFrame.xOffset += spriteFrame.width;
+            ++spriteFrame.frameIndex;
+            if (spriteFrame.frameIndex >= animation["frames"]) {
+                spriteFrame.frameIndex = 0;
+                spriteFrame.xOffset = 0;
             }
             
             frameTime = 0.0f;
@@ -281,7 +281,7 @@ void processInput() {
         }
     }
     if (keys[GLFW_KEY_DOWN] == GLFW_PRESS) {
-        if (topLeftPosition.y < HEIGHT - SPRITE_HEIGHT) {
+        if (topLeftPosition.y < HEIGHT - SPRITE_SIZE) {
             topLeftPosition.y += step;
         }
     }
@@ -291,7 +291,7 @@ void processInput() {
         }
     }
     if (keys[GLFW_KEY_RIGHT] == GLFW_PRESS) {
-        if (topLeftPosition.x < WIDTH - SPRITE_WIDTH) {
+        if (topLeftPosition.x < WIDTH - SPRITE_SIZE) {
             topLeftPosition.x += step;
         }
     }
