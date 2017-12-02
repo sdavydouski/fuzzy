@@ -117,6 +117,29 @@ int main(int argc, char* argv[]) {
     std::cout << glGetString(GL_VERSION) << std::endl;
 
     glViewport(0, 0, WIDTH, HEIGHT);
+
+
+    int textureWidth, textureHeight, textureChannels;
+    unsigned char* textureImage = stbi_load("textures/industrial_tileset.png",
+        &textureWidth, &textureHeight, &textureChannels, 0);
+    if (!textureImage) {
+        std::cout << "Texture loading failed:" << std::endl << stbi_failure_reason() << std::endl;
+    }
+    assert(textureImage);
+
+    GLuint texture;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+
+    // note: default value for GL_TEXTURE_MIN_FILTER is GL_NEAREST_MIPMAP_LINEAR
+    // since we do not use mipmaps we must override this value
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, textureWidth, textureHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, textureImage);
+
+    stbi_image_free(textureImage);
+
     
     GLuint vertexShader = createAndCompileShader(GL_VERTEX_SHADER, "shaders/basic.vert");
     GLuint fragmentShader = createAndCompileShader(GL_FRAGMENT_SHADER, "shaders/basic.frag");
@@ -155,29 +178,7 @@ int main(int argc, char* argv[]) {
 
     GLint spriteOffsetUniformLocation = glGetUniformLocation(shaderProgram, "spriteOffset");
     assert(spriteOffsetUniformLocation != -1);
-    glUniform2f(spriteOffsetUniformLocation, 0.f, 0.f);
-
-    int textureWidth, textureHeight, textureChannels;
-    unsigned char* textureImage = stbi_load("textures/industrial_tileset.png", 
-                                            &textureWidth, &textureHeight, &textureChannels, 0);
-    if (!textureImage) {
-        std::cout << "Texture loading failed:" << std::endl << stbi_failure_reason() << std::endl;
-    }
-    assert(textureImage);
-
-    GLuint texture;
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
     
-    // note: default value for GL_TEXTURE_MIN_FILTER is GL_NEAREST_MIPMAP_LINEAR
-    // since we do not use mipmaps we must override this value
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, textureWidth, textureHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, textureImage);
-
-    stbi_image_free(textureImage);
-
     std::fstream spritesConfigIn("textures/sprites.json");
     json spritesConfig;
     spritesConfigIn >> spritesConfig;
@@ -188,27 +189,16 @@ int main(int argc, char* argv[]) {
     auto bob = spritesConfig["sprites"][0];
     auto animation = bob["animations"][2];
 
-    struct frame {
-        float x;
-        float y;
-        float width;
-        float height;
-        float xOffset;
-        int frameIndex;
-    } spriteFrame;
-
-    spriteFrame.x = (tileWidth * (float) animation["x"]) / textureWidth;
-    spriteFrame.y = (tileHeight * (float) animation["y"]) / textureHeight;
-    spriteFrame.width = ((float) tileWidth) / textureWidth;
-    spriteFrame.height = ((float) tileHeight) / textureHeight;
-    spriteFrame.xOffset = 0;
-    spriteFrame.frameIndex = 0;
+     // todo: mirror sprites
+    float spriteWidth = -((float) tileWidth) / textureWidth;
+    float spriteHeight = ((float) tileHeight) / textureHeight;
 
     float vertices[] = {
-        0.f, 0.f, spriteFrame.x, spriteFrame.y,
-        0.f, SPRITE_SIZE, spriteFrame.x, spriteFrame.y + spriteFrame.height,
-        SPRITE_SIZE, 0.f, spriteFrame.x + spriteFrame.width, spriteFrame.y,
-        SPRITE_SIZE, SPRITE_SIZE, spriteFrame.x + spriteFrame.width, spriteFrame.y + spriteFrame.height,
+        // Pos    // UV
+        0.f, 0.f, 0.f, 0.f,
+        0.f, 1.f, 0.f, spriteHeight,
+        1.f, 0.f, spriteWidth, 0.f,
+        1.f, 1.f, spriteWidth, spriteHeight
     };
 
     GLuint VBO;
@@ -224,9 +214,14 @@ int main(int argc, char* argv[]) {
     double lastTime = glfwGetTime();
     double currentTime;
     double delta;
+    
+    float bobXOffset = (tileWidth * (float) animation["x"]) / textureWidth + ((float)tileWidth) / textureWidth;
+    float bobYOffset = (tileHeight * (float) animation["y"]) / textureHeight;
+    float xOffset = 0.f;
 
     double frameTime = 0.f;
-    
+    int frameIndex = 0;
+
     while (!glfwWindowShouldClose(window)) {
         currentTime = glfwGetTime();
 
@@ -236,19 +231,20 @@ int main(int argc, char* argv[]) {
 
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::translate(model, glm::vec3(topLeftPosition, 0.0f));
+        model = glm::scale(model, glm::vec3(SPRITE_SIZE));
         glUniformMatrix4fv(modelUniformLocation, 1, GL_FALSE, glm::value_ptr(model));
 
         if (frameTime >= animation["delay"]) {
-            spriteFrame.xOffset += spriteFrame.width;
-            ++spriteFrame.frameIndex;
-            if (spriteFrame.frameIndex >= animation["frames"]) {
-                spriteFrame.frameIndex = 0;
-                spriteFrame.xOffset = 0;
+            xOffset += abs(spriteWidth);
+            ++frameIndex;
+            if (frameIndex >= animation["frames"]) {
+                frameIndex = 0;
+                xOffset = 0.f;
             }
-            
+
             frameTime = 0.0f;
         }
-        glUniform2f(spriteOffsetUniformLocation, spriteFrame.xOffset, 0.f);
+        glUniform2f(spriteOffsetUniformLocation, bobXOffset + xOffset, bobYOffset);
 
         glClearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
