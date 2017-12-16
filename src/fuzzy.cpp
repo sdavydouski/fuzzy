@@ -61,9 +61,10 @@ GLuint createAndCompileShader(GLenum shaderType, const std::string& path);
 using json = nlohmann::json;
 
 nlohmann::basic_json<> bob;
-nlohmann::basic_json<> animation;
+nlohmann::basic_json<> bobAnimation;
 
 float xOffset;
+bool reversed = false;
 
 int main(int argc, char* argv[]) {
 
@@ -192,11 +193,19 @@ int main(int argc, char* argv[]) {
     int tileHeight = spritesConfig["tileHeight"];
 
     bob = spritesConfig["sprites"][0];
-    animation = bob["animations"][0];
+    bobAnimation = bob["animations"][0];
 
      // todo: mirror sprites
     float spriteWidth = ((float) tileWidth) / textureWidth;
     float spriteHeight = ((float) tileHeight) / textureHeight;
+
+    GLint spriteSizeUniformLocation = glGetUniformLocation(shaderProgram, "spriteSize");
+    //assert(spriteSizeUniformLocation != -1);
+    glUniform2f(spriteSizeUniformLocation, spriteWidth, spriteHeight);
+
+    GLint reversedUniformLocation = glGetUniformLocation(shaderProgram, "reversed");
+    //assert(reversedUniformLocation != -1);
+    glUniform1i(reversedUniformLocation, reversed);
 
     float vertices[] = {
         // Pos    // UV
@@ -223,7 +232,6 @@ int main(int argc, char* argv[]) {
     xOffset = 0.f;
 
     double frameTime = 0.f;
-    int frameIndex = 0;
 
     while (!glfwWindowShouldClose(window)) {
         currentTime = glfwGetTime();
@@ -237,20 +245,20 @@ int main(int argc, char* argv[]) {
         model = glm::scale(model, glm::vec3(SPRITE_SIZE));
         glUniformMatrix4fv(modelUniformLocation, 1, GL_FALSE, glm::value_ptr(model));
 
-        float bobXOffset = (tileWidth * (float)animation["x"]) / textureWidth;
-        float bobYOffset = (tileHeight * (float)animation["y"]) / textureHeight;
+        float bobXOffset = (tileWidth * (float)bobAnimation["x"]) / textureWidth;
+        float bobYOffset = (tileHeight * (float)bobAnimation["y"]) / textureHeight;
 
-        if (frameTime >= animation["delay"]) {
+        if (frameTime >= bobAnimation["delay"]) {
             xOffset += spriteWidth;
-            ++frameIndex;
-            if (frameIndex >= animation["frames"]) {
-                frameIndex = 0;
+            if (xOffset >= (((int) bobAnimation["frames"] * tileWidth) / (float) textureWidth)) {
                 xOffset = 0.f;
             }
 
             frameTime = 0.0f;
         }
         glUniform2f(spriteOffsetUniformLocation, bobXOffset + xOffset, bobYOffset);
+
+        glUniform1i(reversedUniformLocation, reversed);
 
         glClearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -288,8 +296,9 @@ void processInput() {
     //    }
     //}
     if (keys[GLFW_KEY_LEFT] == GLFW_PRESS) {
-        if (animation != bob["animations"][2]) {
-            animation = bob["animations"][2];
+        if (bobAnimation != bob["animations"][2]) {
+            bobAnimation = bob["animations"][2];
+            reversed = true;
         }
         if (topLeftPosition.x > 0.f) {
             topLeftPosition.x -= step;
@@ -298,15 +307,17 @@ void processInput() {
 
     if (keys[GLFW_KEY_LEFT] == GLFW_RELEASE && !processedKeys[GLFW_KEY_LEFT]) {
         processedKeys[GLFW_KEY_LEFT] = true;
-        if (animation != bob["animations"][0]) {
-            animation = bob["animations"][0];
+        if (bobAnimation != bob["animations"][0]) {
+            bobAnimation = bob["animations"][0];
             xOffset = 0.f;
+            reversed = true;
         }
     }
 
     if (keys[GLFW_KEY_RIGHT] == GLFW_PRESS) {
-        if (animation != bob["animations"][2]) {
-            animation = bob["animations"][2];
+        if (bobAnimation != bob["animations"][2]) {
+            bobAnimation = bob["animations"][2];
+            reversed = false;
         }
         if (topLeftPosition.x < WIDTH - SPRITE_SIZE) {
             topLeftPosition.x += step;
@@ -314,9 +325,10 @@ void processInput() {
     }
     if (keys[GLFW_KEY_RIGHT] == GLFW_RELEASE && !processedKeys[GLFW_KEY_RIGHT]) {
         processedKeys[GLFW_KEY_RIGHT] = true;
-        if (animation != bob["animations"][0]) {
-            animation = bob["animations"][0];
+        if (bobAnimation != bob["animations"][0]) {
+            bobAnimation = bob["animations"][0];
             xOffset = 0.f;
+            reversed = false;
         }
     }
 //    if (keys[GLFW_KEY_SPACE] == GLFW_PRESS && !processedKeys[GLFW_KEY_SPACE]) {
