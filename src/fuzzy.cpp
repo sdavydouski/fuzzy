@@ -57,14 +57,26 @@ std::string readTextFile(const std::string& path);
 void processInput();
 GLuint createAndCompileShader(GLenum shaderType, const std::string& path);
 
+
 // for convenience
 using json = nlohmann::json;
 
-nlohmann::basic_json<> bob;
-nlohmann::basic_json<> bobAnimation;
 
-float xOffset;
-bool reversed = false;
+struct animation {
+    int x;
+    int y;
+    int frames;
+    float delay;
+    float xOffset;
+    bool reversed;
+};
+
+struct sprite {
+    std::vector<animation> animations;
+    animation currentAnimation;
+};
+
+sprite bob;
 
 int main(int argc, char* argv[]) {
 
@@ -192,20 +204,27 @@ int main(int argc, char* argv[]) {
     int tileWidth = spritesConfig["tileWidth"];
     int tileHeight = spritesConfig["tileHeight"];
 
-    bob = spritesConfig["sprites"][0];
-    bobAnimation = bob["animations"][0];
+    auto bobConfig = spritesConfig["sprites"][0];
+    auto bobAnimations = bobConfig["animations"];
 
-     // todo: mirror sprites
+    bob = {};
+    bob.animations = {
+        { bobAnimations[0]["x"], bobAnimations[0]["y"], bobAnimations[0]["frames"], bobAnimations[0]["delay"], 0.f, false },
+        { bobAnimations[1]["x"], bobAnimations[1]["y"], bobAnimations[1]["frames"], bobAnimations[1]["delay"], 0.f, false },
+        { bobAnimations[2]["x"], bobAnimations[2]["y"], bobAnimations[2]["frames"], bobAnimations[2]["delay"], 0.f, false }
+    };
+    bob.currentAnimation = bob.animations[0];
+
     float spriteWidth = ((float) tileWidth) / textureWidth;
     float spriteHeight = ((float) tileHeight) / textureHeight;
 
     GLint spriteSizeUniformLocation = glGetUniformLocation(shaderProgram, "spriteSize");
-    //assert(spriteSizeUniformLocation != -1);
+    assert(spriteSizeUniformLocation != -1);
     glUniform2f(spriteSizeUniformLocation, spriteWidth, spriteHeight);
 
     GLint reversedUniformLocation = glGetUniformLocation(shaderProgram, "reversed");
-    //assert(reversedUniformLocation != -1);
-    glUniform1i(reversedUniformLocation, reversed);
+    assert(reversedUniformLocation != -1);
+    glUniform1i(reversedUniformLocation, bob.currentAnimation.reversed);
 
     float vertices[] = {
         // Pos    // UV
@@ -229,8 +248,6 @@ int main(int argc, char* argv[]) {
     double currentTime;
     double delta;
     
-    xOffset = 0.f;
-
     double frameTime = 0.f;
 
     while (!glfwWindowShouldClose(window)) {
@@ -245,20 +262,20 @@ int main(int argc, char* argv[]) {
         model = glm::scale(model, glm::vec3(SPRITE_SIZE));
         glUniformMatrix4fv(modelUniformLocation, 1, GL_FALSE, glm::value_ptr(model));
 
-        float bobXOffset = (tileWidth * (float)bobAnimation["x"]) / textureWidth;
-        float bobYOffset = (tileHeight * (float)bobAnimation["y"]) / textureHeight;
+        float bobXOffset = (tileWidth * (float)bob.currentAnimation.x) / textureWidth;
+        float bobYOffset = (tileHeight * (float)bob.currentAnimation.y) / textureHeight;
 
-        if (frameTime >= bobAnimation["delay"]) {
-            xOffset += spriteWidth;
-            if (xOffset >= (((int) bobAnimation["frames"] * tileWidth) / (float) textureWidth)) {
-                xOffset = 0.f;
+        if (frameTime >= bob.currentAnimation.delay) {
+            bob.currentAnimation.xOffset += spriteWidth;
+            if (bob.currentAnimation.xOffset >= (((int)bob.currentAnimation.frames * tileWidth) / (float) textureWidth)) {
+                bob.currentAnimation.xOffset = 0.f;
             }
 
             frameTime = 0.0f;
         }
-        glUniform2f(spriteOffsetUniformLocation, bobXOffset + xOffset, bobYOffset);
+        glUniform2f(spriteOffsetUniformLocation, bobXOffset + bob.currentAnimation.xOffset, bobYOffset);
 
-        glUniform1i(reversedUniformLocation, reversed);
+        glUniform1i(reversedUniformLocation, bob.currentAnimation.reversed);
 
         glClearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -296,9 +313,10 @@ void processInput() {
     //    }
     //}
     if (keys[GLFW_KEY_LEFT] == GLFW_PRESS) {
-        if (bobAnimation != bob["animations"][2]) {
-            bobAnimation = bob["animations"][2];
-            reversed = true;
+        // todo: animation != someOtherAnimation
+        if (bob.currentAnimation.x != bob.animations[2].x || bob.currentAnimation.y != bob.animations[2].y) {
+            bob.currentAnimation = bob.animations[2];
+            bob.currentAnimation.reversed = true;
         }
         if (topLeftPosition.x > 0.f) {
             topLeftPosition.x -= step;
@@ -307,17 +325,17 @@ void processInput() {
 
     if (keys[GLFW_KEY_LEFT] == GLFW_RELEASE && !processedKeys[GLFW_KEY_LEFT]) {
         processedKeys[GLFW_KEY_LEFT] = true;
-        if (bobAnimation != bob["animations"][0]) {
-            bobAnimation = bob["animations"][0];
-            xOffset = 0.f;
-            reversed = true;
+        if (bob.currentAnimation.x != bob.animations[0].x || bob.currentAnimation.y != bob.animations[0].y) {
+            bob.currentAnimation = bob.animations[0];
+            bob.currentAnimation.xOffset = 0.f;
+            bob.currentAnimation.reversed = true;
         }
     }
 
     if (keys[GLFW_KEY_RIGHT] == GLFW_PRESS) {
-        if (bobAnimation != bob["animations"][2]) {
-            bobAnimation = bob["animations"][2];
-            reversed = false;
+        if (bob.currentAnimation.x != bob.animations[2].x || bob.currentAnimation.y != bob.animations[2].y) {
+            bob.currentAnimation = bob.animations[2];
+            bob.currentAnimation.reversed = false;
         }
         if (topLeftPosition.x < WIDTH - SPRITE_SIZE) {
             topLeftPosition.x += step;
@@ -325,10 +343,10 @@ void processInput() {
     }
     if (keys[GLFW_KEY_RIGHT] == GLFW_RELEASE && !processedKeys[GLFW_KEY_RIGHT]) {
         processedKeys[GLFW_KEY_RIGHT] = true;
-        if (bobAnimation != bob["animations"][0]) {
-            bobAnimation = bob["animations"][0];
-            xOffset = 0.f;
-            reversed = false;
+        if (bob.currentAnimation.x != bob.animations[0].x || bob.currentAnimation.y != bob.animations[0].y) {
+            bob.currentAnimation= bob.animations[0];
+            bob.currentAnimation.xOffset = 0.f;
+            bob.currentAnimation.reversed = false;
         }
     }
 //    if (keys[GLFW_KEY_SPACE] == GLFW_PRESS && !processedKeys[GLFW_KEY_SPACE]) {
