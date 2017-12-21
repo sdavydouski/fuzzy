@@ -24,6 +24,13 @@
         "y": 17,
         "frames": 8,
         "delay": 0.1
+      },
+      {
+        "title": "attack",
+        "x": 0,
+        "y": 19,
+        "frames": 4,
+        "delay":  0.1
       }
     ]
   }]
