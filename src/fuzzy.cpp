@@ -68,6 +68,14 @@ struct animation {
     int frames;
     float delay;
     float xOffset;
+
+    bool operator==(const animation& other) const {
+        return x == other.x && y == other.y;
+    }
+
+    bool operator!=(const animation& other) const {
+        return !(*this == other);
+    }
 };
 
 bool reversed = false;
@@ -119,10 +127,8 @@ int main(int argc, char* argv[]) {
 
     glfwSetMouseButtonCallback(window, [](GLFWwindow* window, int button, int action, int mods) {
         if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
-            if (bob.currentAnimation.x != bob.animations[3].x || bob.currentAnimation.y != bob.animations[3].y) {
-                bob.currentAnimation = bob.animations[3];
-                bob.currentAnimation.xOffset = 0.f;
-            }
+            bob.currentAnimation = bob.animations[3];
+            bob.currentAnimation.xOffset = 0.f;
         }
     });
 
@@ -278,9 +284,9 @@ int main(int argc, char* argv[]) {
 
         if (frameTime >= bob.currentAnimation.delay) {
             bob.currentAnimation.xOffset += spriteWidth;
-            if (bob.currentAnimation.xOffset >= (((int)bob.currentAnimation.frames * tileWidth) / (float) textureWidth)) {
+            if (bob.currentAnimation.xOffset >= ((bob.currentAnimation.frames * tileWidth) / (float) textureWidth)) {
                 bob.currentAnimation.xOffset = 0.f;
-                if (bob.currentAnimation.x == bob.animations[3].x && bob.currentAnimation.y == bob.animations[3].y) {
+                if (bob.currentAnimation == bob.animations[3]) {
                     bob.currentAnimation = bob.animations[0];
                 }
             }
@@ -328,8 +334,7 @@ void processInput() {
     //}
     // todo: jump
     if (keys[GLFW_KEY_LEFT] == GLFW_PRESS) {
-        // todo: animation != someOtherAnimation
-        if (bob.currentAnimation.x != bob.animations[2].x || bob.currentAnimation.y != bob.animations[2].y) {
+        if (bob.currentAnimation != bob.animations[2]) {
             bob.currentAnimation = bob.animations[2];
             reversed = true;
         }
@@ -340,7 +345,7 @@ void processInput() {
 
     if (keys[GLFW_KEY_LEFT] == GLFW_RELEASE && !processedKeys[GLFW_KEY_LEFT]) {
         processedKeys[GLFW_KEY_LEFT] = true;
-        if (bob.currentAnimation.x != bob.animations[0].x || bob.currentAnimation.y != bob.animations[0].y) {
+        if (bob.currentAnimation != bob.animations[0]) {
             bob.currentAnimation = bob.animations[0];
             bob.currentAnimation.xOffset = 0.f;
             reversed = true;
@@ -348,7 +353,7 @@ void processInput() {
     }
 
     if (keys[GLFW_KEY_RIGHT] == GLFW_PRESS) {
-        if (bob.currentAnimation.x != bob.animations[2].x || bob.currentAnimation.y != bob.animations[2].y) {
+        if (bob.currentAnimation != bob.animations[2]) {
             bob.currentAnimation = bob.animations[2];
             reversed = false;
         }
@@ -358,7 +363,7 @@ void processInput() {
     }
     if (keys[GLFW_KEY_RIGHT] == GLFW_RELEASE && !processedKeys[GLFW_KEY_RIGHT]) {
         processedKeys[GLFW_KEY_RIGHT] = true;
-        if (bob.currentAnimation.x != bob.animations[0].x || bob.currentAnimation.y != bob.animations[0].y) {
+        if (bob.currentAnimation != bob.animations[0]) {
             bob.currentAnimation= bob.animations[0];
             bob.currentAnimation.xOffset = 0.f;
             reversed = false;
