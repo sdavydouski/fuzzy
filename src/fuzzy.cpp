@@ -56,6 +56,10 @@ glm::vec2 topLeftPosition = glm::vec2(WIDTH / 2 - SPRITE_SIZE, HEIGHT / 2 - SPRI
 std::string readTextFile(const std::string& path);
 void processInput();
 GLuint createAndCompileShader(GLenum shaderType, const std::string& path);
+GLint getUniformLocation(GLuint shaderProgram, const std::string& name);
+void setShaderUniform(GLint location, bool value);
+void setShaderUniform(GLint location, const glm::vec2& value);
+void setShaderUniform(GLint location, const glm::mat4& value);
 
 
 // for convenience
@@ -87,6 +91,7 @@ struct sprite {
 
 sprite bob;
 
+// todo: tilemap
 int main(int argc, char* argv[]) {
 
     if (!glfwInit()) {
@@ -203,15 +208,10 @@ int main(int argc, char* argv[]) {
 
     glm::mat4 projection = glm::ortho(0.0f, (float) WIDTH, (float) HEIGHT, 0.0f);
     
-    GLint projectionUniformLocation = glGetUniformLocation(shaderProgram, "projection");
-    assert(projectionUniformLocation != -1);
-    glUniformMatrix4fv(projectionUniformLocation, 1, GL_FALSE, glm::value_ptr(projection));
-
-    GLint modelUniformLocation = glGetUniformLocation(shaderProgram, "model");
-    assert(modelUniformLocation != -1);
-
-    GLint spriteOffsetUniformLocation = glGetUniformLocation(shaderProgram, "spriteOffset");
-    assert(spriteOffsetUniformLocation != -1);
+    GLint projectionUniformLocation = getUniformLocation(shaderProgram, "projection");
+    setShaderUniform(projectionUniformLocation, projection);
+    GLint modelUniformLocation = getUniformLocation(shaderProgram, "model");
+    GLint spriteOffsetUniformLocation = getUniformLocation(shaderProgram, "spriteOffset");
     
     std::fstream spritesConfigIn("textures/sprites.json");
     json spritesConfig;
@@ -235,13 +235,11 @@ int main(int argc, char* argv[]) {
     float spriteWidth = ((float) tileWidth) / textureWidth;
     float spriteHeight = ((float) tileHeight) / textureHeight;
 
-    GLint spriteSizeUniformLocation = glGetUniformLocation(shaderProgram, "spriteSize");
-    assert(spriteSizeUniformLocation != -1);
-    glUniform2f(spriteSizeUniformLocation, spriteWidth, spriteHeight);
+    GLint spriteSizeUniformLocation = getUniformLocation(shaderProgram, "spriteSize");
+    setShaderUniform(spriteSizeUniformLocation, glm::vec2(spriteWidth, spriteHeight));
 
-    GLint reversedUniformLocation = glGetUniformLocation(shaderProgram, "reversed");
-    assert(reversedUniformLocation != -1);
-    glUniform1i(reversedUniformLocation, reversed);
+    GLint reversedUniformLocation = getUniformLocation(shaderProgram, "reversed");
+    setShaderUniform(reversedUniformLocation, reversed);
 
     float vertices[] = {
         // Pos    // UV
@@ -277,7 +275,7 @@ int main(int argc, char* argv[]) {
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::translate(model, glm::vec3(topLeftPosition, 0.0f));
         model = glm::scale(model, glm::vec3(SPRITE_SIZE));
-        glUniformMatrix4fv(modelUniformLocation, 1, GL_FALSE, glm::value_ptr(model));
+        setShaderUniform(modelUniformLocation, model);
 
         float bobXOffset = (tileWidth * (float)bob.currentAnimation.x) / textureWidth;
         float bobYOffset = (tileHeight * (float)bob.currentAnimation.y) / textureHeight;
@@ -293,9 +291,8 @@ int main(int argc, char* argv[]) {
 
             frameTime = 0.0f;
         }
-        glUniform2f(spriteOffsetUniformLocation, bobXOffset + bob.currentAnimation.xOffset, bobYOffset);
-
-        glUniform1i(reversedUniformLocation, reversed);
+        setShaderUniform(spriteOffsetUniformLocation, glm::vec2(bobXOffset + bob.currentAnimation.xOffset, bobYOffset));
+        setShaderUniform(reversedUniformLocation, reversed);
 
         glClearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -332,7 +329,6 @@ void processInput() {
     //        topLeftPosition.y += step;
     //    }
     //}
-    // todo: jump
     if (keys[GLFW_KEY_LEFT] == GLFW_PRESS) {
         if (bob.currentAnimation != bob.animations[2]) {
             bob.currentAnimation = bob.animations[2];
@@ -408,4 +404,22 @@ std::string readTextFile(const std::string& path) {
     std::ostringstream ss;
     ss << in.rdbuf();
     return ss.str();
+}
+
+GLint getUniformLocation(GLuint shaderProgram, const std::string& name) {
+    GLint uniformLocation = glGetUniformLocation(shaderProgram, name.c_str());
+    assert(uniformLocation != -1);
+    return uniformLocation;
+}
+
+void setShaderUniform(GLint location, bool value) {
+    glUniform1i(location, value);
+}
+
+void setShaderUniform(GLint location, const glm::vec2& value) {
+    glUniform2f(location, value.x, value.y);
+}
+
+void setShaderUniform(GLint location, const glm::mat4& value) {
+    glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(value));
 }
