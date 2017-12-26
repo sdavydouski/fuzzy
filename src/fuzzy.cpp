@@ -27,11 +27,20 @@
 #include <sstream>
 #include <iostream>
 #include <vector>
+#include <algorithm>
+
+// for convenience
+using json = nlohmann::json;
+
+using vec2 = glm::vec2;
+using ivec2 = glm::ivec2;
+using vec3 = glm::vec3;
+using mat4 = glm::mat4;
 
 
-constexpr glm::vec3 normalizeRGB(int red, int green, int blue) {
+constexpr vec3 normalizeRGB(int red, int green, int blue) {
     const float MAX = 255.f;
-    return glm::vec3(red / MAX, green / MAX, blue / MAX);
+    return vec3(red / MAX, green / MAX, blue / MAX);
 }
 
 /*
@@ -40,14 +49,14 @@ constexpr glm::vec3 normalizeRGB(int red, int green, int blue) {
 const int WIDTH = 1280;
 const int HEIGHT = 720;
 
-constexpr glm::vec3 backgroundColor = normalizeRGB(29, 33, 45);
+constexpr vec3 backgroundColor = normalizeRGB(29, 33, 45);
 
 bool keys[512];
 bool processedKeys[512];
 
 const float SPRITE_SIZE = 16.f * 4;
 
-glm::vec2 topLeftPosition = glm::vec2(WIDTH / 2 - SPRITE_SIZE, HEIGHT / 2 - SPRITE_SIZE);
+vec2 topLeftPosition = vec2(WIDTH / 2 - SPRITE_SIZE, HEIGHT / 2 - SPRITE_SIZE);
 
 
 /*
@@ -58,12 +67,8 @@ void processInput();
 GLuint createAndCompileShader(GLenum shaderType, const std::string& path);
 GLint getUniformLocation(GLuint shaderProgram, const std::string& name);
 void setShaderUniform(GLint location, bool value);
-void setShaderUniform(GLint location, const glm::vec2& value);
-void setShaderUniform(GLint location, const glm::mat4& value);
-
-
-// for convenience
-using json = nlohmann::json;
+void setShaderUniform(GLint location, const vec2& value);
+void setShaderUniform(GLint location, const mat4& value);
 
 
 struct animation {
@@ -161,6 +166,15 @@ int main(int argc, char* argv[]) {
     glViewport(0, 0, WIDTH, HEIGHT);
 
 
+    std::fstream levelInfoIn("levels/level01.json");
+    json levelInfo;
+    levelInfoIn >> levelInfo;
+    std::vector<int> tiles = levelInfo["layers"][0]["data"];
+    std::vector<ivec2> mappedTiles(tiles.size());
+    std::transform(tiles.begin(), tiles.end(), mappedTiles.begin(), 
+                   [](int tile) { return ivec2(tile, tile); });
+
+
     int textureWidth, textureHeight, textureChannels;
     unsigned char* textureImage = stbi_load("textures/industrial_tileset.png",
         &textureWidth, &textureHeight, &textureChannels, 0);
@@ -209,7 +223,7 @@ int main(int argc, char* argv[]) {
     
     glUseProgram(shaderProgram);
 
-    glm::mat4 projection = glm::ortho(0.0f, (float) WIDTH, (float) HEIGHT, 0.0f);
+    mat4 projection = glm::ortho(0.0f, (float) WIDTH, (float) HEIGHT, 0.0f);
     
     GLint projectionUniformLocation = getUniformLocation(shaderProgram, "projection");
     setShaderUniform(projectionUniformLocation, projection);
@@ -239,7 +253,7 @@ int main(int argc, char* argv[]) {
     float spriteHeight = ((float) tileHeight) / textureHeight;
 
     GLint spriteSizeUniformLocation = getUniformLocation(shaderProgram, "spriteSize");
-    setShaderUniform(spriteSizeUniformLocation, glm::vec2(spriteWidth, spriteHeight));
+    setShaderUniform(spriteSizeUniformLocation, vec2(spriteWidth, spriteHeight));
 
     GLint reversedUniformLocation = getUniformLocation(shaderProgram, "reversed");
     setShaderUniform(reversedUniformLocation, reversed);
@@ -275,9 +289,9 @@ int main(int argc, char* argv[]) {
 
         processInput();
 
-        glm::mat4 model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(topLeftPosition, 0.0f));
-        model = glm::scale(model, glm::vec3(SPRITE_SIZE));
+        mat4 model = mat4(1.0f);
+        model = glm::translate(model, vec3(topLeftPosition, 0.0f));
+        model = glm::scale(model, vec3(SPRITE_SIZE));
         setShaderUniform(modelUniformLocation, model);
 
         float bobXOffset = (tileWidth * (float)bob.currentAnimation.x) / textureWidth;
@@ -294,7 +308,7 @@ int main(int argc, char* argv[]) {
 
             frameTime = 0.0f;
         }
-        setShaderUniform(spriteOffsetUniformLocation, glm::vec2(bobXOffset + bob.currentAnimation.xOffset, bobYOffset));
+        setShaderUniform(spriteOffsetUniformLocation, vec2(bobXOffset + bob.currentAnimation.xOffset, bobYOffset));
         setShaderUniform(reversedUniformLocation, reversed);
 
         glClearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, 1.0f);
@@ -419,10 +433,10 @@ void setShaderUniform(GLint location, bool value) {
     glUniform1i(location, value);
 }
 
-void setShaderUniform(GLint location, const glm::vec2& value) {
+void setShaderUniform(GLint location, const vec2& value) {
     glUniform2f(location, value.x, value.y);
 }
 
-void setShaderUniform(GLint location, const glm::mat4& value) {
+void setShaderUniform(GLint location, const mat4& value) {
     glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(value));
 }
