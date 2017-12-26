@@ -1,0 +1,13 @@
+{
+  "columns": 32,
+  "image": "..\\textures\\industrial_tileset.png",
+  "imageheight": 512,
+  "imagewidth": 512,
+  "margin": 0,
+  "name": "industrial_tileset",
+  "spacing": 0,
+  "tilecount": 1024,
+  "tileheight": 16,
+  "tilewidth": 16,
+  "type": "tileset"
+}

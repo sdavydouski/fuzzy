@@ -1,0 +1,31 @@
+{
+  "width": 10,
+  "height": 10,
+  "tilewidth": 16,
+  "tileheight": 16,
+  "layers": [
+    {
+      "data": [ 0, 0, 0, 0, 0, 0, 0, 23, 0, 0, 0, 0, 0, 0, 0, 0, 0, 55, 0, 0, 20, 21, 22, 0, 0, 0, 0, 150, 151, 0, 0, 97, 0, 0, 0, 0, 0, 182, 183, 0, 0, 129, 0, 0, 0, 0, 0, 214, 215, 0, 0, 0, 0, 0, 0, 0, 0, 246, 247, 0, 0, 0, 0, 0, 0, 0, 0, 278, 279, 0, 0, 0, 0, 0, 0, 177, 0, 0, 0, 0, 33, 34, 35, 36, 37, 38, 44, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ],
+      "height": 10,
+      "name": "Tile Layer 1",
+      "opacity": 1,
+      "type": "tilelayer",
+      "visible": true,
+      "width": 10,
+      "x": 0,
+      "y": 0
+    }
+  ],
+  "nextobjectid": 1,
+  "orientation": "orthogonal",
+  "renderorder": "right-down",
+  "tiledversion": "1.0.3",
+  "tilesets": [
+    {
+      "firstgid": 1,
+      "source": "fuzzy.json"
+    }
+  ],
+  "type": "map",
+  "version": 1
+}

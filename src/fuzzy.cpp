@@ -92,6 +92,9 @@ struct sprite {
 sprite bob;
 
 // todo: tilemap
+// 1. map data from tilemap.json to x,y
+// 2. save x,y to instanced array
+// 3. use x,y in fragment shader per instance to draw corresponding sprite on a tile
 int main(int argc, char* argv[]) {
 
     if (!glfwInit()) {

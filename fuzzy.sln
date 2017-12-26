@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.27004.2008
+VisualStudioVersion = 15.0.27004.2010
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fuzzy", "src\fuzzy.vcxproj", "{81B2D33D-A0A9-4B3E-8C28-836E0880785F}"
 EndProject
@@ -30,6 +30,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "textures", "textures", "{40
 		data\textures\sprites.json = data\textures\sprites.json
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "levels", "levels", "{EDA354BB-F825-4C1C-9964-99D43988FECE}"
+	ProjectSection(SolutionItems) = preProject
+		data\levels\level01.json = data\levels\level01.json
+		data\levels\tileset.json = data\levels\tileset.json
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -53,6 +59,7 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{849DEA6D-56FE-4DD0-BF45-650BC17E3E72} = {40618B3B-D41E-41B0-A0E0-30EAED9F756A}
 		{403821E1-DD33-43B6-8927-BB1E7C53B811} = {40618B3B-D41E-41B0-A0E0-30EAED9F756A}
+		{EDA354BB-F825-4C1C-9964-99D43988FECE} = {40618B3B-D41E-41B0-A0E0-30EAED9F756A}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {6CB12932-8CAA-433E-822D-8A13813D9D25}
