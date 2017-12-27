@@ -35,6 +35,7 @@ using json = nlohmann::json;
 using vec2 = glm::vec2;
 using ivec2 = glm::ivec2;
 using vec3 = glm::vec3;
+using vec4 = glm::vec4;
 using mat4 = glm::mat4;
 
 
@@ -50,6 +51,7 @@ const int WIDTH = 1280;
 const int HEIGHT = 720;
 
 constexpr vec3 backgroundColor = normalizeRGB(29, 33, 45);
+//constexpr vec3 backgroundColor = normalizeRGB(0, 255, 0);
 
 bool keys[512];
 bool processedKeys[512];
@@ -165,16 +167,6 @@ int main(int argc, char* argv[]) {
 
     glViewport(0, 0, WIDTH, HEIGHT);
 
-
-    std::fstream levelInfoIn("levels/level01.json");
-    json levelInfo;
-    levelInfoIn >> levelInfo;
-    std::vector<int> tiles = levelInfo["layers"][0]["data"];
-    std::vector<ivec2> mappedTiles(tiles.size());
-    std::transform(tiles.begin(), tiles.end(), mappedTiles.begin(), 
-                   [](int tile) { return ivec2(tile, tile); });
-
-
     int textureWidth, textureHeight, textureChannels;
     unsigned char* textureImage = stbi_load("textures/industrial_tileset.png",
         &textureWidth, &textureHeight, &textureChannels, 0);
@@ -266,21 +258,48 @@ int main(int argc, char* argv[]) {
         1.f, 1.f, spriteWidth, spriteHeight
     };
 
+    std::fstream levelInfoIn("levels/level01.json");
+    std::fstream tileSetInfoIn("levels/tileset.json");
+    json levelInfo;
+    json tilesetInfo;
+    levelInfoIn >> levelInfo;
+    tileSetInfoIn >> tilesetInfo;
+
+    int columns = tilesetInfo["columns"];
+    std::vector<int> rawTiles = levelInfo["layers"][0]["data"];
+    std::vector<vec4> tiles(rawTiles.size());
+    int index = 0;
+    std::transform(rawTiles.begin(), rawTiles.end(), tiles.begin(),
+        [&index, columns, spriteWidth, spriteHeight](int tile) {
+            int x = index % 20;
+            int y = index / 20;
+            float uvX = tile > 0 ? ((tile - 1) % columns) * spriteWidth : -1;
+            float uvY = tile > 0 ? ((tile - 1) / columns) * spriteHeight : -1;
+            ++index;
+            return vec4(x * 64, y * 64, uvX, uvY);
+        });
+
     GLuint VBO;
     glGenBuffers(1, &VBO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices) + tiles.size() * 4 * sizeof(float), nullptr, GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*) 0);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+    glBufferSubData(GL_ARRAY_BUFFER, sizeof(vertices), tiles.size() * 4 * sizeof(float), tiles.data());
+
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*) 0);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*) (2 * sizeof(float)));
+    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*) sizeof(vertices));
     glEnableVertexAttribArray(1);
+    glVertexAttribDivisor(1, 1);
 
     double lastTime = glfwGetTime();
     double currentTime;
     double delta;
     
     double frameTime = 0.f;
+    
+    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
     while (!glfwWindowShouldClose(window)) {
         currentTime = glfwGetTime();
@@ -290,7 +309,7 @@ int main(int argc, char* argv[]) {
         processInput();
 
         mat4 model = mat4(1.0f);
-        model = glm::translate(model, vec3(topLeftPosition, 0.0f));
+        //model = glm::translate(model, vec3(topLeftPosition, 0.0f));
         model = glm::scale(model, vec3(SPRITE_SIZE));
         setShaderUniform(modelUniformLocation, model);
 
@@ -314,7 +333,7 @@ int main(int argc, char* argv[]) {
         glClearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, 200);
 
         glfwSwapBuffers(window);
 
@@ -425,7 +444,7 @@ std::string readTextFile(const std::string& path) {
 
 GLint getUniformLocation(GLuint shaderProgram, const std::string& name) {
     GLint uniformLocation = glGetUniformLocation(shaderProgram, name.c_str());
-    assert(uniformLocation != -1);
+    //assert(uniformLocation != -1);
     return uniformLocation;
 }
 
