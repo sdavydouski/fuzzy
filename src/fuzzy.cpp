@@ -58,7 +58,7 @@ bool processedKeys[512];
 
 const float SPRITE_SIZE = 16.f * 4;
 
-vec2 topLeftPosition = vec2(WIDTH / 2 - SPRITE_SIZE, HEIGHT / 2 - SPRITE_SIZE);
+vec2 topLeftPosition = vec2(150, 450);
 
 
 /*
@@ -69,6 +69,7 @@ void processInput();
 GLuint createAndCompileShader(GLenum shaderType, const std::string& path);
 GLint getUniformLocation(GLuint shaderProgram, const std::string& name);
 void setShaderUniform(GLint location, bool value);
+void setShaderUniform(GLint location, int value);
 void setShaderUniform(GLint location, const vec2& value);
 void setShaderUniform(GLint location, const mat4& value);
 
@@ -98,10 +99,7 @@ struct sprite {
 
 sprite bob;
 
-// todo: tilemap
-// 1. map data from tilemap.json to x,y
-// 2. save x,y to instanced array
-// 3. use x,y in fragment shader per instance to draw corresponding sprite on a tile
+// todo: world coordinate system
 int main(int argc, char* argv[]) {
 
     if (!glfwInit()) {
@@ -220,6 +218,8 @@ int main(int argc, char* argv[]) {
     GLint projectionUniformLocation = getUniformLocation(shaderProgram, "projection");
     setShaderUniform(projectionUniformLocation, projection);
     GLint modelUniformLocation = getUniformLocation(shaderProgram, "model");
+    GLint typeUniformLocation = getUniformLocation(shaderProgram, "type");
+
     GLint spriteOffsetUniformLocation = getUniformLocation(shaderProgram, "spriteOffset");
     
     std::fstream spritesConfigIn("textures/sprites.json");
@@ -273,10 +273,10 @@ int main(int argc, char* argv[]) {
         [&index, columns, spriteWidth, spriteHeight](int tile) {
             int x = index % 20;
             int y = index / 20;
-            float uvX = tile > 0 ? ((tile - 1) % columns) * spriteWidth : -1;
-            float uvY = tile > 0 ? ((tile - 1) / columns) * spriteHeight : -1;
+            float uvX = tile > 0 ? ((tile - 1) % columns) : -1;
+            float uvY = tile > 0 ? ((tile - 1) / columns) : -1;
             ++index;
-            return vec4(x * 64, y * 64, uvX, uvY);
+            return vec4(x * 64, y * 64, uvX * spriteWidth, uvY * spriteHeight);
         });
 
     GLuint VBO;
@@ -305,16 +305,30 @@ int main(int argc, char* argv[]) {
         currentTime = glfwGetTime();
 
         glfwPollEvents();
-
         processInput();
 
+        glClearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        //--- drawing tilemap ---
+        setShaderUniform(typeUniformLocation, 1);
+
         mat4 model = mat4(1.0f);
-        //model = glm::translate(model, vec3(topLeftPosition, 0.0f));
+        model = glm::scale(model, vec3(SPRITE_SIZE));
+        setShaderUniform(modelUniformLocation, model);
+        
+        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, 200);
+
+        //--- drawing bob ---
+        setShaderUniform(typeUniformLocation, 2);
+
+        model = mat4(1.0f);
+        model = glm::translate(model, vec3(topLeftPosition, 0.0f));
         model = glm::scale(model, vec3(SPRITE_SIZE));
         setShaderUniform(modelUniformLocation, model);
 
-        float bobXOffset = (tileWidth * (float)bob.currentAnimation.x) / textureWidth;
-        float bobYOffset = (tileHeight * (float)bob.currentAnimation.y) / textureHeight;
+        float bobXOffset = (tileWidth * (float) bob.currentAnimation.x) / textureWidth;
+        float bobYOffset = (tileHeight * (float) bob.currentAnimation.y) / textureHeight;
 
         if (frameTime >= bob.currentAnimation.delay) {
             bob.currentAnimation.xOffset += spriteWidth;
@@ -329,11 +343,9 @@ int main(int argc, char* argv[]) {
         }
         setShaderUniform(spriteOffsetUniformLocation, vec2(bobXOffset + bob.currentAnimation.xOffset, bobYOffset));
         setShaderUniform(reversedUniformLocation, reversed);
+        
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-        glClearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-
-        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, 200);
 
         glfwSwapBuffers(window);
 
@@ -449,6 +461,10 @@ GLint getUniformLocation(GLuint shaderProgram, const std::string& name) {
 }
 
 void setShaderUniform(GLint location, bool value) {
+    glUniform1i(location, value);
+}
+
+void setShaderUniform(GLint location, int value) {
     glUniform1i(location, value);
 }
 
