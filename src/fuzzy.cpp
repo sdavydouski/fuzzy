@@ -29,34 +29,26 @@
 #include <vector>
 #include <algorithm>
 
-// for convenience
-using json = nlohmann::json;
-
-using vec2 = glm::vec2;
-using ivec2 = glm::ivec2;
-using vec3 = glm::vec3;
-using vec4 = glm::vec4;
-using mat4 = glm::mat4;
+#include "types.h"
 
 
-constexpr vec3 normalizeRGB(int red, int green, int blue) {
-    const float MAX = 255.f;
+constexpr vec3 normalizeRGB(s32 red, s32 green, s32 blue) {
+    const f32 MAX = 255.f;
     return vec3(red / MAX, green / MAX, blue / MAX);
 }
 
 /*
  * Global constants
  */
-const int WIDTH = 1280;
-const int HEIGHT = 720;
+const s32 WIDTH = 1280;
+const s32 HEIGHT = 720;
 
 constexpr vec3 backgroundColor = normalizeRGB(29, 33, 45);
-//constexpr vec3 backgroundColor = normalizeRGB(0, 255, 0);
 
-bool keys[512];
-bool processedKeys[512];
+b8 keys[512];
+b8 processedKeys[512];
 
-const float SPRITE_SIZE = 16.f * 4;
+const f32 SPRITE_SIZE = 16.f * 4;
 
 vec2 topLeftPosition = vec2(150, 450);
 
@@ -64,33 +56,33 @@ vec2 topLeftPosition = vec2(150, 450);
 /*
  * Function declarations
  */
-std::string readTextFile(const std::string& path);
+string readTextFile(const string& path);
 void processInput();
-GLuint createAndCompileShader(GLenum shaderType, const std::string& path);
-GLint getUniformLocation(GLuint shaderProgram, const std::string& name);
-void setShaderUniform(GLint location, bool value);
-void setShaderUniform(GLint location, int value);
-void setShaderUniform(GLint location, const vec2& value);
-void setShaderUniform(GLint location, const mat4& value);
+u32 createAndCompileShader(e32 shaderType, const string& path);
+s32 getUniformLocation(u32 shaderProgram, const string& name);
+void setShaderUniform(s32 location, b8 value);
+void setShaderUniform(s32 location, s32 value);
+void setShaderUniform(s32 location, const vec2& value);
+void setShaderUniform(s32 location, const mat4& value);
 
 
 struct animation {
-    int x;
-    int y;
-    int frames;
-    float delay;
-    float xOffset;
+    s32 x;
+    s32 y;
+    s32 frames;
+    f32 delay;
+    f32 xOffset;
 
-    bool operator==(const animation& other) const {
+    b8 operator==(const animation& other) const {
         return x == other.x && y == other.y;
     }
 
-    bool operator!=(const animation& other) const {
+    b8 operator!=(const animation& other) const {
         return !(*this == other);
     }
 };
 
-bool reversed = false;
+b8 reversed = false;
 
 struct sprite {
     std::vector<animation> animations;
@@ -100,14 +92,14 @@ struct sprite {
 sprite bob;
 
 // todo: world coordinate system
-int main(int argc, char* argv[]) {
+s32 main(s32 argc, char* argv[]) {
 
     if (!glfwInit()) {
         std::cout << "Failed to initialize GLFW" << std::endl;
         return EXIT_FAILURE;
     }
 
-    srand((unsigned int) glfwGetTimerValue());
+    srand((u32) glfwGetTimerValue());
 
 //    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 //    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -126,7 +118,7 @@ int main(int argc, char* argv[]) {
 
     glfwSetWindowPos(window, (vidmode->width - WIDTH) / 2, (vidmode->height - HEIGHT) / 2);
 
-    glfwSetKeyCallback(window, [](GLFWwindow* window, int key, int scancode, int action, int mods) {
+    glfwSetKeyCallback(window, [](GLFWwindow* window, s32 key, s32 scancode, s32 action, s32 mods) {
         if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
             glfwSetWindowShouldClose(window, GLFW_TRUE);
         }
@@ -138,14 +130,14 @@ int main(int argc, char* argv[]) {
         }
     });
 
-    glfwSetMouseButtonCallback(window, [](GLFWwindow* window, int button, int action, int mods) {
+    glfwSetMouseButtonCallback(window, [](GLFWwindow* window, s32 button, s32 action, s32 mods) {
         if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
             bob.currentAnimation = bob.animations[3];
             bob.currentAnimation.xOffset = 0.f;
         }
     });
 
-    glfwSetFramebufferSizeCallback(window, [](GLFWwindow* window, int width, int height) {
+    glfwSetFramebufferSizeCallback(window, [](GLFWwindow* window, s32 width, s32 height) {
         glViewport(0, 0, width, height);
     });
 
@@ -165,15 +157,15 @@ int main(int argc, char* argv[]) {
 
     glViewport(0, 0, WIDTH, HEIGHT);
 
-    int textureWidth, textureHeight, textureChannels;
-    unsigned char* textureImage = stbi_load("textures/industrial_tileset.png",
+    s32 textureWidth, textureHeight, textureChannels;
+    u8* textureImage = stbi_load("textures/industrial_tileset.png",
         &textureWidth, &textureHeight, &textureChannels, 0);
     if (!textureImage) {
         std::cout << "Texture loading failed:" << std::endl << stbi_failure_reason() << std::endl;
     }
     assert(textureImage);
 
-    GLuint texture;
+    u32 texture;
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
 
@@ -187,24 +179,24 @@ int main(int argc, char* argv[]) {
     stbi_image_free(textureImage);
 
     
-    GLuint vertexShader = createAndCompileShader(GL_VERTEX_SHADER, "shaders/basic.vert");
-    GLuint fragmentShader = createAndCompileShader(GL_FRAGMENT_SHADER, "shaders/basic.frag");
+    u32 vertexShader = createAndCompileShader(GL_VERTEX_SHADER, "shaders/basic.vert");
+    u32 fragmentShader = createAndCompileShader(GL_FRAGMENT_SHADER, "shaders/basic.frag");
 
-    GLuint shaderProgram = glCreateProgram();
+    u32 shaderProgram = glCreateProgram();
     glAttachShader(shaderProgram, vertexShader);
     glAttachShader(shaderProgram, fragmentShader);
     glLinkProgram(shaderProgram);
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
 
-    GLint isShaderProgramLinked;
+    s32 isShaderProgramLinked;
     glGetProgramiv(shaderProgram, GL_LINK_STATUS, &isShaderProgramLinked);
 
     if (!isShaderProgramLinked) {
-        GLint LOG_LENGTH;
+        s32 LOG_LENGTH;
         glGetProgramiv(shaderProgram, GL_INFO_LOG_LENGTH, &LOG_LENGTH);
 
-        std::vector<GLchar> errorLog(LOG_LENGTH);
+        std::vector<c8> errorLog(LOG_LENGTH);
 
         glGetProgramInfoLog(shaderProgram, LOG_LENGTH, nullptr, &errorLog[0]);
         std::cerr << "Shader program linkage failed:" << std::endl << &errorLog[0] << std::endl;
@@ -213,21 +205,21 @@ int main(int argc, char* argv[]) {
     
     glUseProgram(shaderProgram);
 
-    mat4 projection = glm::ortho(0.0f, (float) WIDTH, (float) HEIGHT, 0.0f);
+    mat4 projection = glm::ortho(0.0f, (f32) WIDTH, (f32) HEIGHT, 0.0f);
     
-    GLint projectionUniformLocation = getUniformLocation(shaderProgram, "projection");
+    s32 projectionUniformLocation = getUniformLocation(shaderProgram, "projection");
     setShaderUniform(projectionUniformLocation, projection);
-    GLint modelUniformLocation = getUniformLocation(shaderProgram, "model");
-    GLint typeUniformLocation = getUniformLocation(shaderProgram, "type");
+    s32 modelUniformLocation = getUniformLocation(shaderProgram, "model");
+    s32 typeUniformLocation = getUniformLocation(shaderProgram, "type");
 
-    GLint spriteOffsetUniformLocation = getUniformLocation(shaderProgram, "spriteOffset");
+    s32 spriteOffsetUniformLocation = getUniformLocation(shaderProgram, "spriteOffset");
     
     std::fstream spritesConfigIn("textures/sprites.json");
     json spritesConfig;
     spritesConfigIn >> spritesConfig;
 
-    int tileWidth = spritesConfig["tileWidth"];
-    int tileHeight = spritesConfig["tileHeight"];
+    s32 tileWidth = spritesConfig["tileWidth"];
+    s32 tileHeight = spritesConfig["tileHeight"];
 
     auto bobConfig = spritesConfig["sprites"][0];
     auto bobAnimations = bobConfig["animations"];
@@ -241,16 +233,16 @@ int main(int argc, char* argv[]) {
     };
     bob.currentAnimation = bob.animations[0];
 
-    float spriteWidth = ((float) tileWidth) / textureWidth;
-    float spriteHeight = ((float) tileHeight) / textureHeight;
+    f32 spriteWidth = ((f32) tileWidth) / textureWidth;
+    f32 spriteHeight = ((f32) tileHeight) / textureHeight;
 
-    GLint spriteSizeUniformLocation = getUniformLocation(shaderProgram, "spriteSize");
+    s32 spriteSizeUniformLocation = getUniformLocation(shaderProgram, "spriteSize");
     setShaderUniform(spriteSizeUniformLocation, vec2(spriteWidth, spriteHeight));
 
-    GLint reversedUniformLocation = getUniformLocation(shaderProgram, "reversed");
+    s32 reversedUniformLocation = getUniformLocation(shaderProgram, "reversed");
     setShaderUniform(reversedUniformLocation, reversed);
 
-    float vertices[] = {
+    f32 vertices[] = {
         // Pos    // UV
         0.f, 0.f, 0.f, 0.f,
         0.f, 1.f, 0.f, spriteHeight,
@@ -265,39 +257,39 @@ int main(int argc, char* argv[]) {
     levelInfoIn >> levelInfo;
     tileSetInfoIn >> tilesetInfo;
 
-    int columns = tilesetInfo["columns"];
-    std::vector<int> rawTiles = levelInfo["layers"][0]["data"];
+    s32 columns = tilesetInfo["columns"];
+    std::vector<s32> rawTiles = levelInfo["layers"][0]["data"];
     std::vector<vec4> tiles(rawTiles.size());
-    int index = 0;
+    s32 index = 0;
     std::transform(rawTiles.begin(), rawTiles.end(), tiles.begin(),
-        [&index, columns, spriteWidth, spriteHeight](int tile) {
-            int x = index % 20;
-            int y = index / 20;
-            float uvX = tile > 0 ? ((tile - 1) % columns) : -1;
-            float uvY = tile > 0 ? ((tile - 1) / columns) : -1;
+        [&index, columns, spriteWidth, spriteHeight](s32 tile) {
+            s32 x = index % 20;
+            s32 y = index / 20;
+            s32 uvX = tile > 0 ? ((tile - 1) % columns) : -1;
+            s32 uvY = tile > 0 ? ((tile - 1) / columns) : -1;
             ++index;
             return vec4(x * 64, y * 64, uvX * spriteWidth, uvY * spriteHeight);
         });
 
-    GLuint VBO;
+    u32 VBO;
     glGenBuffers(1, &VBO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices) + tiles.size() * 4 * sizeof(float), nullptr, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices) + tiles.size() * 4 * sizeof(f32), nullptr, GL_STATIC_DRAW);
 
     glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
-    glBufferSubData(GL_ARRAY_BUFFER, sizeof(vertices), tiles.size() * 4 * sizeof(float), tiles.data());
+    glBufferSubData(GL_ARRAY_BUFFER, sizeof(vertices), tiles.size() * 4 * sizeof(f32), tiles.data());
 
-    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*) 0);
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(f32), (void*) 0);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*) sizeof(vertices));
+    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(f32), (void*) sizeof(vertices));
     glEnableVertexAttribArray(1);
     glVertexAttribDivisor(1, 1);
 
-    double lastTime = glfwGetTime();
-    double currentTime;
-    double delta;
+    f64 lastTime = glfwGetTime();
+    f64 currentTime;
+    f64 delta;
     
-    double frameTime = 0.f;
+    f64 frameTime = 0.f;
     
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
@@ -327,12 +319,12 @@ int main(int argc, char* argv[]) {
         model = glm::scale(model, vec3(SPRITE_SIZE));
         setShaderUniform(modelUniformLocation, model);
 
-        float bobXOffset = (tileWidth * (float) bob.currentAnimation.x) / textureWidth;
-        float bobYOffset = (tileHeight * (float) bob.currentAnimation.y) / textureHeight;
+        f32 bobXOffset = (tileWidth * (f32) bob.currentAnimation.x) / textureWidth;
+        f32 bobYOffset = (tileHeight * (f32) bob.currentAnimation.y) / textureHeight;
 
         if (frameTime >= bob.currentAnimation.delay) {
             bob.currentAnimation.xOffset += spriteWidth;
-            if (bob.currentAnimation.xOffset >= ((bob.currentAnimation.frames * tileWidth) / (float) textureWidth)) {
+            if (bob.currentAnimation.xOffset >= ((bob.currentAnimation.frames * tileWidth) / (f32) textureWidth)) {
                 bob.currentAnimation.xOffset = 0.f;
                 if (bob.currentAnimation == bob.animations[3]) {
                     bob.currentAnimation = bob.animations[0];
@@ -366,7 +358,7 @@ int main(int argc, char* argv[]) {
  * Function definitions
  */
 void processInput() {
-    float step = 4.f;
+    f32 step = 4.f;
     //if (keys[GLFW_KEY_UP] == GLFW_PRESS) {
     //    if (topLeftPosition.y > 0.f) {
     //        topLeftPosition.y -= step;
@@ -415,26 +407,26 @@ void processInput() {
     }
 //    if (keys[GLFW_KEY_SPACE] == GLFW_PRESS && !processedKeys[GLFW_KEY_SPACE]) {
 //        processedKeys[GLFW_KEY_SPACE] = true;
-//        red = (float) (rand()) / (float) RAND_MAX;
-//        green = (float) (rand()) / (float) RAND_MAX;
-//        blue = (float) (rand()) / (float) RAND_MAX;
+//        red = (f32) (rand()) / (f32) RAND_MAX;
+//        green = (f32) (rand()) / (f32) RAND_MAX;
+//        blue = (f32) (rand()) / (f32) RAND_MAX;
 //    }
 }
 
-GLuint createAndCompileShader(GLenum shaderType, const std::string& path) {
-    GLuint shader = glCreateShader(shaderType);
-    std::string shaderSource = readTextFile(path);
-    const GLchar* shaderSourcePtr = shaderSource.c_str();
+u32 createAndCompileShader(e32 shaderType, const string& path) {
+    u32 shader = glCreateShader(shaderType);
+    string shaderSource = readTextFile(path);
+    const c8* shaderSourcePtr = shaderSource.c_str();
     glShaderSource(shader, 1, &shaderSourcePtr, nullptr);
     glCompileShader(shader);
 
-    GLint isShaderCompiled;
+    s32 isShaderCompiled;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &isShaderCompiled);
     if (!isShaderCompiled) {
-        GLint LOG_LENGTH;
+        s32 LOG_LENGTH;
         glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &LOG_LENGTH);
 
-        std::vector<GLchar> errorLog(LOG_LENGTH);
+        std::vector<c8> errorLog(LOG_LENGTH);
 
         glGetShaderInfoLog(shader, LOG_LENGTH, nullptr, &errorLog[0]);
         std::cerr << "Shader compilation failed:" << std::endl << &errorLog[0] << std::endl;
@@ -444,7 +436,7 @@ GLuint createAndCompileShader(GLenum shaderType, const std::string& path) {
     return shader;
 }
 
-std::string readTextFile(const std::string& path) {
+string readTextFile(const string& path) {
     std::ifstream in(path);
 
     assert(in.good());
@@ -454,24 +446,24 @@ std::string readTextFile(const std::string& path) {
     return ss.str();
 }
 
-GLint getUniformLocation(GLuint shaderProgram, const std::string& name) {
-    GLint uniformLocation = glGetUniformLocation(shaderProgram, name.c_str());
+s32 getUniformLocation(u32 shaderProgram, const string& name) {
+    s32 uniformLocation = glGetUniformLocation(shaderProgram, name.c_str());
     //assert(uniformLocation != -1);
     return uniformLocation;
 }
 
-void setShaderUniform(GLint location, bool value) {
+void setShaderUniform(s32 location, b8 value) {
     glUniform1i(location, value);
 }
 
-void setShaderUniform(GLint location, int value) {
+void setShaderUniform(s32 location, s32 value) {
     glUniform1i(location, value);
 }
 
-void setShaderUniform(GLint location, const vec2& value) {
+void setShaderUniform(s32 location, const vec2& value) {
     glUniform2f(location, value.x, value.y);
 }
 
-void setShaderUniform(GLint location, const mat4& value) {
+void setShaderUniform(s32 location, const mat4& value) {
     glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(value));
 }
