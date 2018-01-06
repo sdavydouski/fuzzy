@@ -57,13 +57,14 @@ vec2 topLeftPosition = vec2(150, 450);
  * Function declarations
  */
 string readTextFile(const string& path);
-void processInput();
+void processInput(f32 dt);
 u32 createAndCompileShader(e32 shaderType, const string& path);
 s32 getUniformLocation(u32 shaderProgram, const string& name);
 void setShaderUniform(s32 location, b8 value);
 void setShaderUniform(s32 location, s32 value);
 void setShaderUniform(s32 location, const vec2& value);
 void setShaderUniform(s32 location, const mat4& value);
+f32 clamp(f32 value, f32 min, f32 max);
 
 
 struct animation {
@@ -87,6 +88,8 @@ b8 reversed = false;
 struct sprite {
     std::vector<animation> animations;
     animation currentAnimation;
+    vec2 position;
+    vec2 velocity;
 };
 
 sprite bob;
@@ -225,6 +228,8 @@ s32 main(s32 argc, char* argv[]) {
     auto bobAnimations = bobConfig["animations"];
 
     bob = {};
+    bob.position = topLeftPosition;
+    bob.velocity = {0.f, 0.f};
     bob.animations = {
         { bobAnimations[0]["x"], bobAnimations[0]["y"], bobAnimations[0]["frames"], bobAnimations[0]["delay"], 0.f },
         { bobAnimations[1]["x"], bobAnimations[1]["y"], bobAnimations[1]["frames"], bobAnimations[1]["delay"], 0.f },
@@ -258,13 +263,15 @@ s32 main(s32 argc, char* argv[]) {
     tileSetInfoIn >> tilesetInfo;
 
     s32 columns = tilesetInfo["columns"];
+    s32 levelWidth = levelInfo["width"];
+    s32 levelHeight = levelInfo["height"];
     std::vector<s32> rawTiles = levelInfo["layers"][0]["data"];
     std::vector<vec4> tiles(rawTiles.size());
     s32 index = 0;
     std::transform(rawTiles.begin(), rawTiles.end(), tiles.begin(),
-        [&index, columns, spriteWidth, spriteHeight](s32 tile) {
-            s32 x = index % 20;
-            s32 y = index / 20;
+        [&index, levelWidth, columns, spriteWidth, spriteHeight](s32 tile) {
+            s32 x = index % levelWidth;
+            s32 y = index / levelWidth;
             s32 uvX = tile > 0 ? ((tile - 1) % columns) : -1;
             s32 uvY = tile > 0 ? ((tile - 1) / columns) : -1;
             ++index;
@@ -287,7 +294,7 @@ s32 main(s32 argc, char* argv[]) {
 
     f64 lastTime = glfwGetTime();
     f64 currentTime;
-    f64 delta;
+    f64 delta = 0;
     
     f64 frameTime = 0.f;
     
@@ -297,7 +304,7 @@ s32 main(s32 argc, char* argv[]) {
         currentTime = glfwGetTime();
 
         glfwPollEvents();
-        processInput();
+        processInput((f32) delta);
 
         glClearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -309,13 +316,13 @@ s32 main(s32 argc, char* argv[]) {
         model = glm::scale(model, vec3(SPRITE_SIZE));
         setShaderUniform(modelUniformLocation, model);
         
-        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, 200);
+        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, levelWidth * levelHeight);
 
         //--- drawing bob ---
         setShaderUniform(typeUniformLocation, 2);
 
         model = mat4(1.0f);
-        model = glm::translate(model, vec3(topLeftPosition, 0.0f));
+        model = glm::translate(model, vec3(bob.position, 0.0f));
         model = glm::scale(model, vec3(SPRITE_SIZE));
         setShaderUniform(modelUniformLocation, model);
 
@@ -357,8 +364,8 @@ s32 main(s32 argc, char* argv[]) {
 /*
  * Function definitions
  */
-void processInput() {
-    f32 step = 4.f;
+void processInput(f32 dt) {
+    f32 acceleration = 0;
     //if (keys[GLFW_KEY_UP] == GLFW_PRESS) {
     //    if (topLeftPosition.y > 0.f) {
     //        topLeftPosition.y -= step;
@@ -374,9 +381,7 @@ void processInput() {
             bob.currentAnimation = bob.animations[2];
             reversed = true;
         }
-        if (topLeftPosition.x > 0.f) {
-            topLeftPosition.x -= step;
-        }
+        acceleration = -800.f;
     }
 
     if (keys[GLFW_KEY_LEFT] == GLFW_RELEASE && !processedKeys[GLFW_KEY_LEFT]) {
@@ -393,9 +398,7 @@ void processInput() {
             bob.currentAnimation = bob.animations[2];
             reversed = false;
         }
-        if (topLeftPosition.x < WIDTH - SPRITE_SIZE) {
-            topLeftPosition.x += step;
-        }
+        acceleration = 800.f;
     }
     if (keys[GLFW_KEY_RIGHT] == GLFW_RELEASE && !processedKeys[GLFW_KEY_RIGHT]) {
         processedKeys[GLFW_KEY_RIGHT] = true;
@@ -405,12 +408,10 @@ void processInput() {
             reversed = false;
         }
     }
-//    if (keys[GLFW_KEY_SPACE] == GLFW_PRESS && !processedKeys[GLFW_KEY_SPACE]) {
-//        processedKeys[GLFW_KEY_SPACE] = true;
-//        red = (f32) (rand()) / (f32) RAND_MAX;
-//        green = (f32) (rand()) / (f32) RAND_MAX;
-//        blue = (f32) (rand()) / (f32) RAND_MAX;
-//    }
+    
+    acceleration += -3.f * bob.velocity.x;
+    bob.velocity.x += acceleration * dt;
+    bob.position.x = clamp(0.5f * acceleration * dt * dt + bob.velocity.x * dt + bob.position.x, 0.f, WIDTH - SPRITE_SIZE);
 }
 
 u32 createAndCompileShader(e32 shaderType, const string& path) {
@@ -466,4 +467,11 @@ void setShaderUniform(s32 location, const vec2& value) {
 
 void setShaderUniform(s32 location, const mat4& value) {
     glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(value));
+}
+
+f32 clamp(f32 value, f32 min, f32 max) {
+    if (value < min) return min;
+    if (value > max) return max;
+
+    return value;
 }
