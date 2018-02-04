@@ -50,7 +50,7 @@ b8 processedKeys[512];
 
 const f32 SPRITE_SIZE = 16.f * 4;
 
-vec2 topLeftPosition = vec2(150, 450);
+vec2 topLeftPosition = vec2(250, 250);
 
 
 /*
@@ -216,6 +216,7 @@ s32 main(s32 argc, char* argv[]) {
     setShaderUniform(projectionUniformLocation, projection);
     s32 modelUniformLocation = getUniformLocation(shaderProgram, "model");
     s32 typeUniformLocation = getUniformLocation(shaderProgram, "type");
+    s32 tileTypeUniformLocation = getUniformLocation(shaderProgram, "tileType");
 
     s32 spriteOffsetUniformLocation = getUniformLocation(shaderProgram, "spriteOffset");
     
@@ -267,10 +268,14 @@ s32 main(s32 argc, char* argv[]) {
     s32 columns = tilesetInfo["columns"];
     s32 levelWidth = levelInfo["width"];
     s32 levelHeight = levelInfo["height"];
-    std::vector<s32> rawTiles = levelInfo["layers"][0]["data"];
-    std::vector<vec4> tiles(rawTiles.size());
+    std::vector<s32> backgroundRawTiles = levelInfo["layers"][0]["data"];
+    std::vector<s32> foregroundRawTiles = levelInfo["layers"][1]["data"];
+
+    std::vector<vec4> backgroundTiles(backgroundRawTiles.size());
     s32 index = 0;
-    std::transform(rawTiles.begin(), rawTiles.end(), tiles.begin(),
+    // todo: don't duplicate coordinates
+    // todo: rotating support
+    std::transform(backgroundRawTiles.begin(), backgroundRawTiles.end(), backgroundTiles.begin(),
         [&index, levelWidth, columns, spriteWidth, spriteHeight](s32 tile) {
             s32 x = index % levelWidth;
             s32 y = index / levelWidth;
@@ -280,19 +285,40 @@ s32 main(s32 argc, char* argv[]) {
             return vec4(x * 64, y * 64, uvX * spriteWidth, uvY * spriteHeight);
         });
 
+    std::vector<vec4> foregroundTiles(foregroundRawTiles.size());
+    index = 0;
+    std::transform(foregroundRawTiles.begin(), foregroundRawTiles.end(), foregroundTiles.begin(),
+        [&index, levelWidth, columns, spriteWidth, spriteHeight](s32 tile) {
+            s32 x = index % levelWidth;
+            s32 y = index / levelWidth;
+            s32 uvX = tile > 0 ? ((tile - 1) % columns) : -1;
+            s32 uvY = tile > 0 ? ((tile - 1) / columns) : -1;
+            ++index;
+            return vec4(x * 64, y * 64, uvX * spriteWidth, uvY * spriteHeight);
+    });
+
     u32 VBO;
     glGenBuffers(1, &VBO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices) + tiles.size() * 4 * sizeof(f32), nullptr, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices) + backgroundTiles.size() * 4 * sizeof(f32) + 
+        foregroundTiles.size() * 4 * sizeof(f32), nullptr, GL_STATIC_DRAW);
 
     glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
-    glBufferSubData(GL_ARRAY_BUFFER, sizeof(vertices), tiles.size() * 4 * sizeof(f32), tiles.data());
+    glBufferSubData(GL_ARRAY_BUFFER, sizeof(vertices), backgroundTiles.size() * 4 * sizeof(f32), backgroundTiles.data());
+    glBufferSubData(GL_ARRAY_BUFFER, sizeof(vertices) + backgroundTiles.size() * 4 * sizeof(f32), 
+        foregroundTiles.size() * 4 * sizeof(f32), foregroundTiles.data());
 
     glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(f32), (void*) 0);
     glEnableVertexAttribArray(0);
+    
     glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(f32), (void*) sizeof(vertices));
     glEnableVertexAttribArray(1);
     glVertexAttribDivisor(1, 1);
+
+    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(f32), (void*) (sizeof(vertices) + 
+        backgroundTiles.size() * 4 * sizeof(f32)));
+    glEnableVertexAttribArray(2);
+    glVertexAttribDivisor(2, 1);
 
     f64 lastTime = glfwGetTime();
     f64 currentTime;
@@ -318,6 +344,10 @@ s32 main(s32 argc, char* argv[]) {
         model = glm::scale(model, vec3(SPRITE_SIZE));
         setShaderUniform(modelUniformLocation, model);
         
+        setShaderUniform(tileTypeUniformLocation, 0);
+        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, levelWidth * levelHeight);
+
+        setShaderUniform(tileTypeUniformLocation, 1);
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, levelWidth * levelHeight);
 
         //--- drawing bob ---
