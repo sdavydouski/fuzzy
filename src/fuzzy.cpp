@@ -56,6 +56,8 @@ vec2 topLeftPosition = vec2(150, 450);
 /*
  * Function declarations
  */
+
+// todo: inline?
 string readTextFile(const string& path);
 void processInput(f32 dt);
 u32 createAndCompileShader(e32 shaderType, const string& path);
@@ -449,7 +451,7 @@ string readTextFile(const string& path) {
 
 s32 getUniformLocation(u32 shaderProgram, const string& name) {
     s32 uniformLocation = glGetUniformLocation(shaderProgram, name.c_str());
-    //assert(uniformLocation != -1);
+    assert(uniformLocation != -1);
     return uniformLocation;
 }
 
