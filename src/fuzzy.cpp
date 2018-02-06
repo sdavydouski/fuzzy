@@ -49,6 +49,7 @@ b8 keys[512];
 b8 processedKeys[512];
 
 const f32 SPRITE_SIZE = 16.f * 4;
+const u32 TILE_SIZE = 64;
 
 vec2 topLeftPosition = vec2(250, 250);
 
@@ -67,6 +68,15 @@ void setShaderUniform(s32 location, s32 value);
 void setShaderUniform(s32 location, const vec2& value);
 void setShaderUniform(s32 location, const mat4& value);
 f32 clamp(f32 value, f32 min, f32 max);
+
+template<typename T>
+u64 sizeInBytes(std::initializer_list<const std::vector<T>> vectors) {
+    u64 size = 0;
+    for (auto& vector: vectors) {
+        size += vector.size() * sizeof(T);
+    }
+    return size;
+}
 
 
 struct animation {
@@ -265,60 +275,63 @@ s32 main(s32 argc, char* argv[]) {
     levelInfoIn >> levelInfo;
     tileSetInfoIn >> tilesetInfo;
 
-    s32 columns = tilesetInfo["columns"];
-    s32 levelWidth = levelInfo["width"];
-    s32 levelHeight = levelInfo["height"];
+    u32 columns = tilesetInfo["columns"];
+    u32 levelWidth = levelInfo["width"];
+    u32 levelHeight = levelInfo["height"];
     std::vector<s32> backgroundRawTiles = levelInfo["layers"][0]["data"];
     std::vector<s32> foregroundRawTiles = levelInfo["layers"][1]["data"];
 
-    std::vector<vec4> backgroundTiles(backgroundRawTiles.size());
-    s32 index = 0;
-    // todo: don't duplicate coordinates
+    std::vector<vec2> xys;
+    xys.reserve(levelWidth * levelHeight);
+    for (u32 y = 0; y < levelHeight; ++y) {
+        for (u32 x = 0; x < levelWidth; ++x) {
+            xys.push_back(vec2(x * TILE_SIZE, y * TILE_SIZE));
+        }
+    }
+
+    std::vector<vec2> backgroundUvs(backgroundRawTiles.size());
     // todo: rotating support
-    std::transform(backgroundRawTiles.begin(), backgroundRawTiles.end(), backgroundTiles.begin(),
-        [&index, levelWidth, columns, spriteWidth, spriteHeight](s32 tile) {
-            s32 x = index % levelWidth;
-            s32 y = index / levelWidth;
+    std::transform(backgroundRawTiles.begin(), backgroundRawTiles.end(), backgroundUvs.begin(),
+        [columns, spriteWidth, spriteHeight](s32 tile) {
             s32 uvX = tile > 0 ? ((tile - 1) % columns) : -1;
             s32 uvY = tile > 0 ? ((tile - 1) / columns) : -1;
-            ++index;
-            return vec4(x * 64, y * 64, uvX * spriteWidth, uvY * spriteHeight);
+            return vec2(uvX * spriteWidth, uvY * spriteHeight);
         });
 
-    std::vector<vec4> foregroundTiles(foregroundRawTiles.size());
-    index = 0;
-    std::transform(foregroundRawTiles.begin(), foregroundRawTiles.end(), foregroundTiles.begin(),
-        [&index, levelWidth, columns, spriteWidth, spriteHeight](s32 tile) {
-            s32 x = index % levelWidth;
-            s32 y = index / levelWidth;
+    std::vector<vec2> foregroundUvs(foregroundRawTiles.size());
+    std::transform(foregroundRawTiles.begin(), foregroundRawTiles.end(), foregroundUvs.begin(),
+        [columns, spriteWidth, spriteHeight](s32 tile) {
             s32 uvX = tile > 0 ? ((tile - 1) % columns) : -1;
             s32 uvY = tile > 0 ? ((tile - 1) / columns) : -1;
-            ++index;
-            return vec4(x * 64, y * 64, uvX * spriteWidth, uvY * spriteHeight);
+            return vec2(uvX * spriteWidth, uvY * spriteHeight);
     });
-
+    
     u32 VBO;
     glGenBuffers(1, &VBO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices) + backgroundTiles.size() * 4 * sizeof(f32) + 
-        foregroundTiles.size() * 4 * sizeof(f32), nullptr, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices) + sizeInBytes({xys, backgroundUvs, foregroundUvs}), nullptr, GL_STATIC_DRAW);
 
     glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
-    glBufferSubData(GL_ARRAY_BUFFER, sizeof(vertices), backgroundTiles.size() * 4 * sizeof(f32), backgroundTiles.data());
-    glBufferSubData(GL_ARRAY_BUFFER, sizeof(vertices) + backgroundTiles.size() * 4 * sizeof(f32), 
-        foregroundTiles.size() * 4 * sizeof(f32), foregroundTiles.data());
+    glBufferSubData(GL_ARRAY_BUFFER, sizeof(vertices), sizeInBytes({xys}), xys.data());
+    glBufferSubData(GL_ARRAY_BUFFER, sizeof(vertices) + sizeInBytes({xys}), 
+        sizeInBytes({backgroundUvs}), backgroundUvs.data());
+    glBufferSubData(GL_ARRAY_BUFFER, sizeof(vertices) + sizeInBytes({xys, backgroundUvs}), 
+        sizeInBytes({foregroundUvs}), foregroundUvs.data());
 
     glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(f32), (void*) 0);
     glEnableVertexAttribArray(0);
     
-    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(f32), (void*) sizeof(vertices));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(f32), (void*) sizeof(vertices));
     glEnableVertexAttribArray(1);
     glVertexAttribDivisor(1, 1);
 
-    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(f32), (void*) (sizeof(vertices) + 
-        backgroundTiles.size() * 4 * sizeof(f32)));
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(f32), (void*) (sizeof(vertices) + sizeInBytes({xys})));
     glEnableVertexAttribArray(2);
     glVertexAttribDivisor(2, 1);
+
+    glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(f32), (void*) (sizeof(vertices) + sizeInBytes({xys, backgroundUvs})));
+    glEnableVertexAttribArray(3);
+    glVertexAttribDivisor(3, 1);
 
     f64 lastTime = glfwGetTime();
     f64 currentTime;
