@@ -17,6 +17,7 @@ uniform int tileType;
 uniform vec2 spriteSize;
 
 uniform mat4 model;
+uniform mat4 view;
 uniform mat4 projection;
 
 #define ROTATE_90 1.f
@@ -54,8 +55,8 @@ void main() {
     uvOffset = tileType == 0 ? backgroundUv : foregroundUv;
 
     if (type == TILE_TYPE) {
-        gl_Position = projection * (model * vec4(sprite.xy, 0.f, 1.0f)  + vec4(xyr.xy, 0.f, 0.f));
+        gl_Position = projection * view * (model * vec4(sprite.xy, 0.f, 1.0f)  + vec4(xyr.xy, 0.f, 0.f));
     } else if (type == SPRITE_TYPE) {
-        gl_Position = projection * model * vec4(sprite.xy, 0.f, 1.0f);
+        gl_Position = projection * view * model * vec4(sprite.xy, 0.f, 1.0f);
     }
 }

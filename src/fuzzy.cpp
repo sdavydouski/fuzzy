@@ -40,8 +40,8 @@ constexpr vec3 normalizeRGB(s32 red, s32 green, s32 blue) {
 /*
  * Global constants
  */
-const s32 WIDTH = 1280;
-const s32 HEIGHT = 720;
+const s32 WIDTH = 1920;
+const s32 HEIGHT = 1080;
 
 constexpr vec3 backgroundColor = normalizeRGB(29, 33, 45);
 
@@ -52,6 +52,8 @@ const f32 SPRITE_SIZE = 16.f * 4;
 const u32 TILE_SIZE = 64;
 
 vec2 topLeftPosition = vec2(250, 250);
+
+vec2 camera = vec2(0.f);
 
 
 /*
@@ -108,6 +110,7 @@ struct sprite {
 sprite bob;
 
 // todo: world coordinate system
+// todo: texture bleeding
 s32 main(s32 argc, char* argv[]) {
 
     if (!glfwInit()) {
@@ -225,6 +228,7 @@ s32 main(s32 argc, char* argv[]) {
     
     s32 projectionUniformLocation = getUniformLocation(shaderProgram, "projection");
     setShaderUniform(projectionUniformLocation, projection);
+    s32 viewUniformLocation = getUniformLocation(shaderProgram, "view");
     s32 modelUniformLocation = getUniformLocation(shaderProgram, "model");
     s32 typeUniformLocation = getUniformLocation(shaderProgram, "type");
     s32 tileTypeUniformLocation = getUniformLocation(shaderProgram, "tileType");
@@ -401,6 +405,10 @@ s32 main(s32 argc, char* argv[]) {
         glfwPollEvents();
         processInput((f32) delta);
 
+        mat4 view = mat4(1.0f);
+        view = glm::translate(view, vec3(camera, 0.f));
+        setShaderUniform(viewUniformLocation, view);
+
         glClearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
@@ -475,12 +483,16 @@ void processInput(f32 dt) {
     //        topLeftPosition.y += step;
     //    }
     //}
+    s32 scale = 400.f;
+
     if (keys[GLFW_KEY_LEFT] == GLFW_PRESS) {
         if (bob.currentAnimation != bob.animations[2]) {
             bob.currentAnimation = bob.animations[2];
             reversed = true;
         }
         acceleration = -800.f;
+
+        camera.x += scale * dt;
     }
 
     if (keys[GLFW_KEY_LEFT] == GLFW_RELEASE && !processedKeys[GLFW_KEY_LEFT]) {
@@ -498,6 +510,8 @@ void processInput(f32 dt) {
             reversed = false;
         }
         acceleration = 800.f;
+
+        camera.x -= scale * dt;
     }
     if (keys[GLFW_KEY_RIGHT] == GLFW_RELEASE && !processedKeys[GLFW_KEY_RIGHT]) {
         processedKeys[GLFW_KEY_RIGHT] = true;
@@ -507,10 +521,19 @@ void processInput(f32 dt) {
             reversed = false;
         }
     }
-    
-    acceleration += -3.f * bob.velocity.x;
+
+    if (keys[GLFW_KEY_UP] == GLFW_PRESS) {
+        camera.y += scale * dt;
+    }
+
+    if (keys[GLFW_KEY_DOWN] == GLFW_PRESS) {
+        camera.y -= scale * dt;
+    }
+
+    /*acceleration += -3.f * bob.velocity.x;
     bob.velocity.x += acceleration * dt;
-    bob.position.x = clamp(0.5f * acceleration * dt * dt + bob.velocity.x * dt + bob.position.x, 0.f, WIDTH - SPRITE_SIZE);
+    bob.position.x = clamp(0.5f * acceleration * dt * dt + bob.velocity.x * dt + bob.position.x, 0.f, WIDTH - SPRITE_SIZE);*/
+
 }
 
 u32 createAndCompileShader(e32 shaderType, const string& path) {
