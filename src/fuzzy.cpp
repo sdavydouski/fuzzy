@@ -69,6 +69,7 @@ void setShaderUniform(s32 location, const vec2& value);
 void setShaderUniform(s32 location, const mat4& value);
 f32 clamp(f32 value, f32 min, f32 max);
 
+// todo: different Ts
 template<typename T>
 u64 sizeInBytes(std::initializer_list<const std::vector<T>> vectors) {
     u64 size = 0;
@@ -281,55 +282,108 @@ s32 main(s32 argc, char* argv[]) {
     std::vector<s32> backgroundRawTiles = levelInfo["layers"][0]["data"];
     std::vector<s32> foregroundRawTiles = levelInfo["layers"][1]["data"];
 
-    std::vector<vec2> xys;
-    xys.reserve(levelWidth * levelHeight);
+    std::vector<vec4> xyr;
+    xyr.reserve(levelWidth * levelHeight);
     for (u32 y = 0; y < levelHeight; ++y) {
         for (u32 x = 0; x < levelWidth; ++x) {
-            xys.push_back(vec2(x * TILE_SIZE, y * TILE_SIZE));
+            xyr.push_back(vec4(x * TILE_SIZE, y * TILE_SIZE, 0.f, 0.f));
         }
     }
+    
+    const u32 FLIPPED_HORIZONTALLY_FLAG = 0x80000000;
+    const u32 FLIPPED_VERTICALLY_FLAG = 0x40000000;
+    const u32 FLIPPED_DIAGONALLY_FLAG = 0x20000000;
 
-    std::vector<vec2> backgroundUvs(backgroundRawTiles.size());
-    // todo: rotating support
-    std::transform(backgroundRawTiles.begin(), backgroundRawTiles.end(), backgroundUvs.begin(),
-        [columns, spriteWidth, spriteHeight](s32 tile) {
-            s32 uvX = tile > 0 ? ((tile - 1) % columns) : -1;
-            s32 uvY = tile > 0 ? ((tile - 1) / columns) : -1;
-            return vec2(uvX * spriteWidth, uvY * spriteHeight);
-        });
+    std::vector<vec2> backgroundUvs;
+    backgroundUvs.reserve(levelWidth * levelHeight);
+    for (u32 i = 0; i < levelWidth * levelHeight; ++i) {
+        s32 tile = backgroundRawTiles[i];
 
-    std::vector<vec2> foregroundUvs(foregroundRawTiles.size());
-    std::transform(foregroundRawTiles.begin(), foregroundRawTiles.end(), foregroundUvs.begin(),
-        [columns, spriteWidth, spriteHeight](s32 tile) {
-            s32 uvX = tile > 0 ? ((tile - 1) % columns) : -1;
-            s32 uvY = tile > 0 ? ((tile - 1) / columns) : -1;
-            return vec2(uvX * spriteWidth, uvY * spriteHeight);
-    });
+        bool flippedHorizontally = tile & FLIPPED_HORIZONTALLY_FLAG;
+        bool flippedVertically = tile & FLIPPED_VERTICALLY_FLAG;
+        bool flippedDiagonally = tile & FLIPPED_DIAGONALLY_FLAG;
+
+        // Clear the flags
+        tile &= ~(FLIPPED_HORIZONTALLY_FLAG | FLIPPED_VERTICALLY_FLAG | FLIPPED_DIAGONALLY_FLAG);
+
+        f32 rotate = 0.f;
+        if (flippedVertically && flippedDiagonally) {
+            // 90 degrees
+            rotate = 1.f;
+        } else if (flippedHorizontally && flippedVertically) {
+            // 180 degrees
+            rotate = 2.f;
+        } else if (flippedHorizontally && flippedDiagonally) {
+            // 270 degrees
+            rotate = 3.f;
+        }
+
+        xyr[i].z = rotate;
+
+        s32 uvX = tile > 0 ? ((tile - 1) % columns) : -1;
+        s32 uvY = tile > 0 ? ((tile - 1) / columns) : -1;
+
+        backgroundUvs.push_back(vec2(uvX * spriteWidth, uvY * spriteHeight));
+    }
+
+    std::vector<vec2> foregroundUvs;
+    foregroundUvs.reserve(levelWidth * levelHeight);
+    for (u32 i = 0; i < levelWidth * levelHeight; ++i) {
+        s32 tile = foregroundRawTiles[i];
+
+        bool flippedHorizontally = tile & FLIPPED_HORIZONTALLY_FLAG;
+        bool flippedVertically = tile & FLIPPED_VERTICALLY_FLAG;
+        bool flippedDiagonally = tile & FLIPPED_DIAGONALLY_FLAG;
+
+        // Clear the flags
+        tile &= ~(FLIPPED_HORIZONTALLY_FLAG | FLIPPED_VERTICALLY_FLAG | FLIPPED_DIAGONALLY_FLAG);
+
+        f32 rotate = 0.f;
+        if (flippedVertically && flippedDiagonally) {
+            // 90 degrees
+            rotate = 1.f;
+        } else if (flippedHorizontally && flippedVertically) {
+            // 180 degrees
+            rotate = 2.f;
+        } else if (flippedHorizontally && flippedDiagonally) {
+            // 270 degrees
+            rotate = 3.f;
+        }
+
+        xyr[i].w = rotate;
+
+        s32 uvX = tile > 0 ? ((tile - 1) % columns) : -1;
+        s32 uvY = tile > 0 ? ((tile - 1) / columns) : -1;
+
+        foregroundUvs.push_back(vec2(uvX * spriteWidth, uvY * spriteHeight));
+    }
     
     u32 VBO;
     glGenBuffers(1, &VBO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices) + sizeInBytes({xys, backgroundUvs, foregroundUvs}), nullptr, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices) + sizeInBytes({xyr}) + sizeInBytes({backgroundUvs, foregroundUvs}), 
+        nullptr, GL_STATIC_DRAW);
 
     glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
-    glBufferSubData(GL_ARRAY_BUFFER, sizeof(vertices), sizeInBytes({xys}), xys.data());
-    glBufferSubData(GL_ARRAY_BUFFER, sizeof(vertices) + sizeInBytes({xys}), 
+    glBufferSubData(GL_ARRAY_BUFFER, sizeof(vertices), sizeInBytes({xyr}), xyr.data());
+    glBufferSubData(GL_ARRAY_BUFFER, sizeof(vertices) + sizeInBytes({xyr}),
         sizeInBytes({backgroundUvs}), backgroundUvs.data());
-    glBufferSubData(GL_ARRAY_BUFFER, sizeof(vertices) + sizeInBytes({xys, backgroundUvs}), 
+    glBufferSubData(GL_ARRAY_BUFFER, sizeof(vertices) + sizeInBytes({ xyr }) + sizeInBytes({backgroundUvs}),
         sizeInBytes({foregroundUvs}), foregroundUvs.data());
 
     glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(f32), (void*) 0);
     glEnableVertexAttribArray(0);
     
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(f32), (void*) sizeof(vertices));
+    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(f32), (void*) sizeof(vertices));
     glEnableVertexAttribArray(1);
     glVertexAttribDivisor(1, 1);
 
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(f32), (void*) (sizeof(vertices) + sizeInBytes({xys})));
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(f32), (void*) (sizeof(vertices) + sizeInBytes({xyr})));
     glEnableVertexAttribArray(2);
     glVertexAttribDivisor(2, 1);
 
-    glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(f32), (void*) (sizeof(vertices) + sizeInBytes({xys, backgroundUvs})));
+    glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(f32), 
+        (void*) (sizeof(vertices) + sizeInBytes({xyr}) + sizeInBytes({backgroundUvs})));
     glEnableVertexAttribArray(3);
     glVertexAttribDivisor(3, 1);
 
@@ -494,7 +548,7 @@ string readTextFile(const string& path) {
 
 s32 getUniformLocation(u32 shaderProgram, const string& name) {
     s32 uniformLocation = glGetUniformLocation(shaderProgram, name.c_str());
-    assert(uniformLocation != -1);
+    //assert(uniformLocation != -1);
     return uniformLocation;
 }
 
