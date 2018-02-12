@@ -116,7 +116,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir)\externals\json\src\;$(SolutionDir)\externals\stb\;$(SolutionDir)\externals\glm\;$(SolutionDir)\generated\glad\include;$(SolutionDir)\externals\glfw\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\externals\json\include\;$(SolutionDir)\externals\stb\;$(SolutionDir)\externals\glm\;$(SolutionDir)\generated\glad\include;$(SolutionDir)\externals\glfw\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <MinimalRebuild>false</MinimalRebuild>
