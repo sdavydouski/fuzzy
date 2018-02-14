@@ -27,7 +27,6 @@
 #include <sstream>
 #include <iostream>
 #include <vector>
-#include <algorithm>
 
 #include "types.h"
 
@@ -40,8 +39,8 @@ constexpr vec3 normalizeRGB(s32 red, s32 green, s32 blue) {
 /*
  * Global constants
  */
-const s32 WIDTH = 1920;
-const s32 HEIGHT = 1080;
+const s32 SCREEN_WIDTH = 1280;
+const s32 SCREEN_HEIGHT = 720;
 
 constexpr vec3 backgroundColor = normalizeRGB(29, 33, 45);
 
@@ -51,8 +50,12 @@ b8 processedKeys[512];
 const f32 SPRITE_SIZE = 16.f * 4;
 const u32 TILE_SIZE = 64;
 
+u32 levelWidth;
+u32 levelHeight;
+
 vec2 topLeftPosition = vec2(250, 250);
 
+// top-left corner
 vec2 camera = vec2(0.f);
 
 
@@ -125,7 +128,7 @@ s32 main(s32 argc, char* argv[]) {
 //    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 //    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
-    GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "Fuzzy", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Fuzzy", nullptr, nullptr);
     if (!window) {
         std::cout << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
@@ -135,7 +138,7 @@ s32 main(s32 argc, char* argv[]) {
     GLFWmonitor* monitor = glfwGetPrimaryMonitor();
     const GLFWvidmode* vidmode = glfwGetVideoMode(monitor);
 
-    glfwSetWindowPos(window, (vidmode->width - WIDTH) / 2, (vidmode->height - HEIGHT) / 2);
+    glfwSetWindowPos(window, (vidmode->width - SCREEN_WIDTH) / 2, (vidmode->height - SCREEN_HEIGHT) / 2);
 
     glfwSetKeyCallback(window, [](GLFWwindow* window, s32 key, s32 scancode, s32 action, s32 mods) {
         if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
@@ -174,7 +177,7 @@ s32 main(s32 argc, char* argv[]) {
 
     std::cout << glGetString(GL_VERSION) << std::endl;
 
-    glViewport(0, 0, WIDTH, HEIGHT);
+    glViewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 
     s32 textureWidth, textureHeight, textureChannels;
     u8* textureImage = stbi_load("textures/industrial_tileset.png",
@@ -224,7 +227,7 @@ s32 main(s32 argc, char* argv[]) {
     
     glUseProgram(shaderProgram);
 
-    mat4 projection = glm::ortho(0.0f, (f32) WIDTH, (f32) HEIGHT, 0.0f);
+    mat4 projection = glm::ortho(0.0f, (f32) SCREEN_WIDTH, (f32) SCREEN_HEIGHT, 0.0f);
     
     s32 projectionUniformLocation = getUniformLocation(shaderProgram, "projection");
     setShaderUniform(projectionUniformLocation, projection);
@@ -281,8 +284,8 @@ s32 main(s32 argc, char* argv[]) {
     tileSetInfoIn >> tilesetInfo;
 
     u32 columns = tilesetInfo["columns"];
-    u32 levelWidth = levelInfo["width"];
-    u32 levelHeight = levelInfo["height"];
+    levelWidth = levelInfo["width"];
+    levelHeight = levelInfo["height"];
     std::vector<s32> backgroundRawTiles = levelInfo["layers"][0]["data"];
     std::vector<s32> foregroundRawTiles = levelInfo["layers"][1]["data"];
 
@@ -406,7 +409,7 @@ s32 main(s32 argc, char* argv[]) {
         processInput((f32) delta);
 
         mat4 view = mat4(1.0f);
-        view = glm::translate(view, vec3(camera, 0.f));
+        view = glm::translate(view, vec3(-camera, 0.f));
         setShaderUniform(viewUniformLocation, view);
 
         glClearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, 1.0f);
@@ -479,11 +482,11 @@ void processInput(f32 dt) {
     //    }
     //}
     //if (keys[GLFW_KEY_DOWN] == GLFW_PRESS) {
-    //    if (topLeftPosition.y < HEIGHT - SPRITE_SIZE) {
+    //    if (topLeftPosition.y < SCREEN_HEIGHT - SPRITE_SIZE) {
     //        topLeftPosition.y += step;
     //    }
     //}
-    s32 scale = 400.f;
+    f32 scale = 400.f;
 
     if (keys[GLFW_KEY_LEFT] == GLFW_PRESS) {
         if (bob.currentAnimation != bob.animations[2]) {
@@ -492,7 +495,7 @@ void processInput(f32 dt) {
         }
         acceleration = -800.f;
 
-        camera.x += scale * dt;
+        camera.x -= scale * dt;
     }
 
     if (keys[GLFW_KEY_LEFT] == GLFW_RELEASE && !processedKeys[GLFW_KEY_LEFT]) {
@@ -511,7 +514,7 @@ void processInput(f32 dt) {
         }
         acceleration = 800.f;
 
-        camera.x -= scale * dt;
+        camera.x += scale * dt;
     }
     if (keys[GLFW_KEY_RIGHT] == GLFW_RELEASE && !processedKeys[GLFW_KEY_RIGHT]) {
         processedKeys[GLFW_KEY_RIGHT] = true;
@@ -523,16 +526,21 @@ void processInput(f32 dt) {
     }
 
     if (keys[GLFW_KEY_UP] == GLFW_PRESS) {
-        camera.y += scale * dt;
-    }
-
-    if (keys[GLFW_KEY_DOWN] == GLFW_PRESS) {
         camera.y -= scale * dt;
     }
 
+    if (keys[GLFW_KEY_DOWN] == GLFW_PRESS) {
+        camera.y += scale * dt;
+    }
+
+    std::cout << camera.x << ", " << camera.y << std::endl;
+
+    camera.x = clamp(camera.x, 0.f, (f32) TILE_SIZE * levelWidth - SCREEN_WIDTH);
+    camera.y = clamp(camera.y, 0.f, (f32) TILE_SIZE * levelHeight - SCREEN_HEIGHT);
+
     /*acceleration += -3.f * bob.velocity.x;
     bob.velocity.x += acceleration * dt;
-    bob.position.x = clamp(0.5f * acceleration * dt * dt + bob.velocity.x * dt + bob.position.x, 0.f, WIDTH - SPRITE_SIZE);*/
+    bob.position.x = clamp(0.5f * acceleration * dt * dt + bob.velocity.x * dt + bob.position.x, 0.f, SCREEN_WIDTH - SPRITE_SIZE);*/
 
 }
 
