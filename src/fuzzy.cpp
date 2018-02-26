@@ -53,8 +53,6 @@ const u32 TILE_SIZE = 64;
 u32 levelWidth;
 u32 levelHeight;
 
-vec2 topLeftPosition = vec2(250, 250);
-
 // top-left corner
 vec2 camera = vec2(0.f);
 
@@ -249,7 +247,7 @@ s32 main(s32 argc, char* argv[]) {
     auto bobAnimations = bobConfig["animations"];
 
     bob = {};
-    bob.position = topLeftPosition;
+    bob.position = vec2(5 * TILE_SIZE, 4 * TILE_SIZE);
     bob.velocity = {0.f, 0.f};
     bob.animations = {
         { bobAnimations[0]["x"], bobAnimations[0]["y"], bobAnimations[0]["frames"], bobAnimations[0]["delay"], 0.f },
@@ -486,7 +484,6 @@ void processInput(f32 dt) {
     //        topLeftPosition.y += step;
     //    }
     //}
-    f32 scale = 400.f;
 
     if (keys[GLFW_KEY_LEFT] == GLFW_PRESS) {
         if (bob.currentAnimation != bob.animations[2]) {
@@ -494,8 +491,6 @@ void processInput(f32 dt) {
             reversed = true;
         }
         acceleration = -800.f;
-
-        camera.x -= scale * dt;
     }
 
     if (keys[GLFW_KEY_LEFT] == GLFW_RELEASE && !processedKeys[GLFW_KEY_LEFT]) {
@@ -513,8 +508,6 @@ void processInput(f32 dt) {
             reversed = false;
         }
         acceleration = 800.f;
-
-        camera.x += scale * dt;
     }
     if (keys[GLFW_KEY_RIGHT] == GLFW_RELEASE && !processedKeys[GLFW_KEY_RIGHT]) {
         processedKeys[GLFW_KEY_RIGHT] = true;
@@ -526,22 +519,35 @@ void processInput(f32 dt) {
     }
 
     if (keys[GLFW_KEY_UP] == GLFW_PRESS) {
-        camera.y -= scale * dt;
+//        camera.y -= scale * dt;
     }
 
     if (keys[GLFW_KEY_DOWN] == GLFW_PRESS) {
-        camera.y += scale * dt;
+//        camera.y += scale * dt;
     }
 
-    std::cout << camera.x << ", " << camera.y << std::endl;
-
-    camera.x = clamp(camera.x, 0.f, (f32) TILE_SIZE * levelWidth - SCREEN_WIDTH);
-    camera.y = clamp(camera.y, 0.f, (f32) TILE_SIZE * levelHeight - SCREEN_HEIGHT);
-
-    /*acceleration += -3.f * bob.velocity.x;
+    acceleration += -3.f * bob.velocity.x;
     bob.velocity.x += acceleration * dt;
-    bob.position.x = clamp(0.5f * acceleration * dt * dt + bob.velocity.x * dt + bob.position.x, 0.f, SCREEN_WIDTH - SPRITE_SIZE);*/
 
+    f32 move = 0.5f * acceleration * dt * dt + bob.velocity.x * dt;
+
+    bob.position.x += move;
+    bob.position.x = clamp(bob.position.x, 0.f, (f32)TILE_SIZE * levelWidth - SPRITE_SIZE);
+    
+    if (move > 0.f) {
+        if (bob.position.x + SPRITE_SIZE > camera.x + SCREEN_WIDTH / 2 + 100.f) {
+            camera.x += move;
+        }
+    } else if (move < 0.f) {
+        if (bob.position.x < camera.x + SCREEN_WIDTH / 2 - 100.f) {
+            camera.x += move;
+        }
+    }
+
+    camera.x = clamp(camera.x, 0.f, (f32)TILE_SIZE * levelWidth - SCREEN_WIDTH);
+    camera.y = clamp(camera.y, 0.f, (f32)TILE_SIZE * levelHeight - SCREEN_HEIGHT);
+
+    std::cout << camera.x << ", " << camera.y << std::endl;
 }
 
 u32 createAndCompileShader(e32 shaderType, const string& path) {
