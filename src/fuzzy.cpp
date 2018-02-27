@@ -47,41 +47,16 @@ constexpr vec3 backgroundColor = normalizeRGB(29, 33, 45);
 b8 keys[512];
 b8 processedKeys[512];
 
-const f32 SPRITE_SIZE = 16.f * 4;
-const u32 TILE_SIZE = 64;
+const u32 SCALE = 4;
+
+const f32 SPRITE_SIZE = 16.f * SCALE;
+const u32 TILE_SIZE = 16.f * SCALE;
 
 u32 levelWidth;
 u32 levelHeight;
 
 // top-left corner
 vec2 camera = vec2(0.f);
-
-
-/*
- * Function declarations
- */
-
-// todo: inline?
-string readTextFile(const string& path);
-void processInput(f32 dt);
-u32 createAndCompileShader(e32 shaderType, const string& path);
-s32 getUniformLocation(u32 shaderProgram, const string& name);
-void setShaderUniform(s32 location, b8 value);
-void setShaderUniform(s32 location, s32 value);
-void setShaderUniform(s32 location, const vec2& value);
-void setShaderUniform(s32 location, const mat4& value);
-f32 clamp(f32 value, f32 min, f32 max);
-
-// todo: different Ts
-template<typename T>
-u64 sizeInBytes(std::initializer_list<const std::vector<T>> vectors) {
-    u64 size = 0;
-    for (auto& vector: vectors) {
-        size += vector.size() * sizeof(T);
-    }
-    return size;
-}
-
 
 struct animation {
     s32 x;
@@ -99,15 +74,48 @@ struct animation {
     }
 };
 
-b8 reversed = false;
+struct entity {
+    vec2 position;
+    vec2 size;
+};
 
 struct sprite {
     std::vector<animation> animations;
     animation currentAnimation;
     vec2 position;
+    vec2 size;
     vec2 velocity;
 };
 
+
+/*
+ * Function declarations
+ */
+
+// todo: inline?
+string readTextFile(const string& path);
+void processInput(f32 dt);
+u32 createAndCompileShader(e32 shaderType, const string& path);
+s32 getUniformLocation(u32 shaderProgram, const string& name);
+void setShaderUniform(s32 location, b8 value);
+void setShaderUniform(s32 location, s32 value);
+void setShaderUniform(s32 location, const vec2& value);
+void setShaderUniform(s32 location, const mat4& value);
+f32 clamp(f32 value, f32 min, f32 max);
+b8 collide(const sprite& bob, const entity& entity);
+
+// todo: different Ts
+template<typename T>
+u64 sizeInBytes(std::initializer_list<const std::vector<T>> vectors) {
+    u64 size = 0;
+    for (auto& vector: vectors) {
+        size += vector.size() * sizeof(T);
+    }
+    return size;
+}
+
+
+b8 reversed = false;
 sprite bob;
 
 // todo: world coordinate system
@@ -248,6 +256,7 @@ s32 main(s32 argc, char* argv[]) {
 
     bob = {};
     bob.position = vec2(5 * TILE_SIZE, 4 * TILE_SIZE);
+    bob.size = vec2(13.f * SCALE, 14.f * SCALE);
     bob.velocity = {0.f, 0.f};
     bob.animations = {
         { bobAnimations[0]["x"], bobAnimations[0]["y"], bobAnimations[0]["frames"], bobAnimations[0]["delay"], 0.f },
@@ -362,6 +371,17 @@ s32 main(s32 argc, char* argv[]) {
 
         foregroundUvs.push_back(vec2(uvX * spriteWidth, uvY * spriteHeight));
     }
+
+    auto rawEntities = levelInfo["layers"][2]["objects"];
+    std::vector<entity> entities;
+    entities.reserve(rawEntities.size());
+
+    for (auto& rawEntity : rawEntities) {
+        entity entity = {};
+        entity.position = vec2(rawEntity["x"] * SCALE, rawEntity["y"] * SCALE);
+        entity.size = vec2(rawEntity["width"] * SCALE, rawEntity["height"] * SCALE);
+        entities.push_back(entity);
+    }
     
     u32 VBO;
     glGenBuffers(1, &VBO);
@@ -405,6 +425,12 @@ s32 main(s32 argc, char* argv[]) {
 
         glfwPollEvents();
         processInput((f32) delta);
+
+        for (auto entity : entities) {
+            if (collide(bob, entity)) {
+                std::cout << "collision" << std::endl;
+            }
+        }
 
         mat4 view = mat4(1.0f);
         view = glm::translate(view, vec3(-camera, 0.f));
@@ -610,4 +636,11 @@ f32 clamp(f32 value, f32 min, f32 max) {
     if (value > max) return max;
 
     return value;
+}
+
+b8 collide(const sprite& bob, const entity& entity) {
+    b8 xCollision = bob.position.x + bob.size.x >= entity.position.x && bob.position.x <= entity.position.x + entity.size.x;
+    b8 yCollision = bob.position.y + bob.size.y >= entity.position.y && bob.position.y <= entity.position.y + entity.size.y;
+    
+    return xCollision && yCollision;
 }
