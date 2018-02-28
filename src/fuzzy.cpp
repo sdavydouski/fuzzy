@@ -96,6 +96,7 @@ struct sprite {
 // todo: inline?
 string readTextFile(const string& path);
 void processInput();
+void update();
 u32 createAndCompileShader(e32 shaderType, const string& path);
 s32 getUniformLocation(u32 shaderProgram, const string& name);
 void setShaderUniform(s32 location, b8 value);
@@ -432,10 +433,13 @@ s32 main(s32 argc, char* argv[]) {
         lag += (f32) delta;
 
         glfwPollEvents();
+
+        bob.acceleration.x = 0.f;
+        processInput();
         
         while (lag >= updateRate) {
-            processInput();
-
+            update();
+            
             bob.acceleration.y = 10.f;
             for (auto entity : entities) {
                 if (collide(bob, entity)) {
@@ -513,14 +517,20 @@ s32 main(s32 argc, char* argv[]) {
  * Function definitions
  */
 void processInput() {
-    bob.acceleration.x = 0.f;
-
     if (keys[GLFW_KEY_LEFT] == GLFW_PRESS) {
         if (bob.currentAnimation != bob.animations[2]) {
             bob.currentAnimation = bob.animations[2];
             reversed = true;
         }
         bob.acceleration.x = -12.f;
+    }
+
+    if (keys[GLFW_KEY_RIGHT] == GLFW_PRESS) {
+        if (bob.currentAnimation != bob.animations[2]) {
+            bob.currentAnimation = bob.animations[2];
+            reversed = false;
+        }
+        bob.acceleration.x = 12.f;
     }
 
     if (keys[GLFW_KEY_LEFT] == GLFW_RELEASE && !processedKeys[GLFW_KEY_LEFT]) {
@@ -532,13 +542,6 @@ void processInput() {
         }
     }
 
-    if (keys[GLFW_KEY_RIGHT] == GLFW_PRESS) {
-        if (bob.currentAnimation != bob.animations[2]) {
-            bob.currentAnimation = bob.animations[2];
-            reversed = false;
-        }
-        bob.acceleration.x = 12.f;
-    }
     if (keys[GLFW_KEY_RIGHT] == GLFW_RELEASE && !processedKeys[GLFW_KEY_RIGHT]) {
         processedKeys[GLFW_KEY_RIGHT] = true;
         if (bob.currentAnimation != bob.animations[0]) {
@@ -547,20 +550,14 @@ void processInput() {
             reversed = false;
         }
     }
+}
 
-    if (keys[GLFW_KEY_UP] == GLFW_PRESS) {
-//        camera.y -= scale * dt;
-    }
-
-    if (keys[GLFW_KEY_DOWN] == GLFW_PRESS) {
-//        camera.y += scale * dt;
-    }
-
+void update() {
     f32 dt = 0.15f;
-    
+
     bob.acceleration.x += -0.5f * bob.velocity.x;
     bob.velocity.x += bob.acceleration.x * dt;
-    
+
     //bob.acceleration.y += -0.01f * bob.velocity.y;
     bob.velocity.y += bob.acceleration.y * dt;
 
@@ -569,10 +566,10 @@ void processInput() {
 
     bob.position.x += xMove;
     bob.position.x = clamp(bob.position.x, 0.f, (f32)TILE_SIZE * levelWidth - SPRITE_SIZE);
-    
+
     bob.position.y += yMove;
     bob.position.y = clamp(bob.position.y, 0.f, (f32)TILE_SIZE * levelHeight - SPRITE_SIZE);
-    
+
     vec2 idleArea = vec2(100.f, 50.f);
 
     if (xMove > 0.f) {
