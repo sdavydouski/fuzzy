@@ -85,6 +85,7 @@ struct sprite {
     vec2 position;
     vec2 size;
     vec2 velocity;
+    vec2 acceleration;
 };
 
 
@@ -255,9 +256,10 @@ s32 main(s32 argc, char* argv[]) {
     auto bobAnimations = bobConfig["animations"];
 
     bob = {};
-    bob.position = vec2(5 * TILE_SIZE, 0 * TILE_SIZE);
-    bob.size = vec2(13.f * SCALE, 14.f * SCALE);
+    bob.position = {5 * TILE_SIZE, 0 * TILE_SIZE};
+    bob.size = {13.f * SCALE, 16.f * SCALE};
     bob.velocity = {0.f, 0.f};
+    bob.acceleration = {0.f, 1000.f};
     bob.animations = {
         { bobAnimations[0]["x"], bobAnimations[0]["y"], bobAnimations[0]["frames"], bobAnimations[0]["delay"], 0.f },
         { bobAnimations[1]["x"], bobAnimations[1]["y"], bobAnimations[1]["frames"], bobAnimations[1]["delay"], 0.f },
@@ -378,8 +380,8 @@ s32 main(s32 argc, char* argv[]) {
 
     for (auto& rawEntity : rawEntities) {
         entity entity = {};
-        entity.position = vec2(rawEntity["x"] * SCALE, rawEntity["y"] * SCALE);
-        entity.size = vec2(rawEntity["width"] * SCALE, rawEntity["height"] * SCALE);
+        entity.position = {(f32) rawEntity["x"] * SCALE, (f32) rawEntity["y"] * SCALE};
+        entity.size = {(f32) rawEntity["width"] * SCALE, (f32) rawEntity["height"] * SCALE};
         entities.push_back(entity);
     }
     
@@ -425,10 +427,13 @@ s32 main(s32 argc, char* argv[]) {
 
         glfwPollEvents();
         processInput((f32) delta);
-
+        
+        bob.acceleration.y = 1000.f;
         for (auto entity : entities) {
             if (collide(bob, entity)) {
                 std::cout << "collision" << std::endl;
+                bob.velocity.y = 0.f;
+                bob.acceleration.y = 0.f;
             }
         }
 
@@ -499,24 +504,14 @@ s32 main(s32 argc, char* argv[]) {
  * Function definitions
  */
 void processInput(f32 dt) {
-    f32 acceleration = 0;
-    //if (keys[GLFW_KEY_UP] == GLFW_PRESS) {
-    //    if (topLeftPosition.y > 0.f) {
-    //        topLeftPosition.y -= step;
-    //    }
-    //}
-    //if (keys[GLFW_KEY_DOWN] == GLFW_PRESS) {
-    //    if (topLeftPosition.y < SCREEN_HEIGHT - SPRITE_SIZE) {
-    //        topLeftPosition.y += step;
-    //    }
-    //}
+    bob.acceleration.x = 0.f;
 
     if (keys[GLFW_KEY_LEFT] == GLFW_PRESS) {
         if (bob.currentAnimation != bob.animations[2]) {
             bob.currentAnimation = bob.animations[2];
             reversed = true;
         }
-        acceleration = -800.f;
+        bob.acceleration.x = -900.f;
     }
 
     if (keys[GLFW_KEY_LEFT] == GLFW_RELEASE && !processedKeys[GLFW_KEY_LEFT]) {
@@ -533,7 +528,7 @@ void processInput(f32 dt) {
             bob.currentAnimation = bob.animations[2];
             reversed = false;
         }
-        acceleration = 800.f;
+        bob.acceleration.x = 900.f;
     }
     if (keys[GLFW_KEY_RIGHT] == GLFW_RELEASE && !processedKeys[GLFW_KEY_RIGHT]) {
         processedKeys[GLFW_KEY_RIGHT] = true;
@@ -551,15 +546,15 @@ void processInput(f32 dt) {
     if (keys[GLFW_KEY_DOWN] == GLFW_PRESS) {
 //        camera.y += scale * dt;
     }
+    
+    bob.acceleration.x += -3.f * bob.velocity.x;
+    bob.velocity.x += bob.acceleration.x * dt;
+    
+    //bob.acceleration.y += -0.01f * bob.velocity.y;
+    bob.velocity.y += bob.acceleration.y * dt;
 
-    acceleration += -3.f * bob.velocity.x;
-    bob.velocity.x += acceleration * dt;
-
-    f32 g = 900.f; // todo: use real g
-    bob.velocity.y += g * dt;
-
-    f32 xMove = 0.5f * acceleration * dt * dt + bob.velocity.x * dt;
-    f32 yMove = 0.5f * g * dt * dt + bob.velocity.y * dt;
+    f32 xMove = 0.5f * bob.acceleration.x * dt * dt + bob.velocity.x * dt;
+    f32 yMove = 0.5f * bob.acceleration.y * dt * dt + bob.velocity.y * dt;
 
     bob.position.x += xMove;
     bob.position.x = clamp(bob.position.x, 0.f, (f32)TILE_SIZE * levelWidth - SPRITE_SIZE);
@@ -583,8 +578,7 @@ void processInput(f32 dt) {
         if (bob.position.y + SPRITE_SIZE > camera.y + SCREEN_HEIGHT / 2 + idleArea.y) {
             camera.y += yMove;
         }
-    }
-    else if (yMove < 0.f) {
+    } else if (yMove < 0.f) {
         if (bob.position.y < camera.y + SCREEN_HEIGHT / 2 - idleArea.y) {
             camera.y += yMove;
         }
