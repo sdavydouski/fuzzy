@@ -95,7 +95,7 @@ struct sprite {
 
 // todo: inline?
 string readTextFile(const string& path);
-void processInput(f32 dt);
+void processInput();
 u32 createAndCompileShader(e32 shaderType, const string& path);
 s32 getUniformLocation(u32 shaderProgram, const string& name);
 void setShaderUniform(s32 location, b8 value);
@@ -259,7 +259,7 @@ s32 main(s32 argc, char* argv[]) {
     bob.position = {5 * TILE_SIZE, 0 * TILE_SIZE};
     bob.size = {13.f * SCALE, 16.f * SCALE};
     bob.velocity = {0.f, 0.f};
-    bob.acceleration = {0.f, 1000.f};
+    bob.acceleration = {0.f, 10.f};
     bob.animations = {
         { bobAnimations[0]["x"], bobAnimations[0]["y"], bobAnimations[0]["frames"], bobAnimations[0]["delay"], 0.f },
         { bobAnimations[1]["x"], bobAnimations[1]["y"], bobAnimations[1]["frames"], bobAnimations[1]["delay"], 0.f },
@@ -417,6 +417,9 @@ s32 main(s32 argc, char* argv[]) {
     f64 lastTime = glfwGetTime();
     f64 currentTime;
     f64 delta = 0;
+
+    f32 updateRate = 0.01f;   // in seconds
+    f32 lag = 0.f;
     
     f64 frameTime = 0.f;
     
@@ -424,18 +427,27 @@ s32 main(s32 argc, char* argv[]) {
 
     while (!glfwWindowShouldClose(window)) {
         currentTime = glfwGetTime();
+        delta = currentTime - lastTime;
+        lastTime = currentTime;
+        lag += (f32) delta;
 
         glfwPollEvents();
-        processInput((f32) delta);
         
-        bob.acceleration.y = 1000.f;
-        for (auto entity : entities) {
-            if (collide(bob, entity)) {
-                std::cout << "collision" << std::endl;
-                bob.velocity.y = 0.f;
-                bob.acceleration.y = 0.f;
+        while (lag >= updateRate) {
+            processInput();
+
+            bob.acceleration.y = 10.f;
+            for (auto entity : entities) {
+                if (collide(bob, entity)) {
+                    std::cout << "collision" << std::endl;
+                    bob.velocity.y = 0.f;
+                    bob.acceleration.y = 0.f;
+                }
             }
+
+            lag -= updateRate;
         }
+
 
         mat4 view = mat4(1.0f);
         view = glm::translate(view, vec3(-camera, 0.f));
@@ -487,9 +499,6 @@ s32 main(s32 argc, char* argv[]) {
 
         glfwSwapBuffers(window);
 
-        delta = currentTime - lastTime;
-        lastTime = currentTime;
-
         frameTime += delta;
 
         //std::cout << delta * 1000.f << " ms" << std::endl;
@@ -503,7 +512,7 @@ s32 main(s32 argc, char* argv[]) {
 /*
  * Function definitions
  */
-void processInput(f32 dt) {
+void processInput() {
     bob.acceleration.x = 0.f;
 
     if (keys[GLFW_KEY_LEFT] == GLFW_PRESS) {
@@ -511,7 +520,7 @@ void processInput(f32 dt) {
             bob.currentAnimation = bob.animations[2];
             reversed = true;
         }
-        bob.acceleration.x = -900.f;
+        bob.acceleration.x = -12.f;
     }
 
     if (keys[GLFW_KEY_LEFT] == GLFW_RELEASE && !processedKeys[GLFW_KEY_LEFT]) {
@@ -528,7 +537,7 @@ void processInput(f32 dt) {
             bob.currentAnimation = bob.animations[2];
             reversed = false;
         }
-        bob.acceleration.x = 900.f;
+        bob.acceleration.x = 12.f;
     }
     if (keys[GLFW_KEY_RIGHT] == GLFW_RELEASE && !processedKeys[GLFW_KEY_RIGHT]) {
         processedKeys[GLFW_KEY_RIGHT] = true;
@@ -546,8 +555,10 @@ void processInput(f32 dt) {
     if (keys[GLFW_KEY_DOWN] == GLFW_PRESS) {
 //        camera.y += scale * dt;
     }
+
+    f32 dt = 0.15f;
     
-    bob.acceleration.x += -3.f * bob.velocity.x;
+    bob.acceleration.x += -0.5f * bob.velocity.x;
     bob.velocity.x += bob.acceleration.x * dt;
     
     //bob.acceleration.y += -0.01f * bob.velocity.y;
