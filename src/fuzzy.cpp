@@ -50,7 +50,7 @@ b8 processedKeys[512];
 const u32 SCALE = 4;
 
 const f32 SPRITE_SIZE = 16.f * SCALE;
-const u32 TILE_SIZE = 16.f * SCALE;
+const f32 TILE_SIZE = 16.f * SCALE;
 
 u32 levelWidth;
 u32 levelHeight;
@@ -255,7 +255,7 @@ s32 main(s32 argc, char* argv[]) {
     auto bobAnimations = bobConfig["animations"];
 
     bob = {};
-    bob.position = vec2(5 * TILE_SIZE, 4 * TILE_SIZE);
+    bob.position = vec2(5 * TILE_SIZE, 0 * TILE_SIZE);
     bob.size = vec2(13.f * SCALE, 14.f * SCALE);
     bob.velocity = {0.f, 0.f};
     bob.animations = {
@@ -555,18 +555,38 @@ void processInput(f32 dt) {
     acceleration += -3.f * bob.velocity.x;
     bob.velocity.x += acceleration * dt;
 
-    f32 move = 0.5f * acceleration * dt * dt + bob.velocity.x * dt;
+    f32 g = 900.f; // todo: use real g
+    bob.velocity.y += g * dt;
 
-    bob.position.x += move;
+    f32 xMove = 0.5f * acceleration * dt * dt + bob.velocity.x * dt;
+    f32 yMove = 0.5f * g * dt * dt + bob.velocity.y * dt;
+
+    bob.position.x += xMove;
     bob.position.x = clamp(bob.position.x, 0.f, (f32)TILE_SIZE * levelWidth - SPRITE_SIZE);
     
-    if (move > 0.f) {
-        if (bob.position.x + SPRITE_SIZE > camera.x + SCREEN_WIDTH / 2 + 100.f) {
-            camera.x += move;
+    bob.position.y += yMove;
+    bob.position.y = clamp(bob.position.y, 0.f, (f32)TILE_SIZE * levelHeight - SPRITE_SIZE);
+    
+    vec2 idleArea = vec2(100.f, 50.f);
+
+    if (xMove > 0.f) {
+        if (bob.position.x + SPRITE_SIZE > camera.x + SCREEN_WIDTH / 2 + idleArea.x) {
+            camera.x += xMove;
         }
-    } else if (move < 0.f) {
-        if (bob.position.x < camera.x + SCREEN_WIDTH / 2 - 100.f) {
-            camera.x += move;
+    } else if (xMove < 0.f) {
+        if (bob.position.x < camera.x + SCREEN_WIDTH / 2 - idleArea.x) {
+            camera.x += xMove;
+        }
+    }
+
+    if (yMove > 0.f) {
+        if (bob.position.y + SPRITE_SIZE > camera.y + SCREEN_HEIGHT / 2 + idleArea.y) {
+            camera.y += yMove;
+        }
+    }
+    else if (yMove < 0.f) {
+        if (bob.position.y < camera.y + SCREEN_HEIGHT / 2 - idleArea.y) {
+            camera.y += yMove;
         }
     }
 
