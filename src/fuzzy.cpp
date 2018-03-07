@@ -27,9 +27,14 @@
 #include <sstream>
 #include <iostream>
 #include <vector>
+#include <algorithm>
 
 #include "types.h"
 
+struct aabb {
+    vec2 position;      // top-left
+    vec2 size;
+};
 
 constexpr vec3 normalizeRGB(s32 red, s32 green, s32 blue) {
     const f32 MAX = 255.f;
@@ -75,15 +80,13 @@ struct animation {
 };
 
 struct entity {
-    vec2 position;
-    vec2 size;
+    aabb box;
 };
 
 struct sprite {
     std::vector<animation> animations;
     animation currentAnimation;
-    vec2 position;
-    vec2 size;
+    aabb box;
     vec2 velocity;
     vec2 acceleration;
 };
@@ -104,7 +107,8 @@ void setShaderUniform(s32 location, s32 value);
 void setShaderUniform(s32 location, const vec2& value);
 void setShaderUniform(s32 location, const mat4& value);
 f32 clamp(f32 value, f32 min, f32 max);
-b8 collide(const sprite& bob, const entity& entity);
+b8 collide(const aabb& box1, const aabb& box2);
+f32 raycastIntersect(const vec2 point, const vec2 delta, const aabb& box);
 
 // todo: different Ts
 template<typename T>
@@ -257,8 +261,8 @@ s32 main(s32 argc, char* argv[]) {
     auto bobAnimations = bobConfig["animations"];
 
     bob = {};
-    bob.position = {5 * TILE_SIZE, 0 * TILE_SIZE};
-    bob.size = {13.f * SCALE, 16.f * SCALE};
+    bob.box.position = {5 * TILE_SIZE, 0 * TILE_SIZE};
+    bob.box.size = {13.f * SCALE, 16.f * SCALE};
     bob.velocity = {0.f, 0.f};
     bob.acceleration = {0.f, 10.f};
     bob.animations = {
@@ -381,8 +385,8 @@ s32 main(s32 argc, char* argv[]) {
 
     for (auto& rawEntity : rawEntities) {
         entity entity = {};
-        entity.position = {(f32) rawEntity["x"] * SCALE, (f32) rawEntity["y"] * SCALE};
-        entity.size = {(f32) rawEntity["width"] * SCALE, (f32) rawEntity["height"] * SCALE};
+        entity.box.position = {(f32) rawEntity["x"] * SCALE, (f32) rawEntity["y"] * SCALE};
+        entity.box.size = {(f32) rawEntity["width"] * SCALE, (f32) rawEntity["height"] * SCALE};
         entities.push_back(entity);
     }
     
@@ -438,16 +442,28 @@ s32 main(s32 argc, char* argv[]) {
         processInput();
         
         while (lag >= updateRate) {
+            vec2 oldPosition = bob.box.position;
             update();
+            vec2 newPosition = bob.box.position;
             
             bob.acceleration.y = 10.f;
-            for (auto entity : entities) {
-                if (collide(bob, entity)) {
+            //for (auto entity : entities) {
+                /*if (collide(bob.box, entity.box)) {
                     std::cout << "collision" << std::endl;
                     bob.velocity.y = 0.f;
                     bob.acceleration.y = 0.f;
+                }*/
+                
+                vec2 delta = newPosition - oldPosition;
+                f32 t = raycastIntersect(oldPosition + bob.box.size.y, delta, entities[0].box);
+                if (t == 0.f) {
+                    bob.acceleration.y = 0.f;
                 }
-            }
+                std::cout << t << std::endl;
+                bob.box.position.y = oldPosition.y + delta.y * t;
+            //}
+
+            
 
             lag -= updateRate;
         }
@@ -477,7 +493,7 @@ s32 main(s32 argc, char* argv[]) {
         setShaderUniform(typeUniformLocation, 2);
 
         model = mat4(1.0f);
-        model = glm::translate(model, vec3(bob.position, 0.0f));
+        model = glm::translate(model, vec3(bob.box.position, 0.0f));
         model = glm::scale(model, vec3(SPRITE_SIZE));
         setShaderUniform(modelUniformLocation, model);
 
@@ -550,6 +566,12 @@ void processInput() {
             reversed = false;
         }
     }
+
+    if (keys[GLFW_KEY_SPACE] == GLFW_PRESS && !processedKeys[GLFW_KEY_SPACE]) {
+        processedKeys[GLFW_KEY_SPACE] = true;
+        bob.acceleration.y -= 400.f;
+        bob.velocity.y = 0.f;
+    }
 }
 
 void update() {
@@ -564,30 +586,30 @@ void update() {
     f32 xMove = 0.5f * bob.acceleration.x * dt * dt + bob.velocity.x * dt;
     f32 yMove = 0.5f * bob.acceleration.y * dt * dt + bob.velocity.y * dt;
 
-    bob.position.x += xMove;
-    bob.position.x = clamp(bob.position.x, 0.f, (f32)TILE_SIZE * levelWidth - SPRITE_SIZE);
+    bob.box.position.x += xMove;
+    bob.box.position.x = clamp(bob.box.position.x, 0.f, (f32)TILE_SIZE * levelWidth - SPRITE_SIZE);
 
-    bob.position.y += yMove;
-    bob.position.y = clamp(bob.position.y, 0.f, (f32)TILE_SIZE * levelHeight - SPRITE_SIZE);
+    bob.box.position.y += yMove;
+    bob.box.position.y = clamp(bob.box.position.y, 0.f, (f32)TILE_SIZE * levelHeight - SPRITE_SIZE);
 
     vec2 idleArea = vec2(100.f, 50.f);
 
     if (xMove > 0.f) {
-        if (bob.position.x + SPRITE_SIZE > camera.x + SCREEN_WIDTH / 2 + idleArea.x) {
+        if (bob.box.position.x + SPRITE_SIZE > camera.x + SCREEN_WIDTH / 2 + idleArea.x) {
             camera.x += xMove;
         }
     } else if (xMove < 0.f) {
-        if (bob.position.x < camera.x + SCREEN_WIDTH / 2 - idleArea.x) {
+        if (bob.box.position.x < camera.x + SCREEN_WIDTH / 2 - idleArea.x) {
             camera.x += xMove;
         }
     }
 
     if (yMove > 0.f) {
-        if (bob.position.y + SPRITE_SIZE > camera.y + SCREEN_HEIGHT / 2 + idleArea.y) {
+        if (bob.box.position.y + SPRITE_SIZE > camera.y + SCREEN_HEIGHT / 2 + idleArea.y) {
             camera.y += yMove;
         }
     } else if (yMove < 0.f) {
-        if (bob.position.y < camera.y + SCREEN_HEIGHT / 2 - idleArea.y) {
+        if (bob.box.position.y < camera.y + SCREEN_HEIGHT / 2 - idleArea.y) {
             camera.y += yMove;
         }
     }
@@ -595,7 +617,7 @@ void update() {
     camera.x = clamp(camera.x, 0.f, (f32)TILE_SIZE * levelWidth - SCREEN_WIDTH);
     camera.y = clamp(camera.y, 0.f, (f32)TILE_SIZE * levelHeight - SCREEN_HEIGHT);
 
-    std::cout << camera.x << ", " << camera.y << std::endl;
+    //std::cout << camera.x << ", " << camera.y << std::endl;
 }
 
 u32 createAndCompileShader(e32 shaderType, const string& path) {
@@ -660,9 +682,53 @@ f32 clamp(f32 value, f32 min, f32 max) {
     return value;
 }
 
-b8 collide(const sprite& bob, const entity& entity) {
-    b8 xCollision = bob.position.x + bob.size.x >= entity.position.x && bob.position.x <= entity.position.x + entity.size.x;
-    b8 yCollision = bob.position.y + bob.size.y >= entity.position.y && bob.position.y <= entity.position.y + entity.size.y;
+b8 collide(const aabb& box1, const aabb& box2) {
+    // Separating Axis Theorem
+    b8 xCollision = box1.position.x + box1.size.x >= box2.position.x && box1.position.x <= box2.position.x + box2.size.x;
+    b8 yCollision = box1.position.y + box1.size.y >= box2.position.y && box1.position.y <= box2.position.y + box2.size.y;
     
     return xCollision && yCollision;
+}
+
+f32 raycastIntersect(const vec2 point, const vec2 delta, const aabb& box) {
+    f32 time = 1.f;
+/*
+const scaleX = 1.0 / delta.x;
+const scaleY = 1.0 / delta.y;
+const signX = sign(scaleX);
+const signY = sign(scaleY);
+const nearTimeX = (this.pos.x - signX * (this.half.x + paddingX) - pos.x) * scaleX;
+const nearTimeY = (this.pos.y - signY * (this.half.y + paddingY) - pos.y) * scaleY;
+const farTimeX = (this.pos.x + signX * (this.half.x + paddingX) - pos.x) * scaleX;
+const farTimeY = (this.pos.y + signY * (this.half.y + paddingY) - pos.y) * scaleY;
+*/
+    f32 nearTimeX = 1.f;
+    f32 farTimeX = 1.f;
+    f32 nearTimeY = 1.f;
+    f32 farTimeY = 1.f;
+/*
+    if (delta.x != 0.f) {
+        nearTimeX = (box.position.x - point.x) / delta.x;
+        if (nearTimeX < time) {
+            time = nearTimeX;
+        }
+        farTimeX = (box.position.x + box.size.x - point.x) / delta.x;
+        if (farTimeX < time) {
+            time = farTimeX;
+        }
+    }
+*/
+    if (delta.y != 0.f) {
+        nearTimeY = abs(box.position.y - point.y) / delta.y;
+        if (nearTimeY < time) {
+            time = nearTimeY;
+        }
+        /*farTimeY = abs(box.position.y - box.size.y - point.y) / delta.y;
+        if (farTimeY < time) {
+            time = farTimeY;
+        }
+*/
+    }
+
+    return time;
 }
