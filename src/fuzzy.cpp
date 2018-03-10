@@ -99,7 +99,6 @@ struct sprite {
 // todo: inline?
 string readTextFile(const string& path);
 void processInput();
-void update();
 u32 createAndCompileShader(e32 shaderType, const string& path);
 s32 getUniformLocation(u32 shaderProgram, const string& name);
 void setShaderUniform(s32 location, b8 value);
@@ -108,7 +107,7 @@ void setShaderUniform(s32 location, const vec2& value);
 void setShaderUniform(s32 location, const mat4& value);
 f32 clamp(f32 value, f32 min, f32 max);
 b8 collide(const aabb& box1, const aabb& box2);
-f32 raycastIntersect(const vec2 point, const vec2 delta, const aabb& box);
+vec2 raycastIntersect(const vec2 point, const vec2 delta, const aabb& box);
 
 // todo: different Ts
 template<typename T>
@@ -443,27 +442,68 @@ s32 main(s32 argc, char* argv[]) {
         
         while (lag >= updateRate) {
             vec2 oldPosition = bob.box.position;
-            update();
-            vec2 newPosition = bob.box.position;
-            
-            bob.acceleration.y = 10.f;
-            //for (auto entity : entities) {
-                /*if (collide(bob.box, entity.box)) {
-                    std::cout << "collision" << std::endl;
-                    bob.velocity.y = 0.f;
-                    bob.acceleration.y = 0.f;
-                }*/
-                
-                vec2 delta = newPosition - oldPosition;
-                f32 t = raycastIntersect(oldPosition + bob.box.size.y, delta, entities[0].box);
-                if (t == 0.f) {
-                    bob.acceleration.y = 0.f;
-                }
-                std::cout << t << std::endl;
-                bob.box.position.y = oldPosition.y + delta.y * t;
-            //}
+            f32 dt = 0.15f;
 
+            bob.acceleration.x += -0.5f * bob.velocity.x;
+            bob.velocity.x += bob.acceleration.x * dt;
+
+            //bob.acceleration.y += -0.01f * bob.velocity.y;
+            bob.velocity.y += bob.acceleration.y * dt;
+
+            vec2 move = vec2(
+                0.5f * bob.acceleration.x * dt * dt + bob.velocity.x * dt,
+                0.5f * bob.acceleration.y * dt * dt + bob.velocity.y * dt
+            );
+
+            vec2 time = vec2(1.f);
+
+            for (auto entity : entities) {
+                vec2 t = raycastIntersect(vec2(oldPosition.x, oldPosition.y + bob.box.size.y), move, entity.box);
+                
+                if (t.x >= 0.f && t.x < time.x) time.x = t.x;
+                if (t.y >= 0.f && t.y < time.y) time.y = t.y;
+            }
+
+            if (time.y < 1.f) {
+                bob.velocity.y = 0.f;
+            }
+
+            bob.box.position.x = oldPosition.x + move.x * time.x;
+            bob.box.position.y = oldPosition.y + move.y * time.y;
+
+            bob.box.position.x = clamp(bob.box.position.x, 0.f, (f32)TILE_SIZE * levelWidth - SPRITE_SIZE);
+            bob.box.position.y = clamp(bob.box.position.y, 0.f, (f32)TILE_SIZE * levelHeight - SPRITE_SIZE);
+
+            bob.acceleration.y = 10.f;
+
+            std::cout << bob.box.position.x << ", " << bob.box.position.y << std::endl;
             
+            vec2 idleArea = vec2(100.f, 50.f);
+
+            if (move.x > 0.f) {
+                if (bob.box.position.x + SPRITE_SIZE > camera.x + SCREEN_WIDTH / 2 + idleArea.x) {
+                    camera.x += move.x;
+                }
+            }
+            else if (move.x < 0.f) {
+                if (bob.box.position.x < camera.x + SCREEN_WIDTH / 2 - idleArea.x) {
+                    camera.x += move.x;
+                }
+            }
+
+            if (move.y > 0.f) {
+                if (bob.box.position.y + SPRITE_SIZE > camera.y + SCREEN_HEIGHT / 2 + idleArea.y) {
+                    camera.y += move.y;
+                }
+            }
+            else if (move.y < 0.f) {
+                if (bob.box.position.y < camera.y + SCREEN_HEIGHT / 2 - idleArea.y) {
+                    camera.y += move.y;
+                }
+            }
+
+            camera.x = clamp(camera.x, 0.f, (f32)TILE_SIZE * levelWidth - SCREEN_WIDTH);
+            camera.y = clamp(camera.y, 0.f, (f32)TILE_SIZE * levelHeight - SCREEN_HEIGHT);
 
             lag -= updateRate;
         }
@@ -569,55 +609,9 @@ void processInput() {
 
     if (keys[GLFW_KEY_SPACE] == GLFW_PRESS && !processedKeys[GLFW_KEY_SPACE]) {
         processedKeys[GLFW_KEY_SPACE] = true;
-        bob.acceleration.y -= 400.f;
+        bob.acceleration.y = -350.f;
         bob.velocity.y = 0.f;
     }
-}
-
-void update() {
-    f32 dt = 0.15f;
-
-    bob.acceleration.x += -0.5f * bob.velocity.x;
-    bob.velocity.x += bob.acceleration.x * dt;
-
-    //bob.acceleration.y += -0.01f * bob.velocity.y;
-    bob.velocity.y += bob.acceleration.y * dt;
-
-    f32 xMove = 0.5f * bob.acceleration.x * dt * dt + bob.velocity.x * dt;
-    f32 yMove = 0.5f * bob.acceleration.y * dt * dt + bob.velocity.y * dt;
-
-    bob.box.position.x += xMove;
-    bob.box.position.x = clamp(bob.box.position.x, 0.f, (f32)TILE_SIZE * levelWidth - SPRITE_SIZE);
-
-    bob.box.position.y += yMove;
-    bob.box.position.y = clamp(bob.box.position.y, 0.f, (f32)TILE_SIZE * levelHeight - SPRITE_SIZE);
-
-    vec2 idleArea = vec2(100.f, 50.f);
-
-    if (xMove > 0.f) {
-        if (bob.box.position.x + SPRITE_SIZE > camera.x + SCREEN_WIDTH / 2 + idleArea.x) {
-            camera.x += xMove;
-        }
-    } else if (xMove < 0.f) {
-        if (bob.box.position.x < camera.x + SCREEN_WIDTH / 2 - idleArea.x) {
-            camera.x += xMove;
-        }
-    }
-
-    if (yMove > 0.f) {
-        if (bob.box.position.y + SPRITE_SIZE > camera.y + SCREEN_HEIGHT / 2 + idleArea.y) {
-            camera.y += yMove;
-        }
-    } else if (yMove < 0.f) {
-        if (bob.box.position.y < camera.y + SCREEN_HEIGHT / 2 - idleArea.y) {
-            camera.y += yMove;
-        }
-    }
-
-    camera.x = clamp(camera.x, 0.f, (f32)TILE_SIZE * levelWidth - SCREEN_WIDTH);
-    camera.y = clamp(camera.y, 0.f, (f32)TILE_SIZE * levelHeight - SCREEN_HEIGHT);
-
-    //std::cout << camera.x << ", " << camera.y << std::endl;
 }
 
 u32 createAndCompileShader(e32 shaderType, const string& path) {
@@ -690,44 +684,36 @@ b8 collide(const aabb& box1, const aabb& box2) {
     return xCollision && yCollision;
 }
 
-f32 raycastIntersect(const vec2 point, const vec2 delta, const aabb& box) {
-    f32 time = 1.f;
-/*
-const scaleX = 1.0 / delta.x;
-const scaleY = 1.0 / delta.y;
-const signX = sign(scaleX);
-const signY = sign(scaleY);
-const nearTimeX = (this.pos.x - signX * (this.half.x + paddingX) - pos.x) * scaleX;
-const nearTimeY = (this.pos.y - signY * (this.half.y + paddingY) - pos.y) * scaleY;
-const farTimeX = (this.pos.x + signX * (this.half.x + paddingX) - pos.x) * scaleX;
-const farTimeY = (this.pos.y + signY * (this.half.y + paddingY) - pos.y) * scaleY;
-*/
+vec2 raycastIntersect(const vec2 point, const vec2 delta, const aabb& box) {
+    vec2 time = vec2(1.f);
+
     f32 nearTimeX = 1.f;
     f32 farTimeX = 1.f;
     f32 nearTimeY = 1.f;
     f32 farTimeY = 1.f;
-/*
-    if (delta.x != 0.f) {
+
+    if (delta.x != 0.f && box.position.y <= point.y && point.y <= box.position.y + box.size.y) {
         nearTimeX = (box.position.x - point.x) / delta.x;
-        if (nearTimeX < time) {
-            time = nearTimeX;
+        if (nearTimeX < time.x) {
+            time.x = nearTimeX;
         }
+        
         farTimeX = (box.position.x + box.size.x - point.x) / delta.x;
-        if (farTimeX < time) {
-            time = farTimeX;
+        if (farTimeX < time.x) {
+            time.x = farTimeX;
         }
     }
-*/
-    if (delta.y != 0.f) {
-        nearTimeY = abs(box.position.y - point.y) / delta.y;
-        if (nearTimeY < time) {
-            time = nearTimeY;
+
+    if (delta.y != 0.f && box.position.x < point.x && point.x < box.position.x + box.size.x) {
+        nearTimeY = (box.position.y - point.y) / delta.y;
+        if (nearTimeY < time.y) {
+            time.y = nearTimeY;
         }
-        /*farTimeY = abs(box.position.y - box.size.y - point.y) / delta.y;
-        if (farTimeY < time) {
-            time = farTimeY;
+        
+        farTimeY = (box.position.y + box.size.y - point.y) / delta.y;
+        if (farTimeY < time.y) {
+            time.y = farTimeY;
         }
-*/
     }
 
     return time;
