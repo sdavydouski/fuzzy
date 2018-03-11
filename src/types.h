@@ -3,11 +3,15 @@
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <glm/mat4x4.hpp>
-#include <nlohmann\json.hpp>
+#include <nlohmann/json.hpp>
 #include <string>
+#include <vector>
 
 
 using string = std::string;
+
+template<typename T>
+using vector = std::vector<T>;
 
 using json = nlohmann::json;
 

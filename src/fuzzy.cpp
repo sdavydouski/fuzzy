@@ -27,7 +27,6 @@
 #include <sstream>
 #include <iostream>
 #include <vector>
-#include <algorithm>
 
 #include "types.h"
 
@@ -84,7 +83,7 @@ struct entity {
 };
 
 struct sprite {
-    std::vector<animation> animations;
+    vector<animation> animations;
     animation currentAnimation;
     aabb box;
     vec2 velocity;
@@ -107,11 +106,11 @@ void setShaderUniform(s32 location, const vec2& value);
 void setShaderUniform(s32 location, const mat4& value);
 f32 clamp(f32 value, f32 min, f32 max);
 b8 collide(const aabb& box1, const aabb& box2);
-vec2 raycastIntersect(const vec2 point, const vec2 delta, const aabb& box);
+vec2 sweptAABB(const vec2 point, const vec2 delta, const aabb& box, vec2 padding = vec2(0.f));
 
 // todo: different Ts
 template<typename T>
-u64 sizeInBytes(std::initializer_list<const std::vector<T>> vectors) {
+u64 sizeInBytes(std::initializer_list<const vector<T>> vectors) {
     u64 size = 0;
     for (auto& vector: vectors) {
         size += vector.size() * sizeof(T);
@@ -229,7 +228,7 @@ s32 main(s32 argc, char* argv[]) {
         s32 LOG_LENGTH;
         glGetProgramiv(shaderProgram, GL_INFO_LOG_LENGTH, &LOG_LENGTH);
 
-        std::vector<c8> errorLog(LOG_LENGTH);
+        vector<c8> errorLog(LOG_LENGTH);
 
         glGetProgramInfoLog(shaderProgram, LOG_LENGTH, nullptr, &errorLog[0]);
         std::cerr << "Shader program linkage failed:" << std::endl << &errorLog[0] << std::endl;
@@ -299,10 +298,10 @@ s32 main(s32 argc, char* argv[]) {
     u32 columns = tilesetInfo["columns"];
     levelWidth = levelInfo["width"];
     levelHeight = levelInfo["height"];
-    std::vector<s32> backgroundRawTiles = levelInfo["layers"][0]["data"];
-    std::vector<s32> foregroundRawTiles = levelInfo["layers"][1]["data"];
+    vector<s32> backgroundRawTiles = levelInfo["layers"][0]["data"];
+    vector<s32> foregroundRawTiles = levelInfo["layers"][1]["data"];
 
-    std::vector<vec4> xyr;
+    vector<vec4> xyr;
     xyr.reserve(levelWidth * levelHeight);
     for (u32 y = 0; y < levelHeight; ++y) {
         for (u32 x = 0; x < levelWidth; ++x) {
@@ -314,7 +313,7 @@ s32 main(s32 argc, char* argv[]) {
     const u32 FLIPPED_VERTICALLY_FLAG = 0x40000000;
     const u32 FLIPPED_DIAGONALLY_FLAG = 0x20000000;
 
-    std::vector<vec2> backgroundUvs;
+    vector<vec2> backgroundUvs;
     backgroundUvs.reserve(levelWidth * levelHeight);
     for (u32 i = 0; i < levelWidth * levelHeight; ++i) {
         s32 tile = backgroundRawTiles[i];
@@ -346,7 +345,7 @@ s32 main(s32 argc, char* argv[]) {
         backgroundUvs.push_back(vec2(uvX * spriteWidth, uvY * spriteHeight));
     }
 
-    std::vector<vec2> foregroundUvs;
+    vector<vec2> foregroundUvs;
     foregroundUvs.reserve(levelWidth * levelHeight);
     for (u32 i = 0; i < levelWidth * levelHeight; ++i) {
         s32 tile = foregroundRawTiles[i];
@@ -379,7 +378,7 @@ s32 main(s32 argc, char* argv[]) {
     }
 
     auto rawEntities = levelInfo["layers"][2]["objects"];
-    std::vector<entity> entities;
+    vector<entity> entities;
     entities.reserve(rawEntities.size());
 
     for (auto& rawEntity : rawEntities) {
@@ -437,73 +436,77 @@ s32 main(s32 argc, char* argv[]) {
 
         glfwPollEvents();
 
-        bob.acceleration.x = 0.f;
-        processInput();
-        
         while (lag >= updateRate) {
-            vec2 oldPosition = bob.box.position;
             f32 dt = 0.15f;
-
+            
+            bob.acceleration.x = 0.f;
+            processInput();
+            
+            // friction imitation
             bob.acceleration.x += -0.5f * bob.velocity.x;
             bob.velocity.x += bob.acceleration.x * dt;
 
-            //bob.acceleration.y += -0.01f * bob.velocity.y;
+            bob.acceleration.y += -0.01f * bob.velocity.y;
             bob.velocity.y += bob.acceleration.y * dt;
 
             vec2 move = vec2(
                 0.5f * bob.acceleration.x * dt * dt + bob.velocity.x * dt,
                 0.5f * bob.acceleration.y * dt * dt + bob.velocity.y * dt
             );
-
+            
+            vec2 oldPosition = bob.box.position;
             vec2 time = vec2(1.f);
 
             for (auto entity : entities) {
-                vec2 t = raycastIntersect(vec2(oldPosition.x, oldPosition.y + bob.box.size.y), move, entity.box);
+                vec2 t = sweptAABB(oldPosition, move, entity.box, bob.box.size);
                 
                 if (t.x >= 0.f && t.x < time.x) time.x = t.x;
                 if (t.y >= 0.f && t.y < time.y) time.y = t.y;
             }
-
+            
+            if (time.x < 1.f) {
+                bob.velocity.x = 0.f;
+            }
             if (time.y < 1.f) {
                 bob.velocity.y = 0.f;
             }
 
-            bob.box.position.x = oldPosition.x + move.x * time.x;
-            bob.box.position.y = oldPosition.y + move.y * time.y;
+            vec2 updatedMove = move * time;
 
-            bob.box.position.x = clamp(bob.box.position.x, 0.f, (f32)TILE_SIZE * levelWidth - SPRITE_SIZE);
-            bob.box.position.y = clamp(bob.box.position.y, 0.f, (f32)TILE_SIZE * levelHeight - SPRITE_SIZE);
+            bob.box.position.x = oldPosition.x + updatedMove.x;
+            bob.box.position.y = oldPosition.y + updatedMove.y;
+
+            bob.box.position.x = clamp(bob.box.position.x, 0.f, (f32) TILE_SIZE * levelWidth - SPRITE_SIZE);
+            bob.box.position.y = clamp(bob.box.position.y, 0.f, (f32) TILE_SIZE * levelHeight - SPRITE_SIZE);
 
             bob.acceleration.y = 10.f;
 
-            std::cout << bob.box.position.x << ", " << bob.box.position.y << std::endl;
-            
-            vec2 idleArea = vec2(100.f, 50.f);
+            vec2 idleArea = {100.f, 50.f};
 
-            if (move.x > 0.f) {
+            if (updatedMove.x > 0.f) {
                 if (bob.box.position.x + SPRITE_SIZE > camera.x + SCREEN_WIDTH / 2 + idleArea.x) {
-                    camera.x += move.x;
+                    camera.x += updatedMove.x;
                 }
             }
-            else if (move.x < 0.f) {
+            else if (updatedMove.x < 0.f) {
                 if (bob.box.position.x < camera.x + SCREEN_WIDTH / 2 - idleArea.x) {
-                    camera.x += move.x;
+                    camera.x += updatedMove.x;
                 }
             }
 
-            if (move.y > 0.f) {
+            if (updatedMove.y > 0.f) {
                 if (bob.box.position.y + SPRITE_SIZE > camera.y + SCREEN_HEIGHT / 2 + idleArea.y) {
-                    camera.y += move.y;
+                    camera.y += updatedMove.y;
                 }
             }
-            else if (move.y < 0.f) {
+            else if (updatedMove.y < 0.f) {
                 if (bob.box.position.y < camera.y + SCREEN_HEIGHT / 2 - idleArea.y) {
-                    camera.y += move.y;
+                    camera.y += updatedMove.y;
                 }
             }
 
-            camera.x = clamp(camera.x, 0.f, (f32)TILE_SIZE * levelWidth - SCREEN_WIDTH);
-            camera.y = clamp(camera.y, 0.f, (f32)TILE_SIZE * levelHeight - SCREEN_HEIGHT);
+            camera.x = clamp(camera.x, 0.f, (f32) TILE_SIZE * levelWidth - SCREEN_WIDTH);
+            camera.y = clamp(camera.y, 0.f, (f32) TILE_SIZE * levelHeight - SCREEN_HEIGHT);
 
             lag -= updateRate;
         }
@@ -627,7 +630,7 @@ u32 createAndCompileShader(e32 shaderType, const string& path) {
         s32 LOG_LENGTH;
         glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &LOG_LENGTH);
 
-        std::vector<c8> errorLog(LOG_LENGTH);
+        vector<c8> errorLog(LOG_LENGTH);
 
         glGetShaderInfoLog(shader, LOG_LENGTH, nullptr, &errorLog[0]);
         std::cerr << "Shader compilation failed:" << std::endl << &errorLog[0] << std::endl;
@@ -649,7 +652,7 @@ string readTextFile(const string& path) {
 
 s32 getUniformLocation(u32 shaderProgram, const string& name) {
     s32 uniformLocation = glGetUniformLocation(shaderProgram, name.c_str());
-    //assert(uniformLocation != -1);
+    assert(uniformLocation != -1);
     return uniformLocation;
 }
 
@@ -684,33 +687,37 @@ b8 collide(const aabb& box1, const aabb& box2) {
     return xCollision && yCollision;
 }
 
-vec2 raycastIntersect(const vec2 point, const vec2 delta, const aabb& box) {
+// basic Minkowski-based collision detection
+vec2 sweptAABB(const vec2 point, const vec2 delta, const aabb& box, const vec2 padding) {
     vec2 time = vec2(1.f);
 
     f32 nearTimeX = 1.f;
     f32 farTimeX = 1.f;
     f32 nearTimeY = 1.f;
     f32 farTimeY = 1.f;
+    
+    vec2 position = box.position - padding;
+    vec2 size= box.size + padding;
 
-    if (delta.x != 0.f && box.position.y <= point.y && point.y <= box.position.y + box.size.y) {
-        nearTimeX = (box.position.x - point.x) / delta.x;
+    if (delta.x != 0.f && position.y <= point.y && point.y <= position.y + size.y) {
+        nearTimeX = (position.x - point.x) / delta.x;
         if (nearTimeX < time.x) {
             time.x = nearTimeX;
         }
         
-        farTimeX = (box.position.x + box.size.x - point.x) / delta.x;
+        farTimeX = (position.x + size.x - point.x) / delta.x;
         if (farTimeX < time.x) {
             time.x = farTimeX;
         }
     }
 
-    if (delta.y != 0.f && box.position.x < point.x && point.x < box.position.x + box.size.x) {
-        nearTimeY = (box.position.y - point.y) / delta.y;
+    if (delta.y != 0.f && position.x < point.x && point.x < position.x + size.x) {
+        nearTimeY = (position.y - point.y) / delta.y;
         if (nearTimeY < time.y) {
             time.y = nearTimeY;
         }
         
-        farTimeY = (box.position.y + box.size.y - point.y) / delta.y;
+        farTimeY = (position.y + size.y - point.y) / delta.y;
         if (farTimeY < time.y) {
             time.y = farTimeY;
         }
