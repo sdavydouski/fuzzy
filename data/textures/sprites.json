@@ -16,7 +16,7 @@
         "x": 3,
         "y": 16,
         "frames": 5,
-        "delay": 0.1
+        "delay": 0.05
       },
       {
         "title": "run",
@@ -30,7 +30,21 @@
         "x": 0,
         "y": 19,
         "frames": 4,
-        "delay":  0.1
+        "delay": 0.1
+      },
+      {
+        "title": "jump-up",
+        "x": 1,
+        "y": 17,
+        "frames": 1,
+        "delay": 0.1
+      },
+      {
+        "title": "jump-down",
+        "x": 2,
+        "y": 17,
+        "frames": 1,
+        "delay": 0.1
       }
     ]
   }]

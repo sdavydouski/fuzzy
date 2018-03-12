@@ -164,8 +164,8 @@ s32 main(s32 argc, char* argv[]) {
 
     glfwSetMouseButtonCallback(window, [](GLFWwindow* window, s32 button, s32 action, s32 mods) {
         if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
-            bob.currentAnimation = bob.animations[3];
-            bob.currentAnimation.xOffset = 0.f;
+//            bob.currentAnimation = bob.animations[3];
+//            bob.currentAnimation.xOffset = 0.f;
         }
     });
 
@@ -263,12 +263,12 @@ s32 main(s32 argc, char* argv[]) {
     bob.box.size = {13.f * SCALE, 16.f * SCALE};
     bob.velocity = {0.f, 0.f};
     bob.acceleration = {0.f, 10.f};
-    bob.animations = {
-        { bobAnimations[0]["x"], bobAnimations[0]["y"], bobAnimations[0]["frames"], bobAnimations[0]["delay"], 0.f },
-        { bobAnimations[1]["x"], bobAnimations[1]["y"], bobAnimations[1]["frames"], bobAnimations[1]["delay"], 0.f },
-        { bobAnimations[2]["x"], bobAnimations[2]["y"], bobAnimations[2]["frames"], bobAnimations[2]["delay"], 0.f },
-        { bobAnimations[3]["x"], bobAnimations[3]["y"], bobAnimations[3]["frames"], bobAnimations[3]["delay"], 0.f }
-    };
+    bob.animations.reserve(bobAnimations.size());
+
+    for (auto& animation : bobAnimations) {
+        bob.animations.push_back({animation["x"], animation["y"], animation["frames"], animation["delay"], 0.f});
+    }
+
     bob.currentAnimation = bob.animations[0];
 
     f32 spriteWidth = ((f32) tileWidth) / textureWidth;
@@ -469,6 +469,20 @@ s32 main(s32 argc, char* argv[]) {
             }
             if (time.y < 1.f) {
                 bob.velocity.y = 0.f;
+
+                if (time.y > 0.f && move.y > 0.f && bob.currentAnimation != bob.animations[1]) {
+                    bob.currentAnimation = bob.animations[1];
+                    bob.currentAnimation.xOffset = 0.f;
+                }
+            }
+            if (time.y == 1.f) {
+                if (bob.velocity.y > 0.f) {
+                    bob.currentAnimation = bob.animations[5];
+                    bob.currentAnimation.xOffset = 0.f;
+                } else {
+                    bob.currentAnimation = bob.animations[4];
+                    bob.currentAnimation.xOffset = 0.f;
+                }
             }
 
             vec2 updatedMove = move * time;
@@ -547,7 +561,7 @@ s32 main(s32 argc, char* argv[]) {
             bob.currentAnimation.xOffset += spriteWidth;
             if (bob.currentAnimation.xOffset >= ((bob.currentAnimation.frames * tileWidth) / (f32) textureWidth)) {
                 bob.currentAnimation.xOffset = 0.f;
-                if (bob.currentAnimation == bob.animations[3]) {
+                if (bob.currentAnimation == bob.animations[1] || bob.currentAnimation == bob.animations[3]) {
                     bob.currentAnimation = bob.animations[0];
                 }
             }
@@ -577,7 +591,7 @@ s32 main(s32 argc, char* argv[]) {
  */
 void processInput() {
     if (keys[GLFW_KEY_LEFT] == GLFW_PRESS) {
-        if (bob.currentAnimation != bob.animations[2]) {
+        if (bob.currentAnimation != bob.animations[2] && bob.currentAnimation != bob.animations[1]) {
             bob.currentAnimation = bob.animations[2];
             reversed = true;
         }
@@ -585,7 +599,7 @@ void processInput() {
     }
 
     if (keys[GLFW_KEY_RIGHT] == GLFW_PRESS) {
-        if (bob.currentAnimation != bob.animations[2]) {
+        if (bob.currentAnimation != bob.animations[2] && bob.currentAnimation != bob.animations[1]) {
             bob.currentAnimation = bob.animations[2];
             reversed = false;
         }
@@ -614,6 +628,12 @@ void processInput() {
         processedKeys[GLFW_KEY_SPACE] = true;
         bob.acceleration.y = -350.f;
         bob.velocity.y = 0.f;
+    }
+
+    if (keys[GLFW_KEY_S] == GLFW_PRESS && !processedKeys[GLFW_KEY_S]) {
+        processedKeys[GLFW_KEY_S] = true;
+        bob.currentAnimation = bob.animations[3];
+        bob.currentAnimation.xOffset = 0.f;
     }
 }
 
