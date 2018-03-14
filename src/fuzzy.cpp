@@ -56,9 +56,6 @@ const u32 SCALE = 4;
 const f32 SPRITE_SIZE = 16.f * SCALE;
 const f32 TILE_SIZE = 16.f * SCALE;
 
-u32 levelWidth;
-u32 levelHeight;
-
 // top-left corner
 vec2 camera = vec2(0.f);
 
@@ -122,8 +119,6 @@ u64 sizeInBytes(std::initializer_list<const vector<T>> vectors) {
 b8 reversed = false;
 sprite bob;
 
-// todo: world coordinate system
-// todo: texture bleeding
 s32 main(s32 argc, char* argv[]) {
 
     if (!glfwInit()) {
@@ -252,8 +247,8 @@ s32 main(s32 argc, char* argv[]) {
     json spritesConfig;
     spritesConfigIn >> spritesConfig;
 
-    s32 tileWidth = spritesConfig["tileWidth"];
-    s32 tileHeight = spritesConfig["tileHeight"];
+    u32 tileWidth = spritesConfig["tileWidth"];
+    u32 tileHeight = spritesConfig["tileHeight"];
 
     auto bobConfig = spritesConfig["sprites"][0];
     auto bobAnimations = bobConfig["animations"];
@@ -296,8 +291,11 @@ s32 main(s32 argc, char* argv[]) {
     tileSetInfoIn >> tilesetInfo;
 
     u32 columns = tilesetInfo["columns"];
-    levelWidth = levelInfo["width"];
-    levelHeight = levelInfo["height"];
+    u32 margin = tilesetInfo["margin"];
+    u32 spacing = tilesetInfo["spacing"];
+    u32 levelWidth = levelInfo["width"];
+    u32 levelHeight = levelInfo["height"];
+
     vector<s32> backgroundRawTiles = levelInfo["layers"][0]["data"];
     vector<s32> foregroundRawTiles = levelInfo["layers"][1]["data"];
 
@@ -338,11 +336,13 @@ s32 main(s32 argc, char* argv[]) {
         }
 
         xyr[i].z = rotate;
+        
+        // todo: completely arbitrary negative value
+        s32 uvX = tile > 0 ? ((tile - 1) % columns) : -10;
+        s32 uvY = tile > 0 ? ((tile - 1) / columns) : -10;
 
-        s32 uvX = tile > 0 ? ((tile - 1) % columns) : -1;
-        s32 uvY = tile > 0 ? ((tile - 1) / columns) : -1;
-
-        backgroundUvs.push_back(vec2(uvX * spriteWidth, uvY * spriteHeight));
+        backgroundUvs.push_back(vec2((uvX * (tileWidth + spacing) + margin) / (f32) textureWidth, 
+                                     (uvY * (tileHeight + spacing) + margin) / (f32) textureHeight));
     }
 
     vector<vec2> foregroundUvs;
@@ -371,10 +371,11 @@ s32 main(s32 argc, char* argv[]) {
 
         xyr[i].w = rotate;
 
-        s32 uvX = tile > 0 ? ((tile - 1) % columns) : -1;
-        s32 uvY = tile > 0 ? ((tile - 1) / columns) : -1;
+        s32 uvX = tile > 0 ? ((tile - 1) % columns) : -10;
+        s32 uvY = tile > 0 ? ((tile - 1) / columns) : -10;
 
-        foregroundUvs.push_back(vec2(uvX * spriteWidth, uvY * spriteHeight));
+        foregroundUvs.push_back(vec2((uvX * (tileWidth + spacing) + margin) / (f32)textureWidth,
+                                     (uvY * (tileHeight + spacing) + margin) / (f32)textureHeight));
     }
 
     auto rawEntities = levelInfo["layers"][2]["objects"];
@@ -554,11 +555,11 @@ s32 main(s32 argc, char* argv[]) {
         model = glm::scale(model, vec3(SPRITE_SIZE));
         setShaderUniform(modelUniformLocation, model);
 
-        f32 bobXOffset = (tileWidth * (f32) bob.currentAnimation.x) / textureWidth;
-        f32 bobYOffset = (tileHeight * (f32) bob.currentAnimation.y) / textureHeight;
+        f32 bobXOffset = (f32) (bob.currentAnimation.x * (tileWidth + spacing) + margin) / textureWidth;
+        f32 bobYOffset = (f32) (bob.currentAnimation.y * (tileHeight + spacing) + margin) / textureHeight;
 
         if (frameTime >= bob.currentAnimation.delay) {
-            bob.currentAnimation.xOffset += spriteWidth;
+            bob.currentAnimation.xOffset += spriteWidth + (f32) spacing / textureWidth;
             if (bob.currentAnimation.xOffset >= ((bob.currentAnimation.frames * tileWidth) / (f32) textureWidth)) {
                 bob.currentAnimation.xOffset = 0.f;
                 if (bob.currentAnimation == bob.animations[1] || bob.currentAnimation == bob.animations[3]) {

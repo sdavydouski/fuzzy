@@ -15,7 +15,7 @@ uniform bool reversed;
 
 void main() {
     if (type == TILE_TYPE) {
-        if (uvOffset.x != -1 && uvOffset.y != -1) {
+        if (uvOffset.x >= 0.f && uvOffset.y >= 0.f) {
             color = texture(spriteTexture, uv + uvOffset);
         } else {
             color = vec4(0.f);
