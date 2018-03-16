@@ -64,7 +64,6 @@ struct animation {
     s32 y;
     s32 frames;
     f32 delay;
-    f32 xOffset;
 
     b8 operator==(const animation& other) const {
         return x == other.x && y == other.y;
@@ -82,28 +81,54 @@ struct entity {
 struct sprite {
     vector<animation> animations;
     animation currentAnimation;
+    f32 xAnimationOffset;
+    b8 reversed;
+
     aabb box;
     vec2 velocity;
     vec2 acceleration;
 };
 
-
-/*
- * Function declarations
- */
-
-// todo: inline?
 string readTextFile(const string& path);
 void processInput();
 u32 createAndCompileShader(e32 shaderType, const string& path);
-s32 getUniformLocation(u32 shaderProgram, const string& name);
-void setShaderUniform(s32 location, b8 value);
-void setShaderUniform(s32 location, s32 value);
-void setShaderUniform(s32 location, const vec2& value);
-void setShaderUniform(s32 location, const mat4& value);
-f32 clamp(f32 value, f32 min, f32 max);
-b8 collide(const aabb& box1, const aabb& box2);
 vec2 sweptAABB(const vec2 point, const vec2 delta, const aabb& box, vec2 padding = vec2(0.f));
+
+inline s32 getUniformLocation(u32 shaderProgram, const string& name) {
+    s32 uniformLocation = glGetUniformLocation(shaderProgram, name.c_str());
+    assert(uniformLocation != -1);
+    return uniformLocation;
+}
+
+inline void setShaderUniform(s32 location, b8 value) {
+    glUniform1i(location, value);
+}
+inline void setShaderUniform(s32 location, s32 value) {
+    glUniform1i(location, value);
+}
+
+inline void setShaderUniform(s32 location, const vec2& value) {
+    glUniform2f(location, value.x, value.y);
+}
+
+inline void setShaderUniform(s32 location, const mat4& value) {
+    glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(value));
+}
+
+inline f32 clamp(f32 value, f32 min, f32 max) {
+    if (value < min) return min;
+    if (value > max) return max;
+
+    return value;
+}
+
+inline b8 collide(const aabb& box1, const aabb& box2) {
+    // Separating Axis Theorem
+    b8 xCollision = box1.position.x + box1.size.x >= box2.position.x && box1.position.x <= box2.position.x + box2.size.x;
+    b8 yCollision = box1.position.y + box1.size.y >= box2.position.y && box1.position.y <= box2.position.y + box2.size.y;
+
+    return xCollision && yCollision;
+}
 
 // todo: different Ts
 template<typename T>
@@ -115,8 +140,6 @@ u64 sizeInBytes(std::initializer_list<const vector<T>> vectors) {
     return size;
 }
 
-
-b8 reversed = false;
 sprite bob;
 
 s32 main(s32 argc, char* argv[]) {
@@ -126,12 +149,10 @@ s32 main(s32 argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
-    srand((u32) glfwGetTimerValue());
-
-//    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-//    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-//    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-//    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    //glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
     GLFWwindow* window = glfwCreateWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Fuzzy", nullptr, nullptr);
     if (!window) {
@@ -154,13 +175,6 @@ s32 main(s32 argc, char* argv[]) {
         } else if (action == GLFW_RELEASE) {
             keys[key] = false;
             processedKeys[key] = false;
-        }
-    });
-
-    glfwSetMouseButtonCallback(window, [](GLFWwindow* window, s32 button, s32 action, s32 mods) {
-        if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
-//            bob.currentAnimation = bob.animations[3];
-//            bob.currentAnimation.xOffset = 0.f;
         }
     });
 
@@ -247,8 +261,8 @@ s32 main(s32 argc, char* argv[]) {
     json spritesConfig;
     spritesConfigIn >> spritesConfig;
 
-    u32 tileWidth = spritesConfig["tileWidth"];
-    u32 tileHeight = spritesConfig["tileHeight"];
+    s32 tileWidth = spritesConfig["tileWidth"];
+    s32 tileHeight = spritesConfig["tileHeight"];
 
     auto bobConfig = spritesConfig["sprites"][0];
     auto bobAnimations = bobConfig["animations"];
@@ -260,11 +274,12 @@ s32 main(s32 argc, char* argv[]) {
     bob.acceleration = {0.f, 10.f};
     bob.animations.reserve(bobAnimations.size());
 
-    for (auto& animation : bobAnimations) {
-        bob.animations.push_back({animation["x"], animation["y"], animation["frames"], animation["delay"], 0.f});
+    for (auto animation : bobAnimations) {
+        bob.animations.push_back({animation["x"], animation["y"], animation["frames"], animation["delay"]});
     }
 
     bob.currentAnimation = bob.animations[0];
+    bob.xAnimationOffset = 0.f;
 
     f32 spriteWidth = ((f32) tileWidth) / textureWidth;
     f32 spriteHeight = ((f32) tileHeight) / textureHeight;
@@ -273,7 +288,7 @@ s32 main(s32 argc, char* argv[]) {
     setShaderUniform(spriteSizeUniformLocation, vec2(spriteWidth, spriteHeight));
 
     s32 reversedUniformLocation = getUniformLocation(shaderProgram, "reversed");
-    setShaderUniform(reversedUniformLocation, reversed);
+    setShaderUniform(reversedUniformLocation, bob.reversed);
 
     f32 vertices[] = {
         // Pos    // UV
@@ -291,8 +306,8 @@ s32 main(s32 argc, char* argv[]) {
     tileSetInfoIn >> tilesetInfo;
 
     u32 columns = tilesetInfo["columns"];
-    u32 margin = tilesetInfo["margin"];
-    u32 spacing = tilesetInfo["spacing"];
+    s32 margin = tilesetInfo["margin"];
+    s32 spacing = tilesetInfo["spacing"];
     u32 levelWidth = levelInfo["width"];
     u32 levelHeight = levelInfo["height"];
 
@@ -338,6 +353,7 @@ s32 main(s32 argc, char* argv[]) {
         xyr[i].z = rotate;
         
         // todo: completely arbitrary negative value
+        // handle sparseness???
         s32 uvX = tile > 0 ? ((tile - 1) % columns) : -10;
         s32 uvY = tile > 0 ? ((tile - 1) / columns) : -10;
 
@@ -389,6 +405,10 @@ s32 main(s32 argc, char* argv[]) {
         entities.push_back(entity);
     }
     
+    u32 VAO;
+    glGenVertexArrays(1, &VAO);
+    glBindVertexArray(VAO);
+
     u32 VBO;
     glGenBuffers(1, &VBO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
@@ -422,7 +442,7 @@ s32 main(s32 argc, char* argv[]) {
     f64 currentTime;
     f64 delta = 0;
 
-    f32 updateRate = 0.01f;   // in seconds
+    f32 updateRate = 0.01f;   // 10 ms
     f32 lag = 0.f;
     
     f64 frameTime = 0.f;
@@ -473,16 +493,16 @@ s32 main(s32 argc, char* argv[]) {
 
                 if (time.y > 0.f && move.y > 0.f && bob.currentAnimation != bob.animations[1]) {
                     bob.currentAnimation = bob.animations[1];
-                    bob.currentAnimation.xOffset = 0.f;
+                    bob.xAnimationOffset = 0.f;
                 }
             }
             if (time.y == 1.f) {
                 if (bob.velocity.y > 0.f) {
                     bob.currentAnimation = bob.animations[5];
-                    bob.currentAnimation.xOffset = 0.f;
+                    bob.xAnimationOffset = 0.f;
                 } else {
                     bob.currentAnimation = bob.animations[4];
-                    bob.currentAnimation.xOffset = 0.f;
+                    bob.xAnimationOffset = 0.f;
                 }
             }
 
@@ -559,9 +579,9 @@ s32 main(s32 argc, char* argv[]) {
         f32 bobYOffset = (f32) (bob.currentAnimation.y * (tileHeight + spacing) + margin) / textureHeight;
 
         if (frameTime >= bob.currentAnimation.delay) {
-            bob.currentAnimation.xOffset += spriteWidth + (f32) spacing / textureWidth;
-            if (bob.currentAnimation.xOffset >= ((bob.currentAnimation.frames * tileWidth) / (f32) textureWidth)) {
-                bob.currentAnimation.xOffset = 0.f;
+            bob.xAnimationOffset += spriteWidth + (f32) spacing / textureWidth;
+            if (bob.xAnimationOffset >= ((bob.currentAnimation.frames * tileWidth) / (f32) textureWidth)) {
+                bob.xAnimationOffset = 0.f;
                 if (bob.currentAnimation == bob.animations[1] || bob.currentAnimation == bob.animations[3]) {
                     bob.currentAnimation = bob.animations[0];
                 }
@@ -569,11 +589,10 @@ s32 main(s32 argc, char* argv[]) {
 
             frameTime = 0.0f;
         }
-        setShaderUniform(spriteOffsetUniformLocation, vec2(bobXOffset + bob.currentAnimation.xOffset, bobYOffset));
-        setShaderUniform(reversedUniformLocation, reversed);
+        setShaderUniform(spriteOffsetUniformLocation, vec2(bobXOffset + bob.xAnimationOffset, bobYOffset));
+        setShaderUniform(reversedUniformLocation, bob.reversed);
         
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
 
         glfwSwapBuffers(window);
 
@@ -587,14 +606,11 @@ s32 main(s32 argc, char* argv[]) {
 }
 
 
-/*
- * Function definitions
- */
 void processInput() {
     if (keys[GLFW_KEY_LEFT] == GLFW_PRESS) {
         if (bob.currentAnimation != bob.animations[2] && bob.currentAnimation != bob.animations[1]) {
             bob.currentAnimation = bob.animations[2];
-            reversed = true;
+            bob.reversed = true;
         }
         bob.acceleration.x = -12.f;
     }
@@ -602,7 +618,7 @@ void processInput() {
     if (keys[GLFW_KEY_RIGHT] == GLFW_PRESS) {
         if (bob.currentAnimation != bob.animations[2] && bob.currentAnimation != bob.animations[1]) {
             bob.currentAnimation = bob.animations[2];
-            reversed = false;
+            bob.reversed = false;
         }
         bob.acceleration.x = 12.f;
     }
@@ -611,8 +627,8 @@ void processInput() {
         processedKeys[GLFW_KEY_LEFT] = true;
         if (bob.currentAnimation != bob.animations[0]) {
             bob.currentAnimation = bob.animations[0];
-            bob.currentAnimation.xOffset = 0.f;
-            reversed = true;
+            bob.xAnimationOffset = 0.f;
+            bob.reversed = true;
         }
     }
 
@@ -620,8 +636,8 @@ void processInput() {
         processedKeys[GLFW_KEY_RIGHT] = true;
         if (bob.currentAnimation != bob.animations[0]) {
             bob.currentAnimation= bob.animations[0];
-            bob.currentAnimation.xOffset = 0.f;
-            reversed = false;
+            bob.xAnimationOffset = 0.f;
+            bob.reversed = false;
         }
     }
 
@@ -634,7 +650,7 @@ void processInput() {
     if (keys[GLFW_KEY_S] == GLFW_PRESS && !processedKeys[GLFW_KEY_S]) {
         processedKeys[GLFW_KEY_S] = true;
         bob.currentAnimation = bob.animations[3];
-        bob.currentAnimation.xOffset = 0.f;
+        bob.xAnimationOffset = 0.f;
     }
 }
 
@@ -669,43 +685,6 @@ string readTextFile(const string& path) {
     std::ostringstream ss;
     ss << in.rdbuf();
     return ss.str();
-}
-
-s32 getUniformLocation(u32 shaderProgram, const string& name) {
-    s32 uniformLocation = glGetUniformLocation(shaderProgram, name.c_str());
-    assert(uniformLocation != -1);
-    return uniformLocation;
-}
-
-void setShaderUniform(s32 location, b8 value) {
-    glUniform1i(location, value);
-}
-
-void setShaderUniform(s32 location, s32 value) {
-    glUniform1i(location, value);
-}
-
-void setShaderUniform(s32 location, const vec2& value) {
-    glUniform2f(location, value.x, value.y);
-}
-
-void setShaderUniform(s32 location, const mat4& value) {
-    glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(value));
-}
-
-f32 clamp(f32 value, f32 min, f32 max) {
-    if (value < min) return min;
-    if (value > max) return max;
-
-    return value;
-}
-
-b8 collide(const aabb& box1, const aabb& box2) {
-    // Separating Axis Theorem
-    b8 xCollision = box1.position.x + box1.size.x >= box2.position.x && box1.position.x <= box2.position.x + box2.size.x;
-    b8 yCollision = box1.position.y + box1.size.y >= box2.position.y && box1.position.y <= box2.position.y + box2.size.y;
-    
-    return xCollision && yCollision;
 }
 
 // basic Minkowski-based collision detection
