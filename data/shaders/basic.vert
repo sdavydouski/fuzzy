@@ -36,7 +36,7 @@ vec2 swapXY(vec2 vec) {
 }
 
 void main() {
-    uv = sprite.zw;
+    uv = spriteSize * sprite.zw;
     
     float rotate = tileType == 0 ? xyr.z : xyr.w;    
 

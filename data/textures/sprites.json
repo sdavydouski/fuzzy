@@ -2,49 +2,67 @@
   "tileWidth": 16,
   "tileHeight": 16,
   "sprites": [{
-    "name":  "Bob",
+    "name": "bob",
     "animations": [
       {
         "title": "idle",
         "x": 0,
         "y": 16,
         "frames": 3,
-        "delay": 0.25
+        "delay": 0.25,
+        "size": 1
       },
       {
         "title": "squash",
         "x": 3,
         "y": 16,
         "frames": 5,
-        "delay": 0.05
+        "delay": 0.05,
+        "size": 1
       },
       {
         "title": "run",
         "x": 0,
         "y": 17,
         "frames": 8,
-        "delay": 0.1
+        "delay": 0.1,
+        "size": 1
       },
       {
         "title": "attack",
         "x": 0,
         "y": 19,
         "frames": 4,
-        "delay": 0.1
+        "delay": 0.1,
+        "size": 1
       },
       {
         "title": "jump-up",
         "x": 1,
         "y": 17,
         "frames": 1,
-        "delay": 0.1
+        "delay": 0.1,
+        "size": 1
       },
       {
         "title": "jump-down",
         "x": 2,
         "y": 17,
         "frames": 1,
-        "delay": 0.1
+        "delay": 0.1,
+        "size": 1
+      }
+    ]
+  }, {
+    "name": "effects",
+    "animations": [
+      {
+        "title": "swoosh",
+        "x": 4,
+        "y": 18,
+        "frames": 4,
+        "delay": 0.1,
+        "size": 2
       }
     ]
   }]
