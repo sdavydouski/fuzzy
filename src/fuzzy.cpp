@@ -529,11 +529,15 @@ s32 main(s32 argc, char* argv[]) {
             }
             if (time.y == 1.f) {
                 if (bob.velocity.y > 0.f) {
-                    bob.currentAnimation = bob.animations[5];
-                    bob.xAnimationOffset = 0.f;
+                    if (bob.currentAnimation != bob.animations[3]) {
+                        bob.currentAnimation = bob.animations[5];
+                        bob.xAnimationOffset = 0.f;
+                    }
                 } else {
-                    bob.currentAnimation = bob.animations[4];
-                    bob.xAnimationOffset = 0.f;
+                    if (bob.currentAnimation != bob.animations[3]) {
+                        bob.currentAnimation = bob.animations[4];
+                        bob.xAnimationOffset = 0.f;
+                    }
                 }
             }
 
@@ -668,19 +672,27 @@ s32 main(s32 argc, char* argv[]) {
 
 void processInput() {
     if (keys[GLFW_KEY_LEFT] == GLFW_PRESS) {
-        if (bob.currentAnimation != bob.animations[2] && bob.currentAnimation != bob.animations[1]) {
+        if (
+            bob.currentAnimation != bob.animations[2] && 
+            bob.currentAnimation != bob.animations[1] && 
+            bob.currentAnimation != bob.animations[3]
+        ) {
             bob.currentAnimation = bob.animations[2];
-            bob.reversed = true;
         }
         bob.acceleration.x = -12.f;
+        bob.reversed = true;
     }
 
     if (keys[GLFW_KEY_RIGHT] == GLFW_PRESS) {
-        if (bob.currentAnimation != bob.animations[2] && bob.currentAnimation != bob.animations[1]) {
+        if (
+            bob.currentAnimation != bob.animations[2] && 
+            bob.currentAnimation != bob.animations[1] && 
+            bob.currentAnimation != bob.animations[3]
+        ) {
             bob.currentAnimation = bob.animations[2];
-            bob.reversed = false;
         }
         bob.acceleration.x = 12.f;
+        bob.reversed = false;
     }
 
     if (keys[GLFW_KEY_LEFT] == GLFW_RELEASE && !processedKeys[GLFW_KEY_LEFT]) {
