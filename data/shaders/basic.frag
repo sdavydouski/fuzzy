@@ -12,6 +12,7 @@ uniform bool reversed;
 
 #define TILE_TYPE 1.f
 #define SPRITE_TYPE 2.f
+#define ENTITY_TYPE 3.f
 
 void main() {
     if (type == TILE_TYPE) {
@@ -20,11 +21,11 @@ void main() {
         } else {
             color = vec4(0.f);
         }
-    } else if (type == SPRITE_TYPE) {
+    } else if (type == SPRITE_TYPE || type == ENTITY_TYPE) {
         float x = reversed ? 
-            spriteSize.x - uv.x + spriteOffset.x :
-            uv.x + spriteOffset.x;
+            spriteSize.x - uv.x + uvOffset.x :
+            uv.x + uvOffset.x;
 
-        color = texture(spriteTexture, vec2(x, uv.y + spriteOffset.y));   
+        color = texture(spriteTexture, vec2(x, uv.y + uvOffset.y));   
     }
 }
