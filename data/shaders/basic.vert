@@ -9,6 +9,7 @@ layout(location = 3) in vec2 foregroundUv;
 
 layout(location = 4) in vec4 aabb;
 layout(location = 5) in vec3 uvr;
+layout(location = 6) in uint flipped;
 
 out vec2 uv;
 out vec2 uvOffset;
@@ -30,6 +31,10 @@ uniform mat4 projection;
 #define TILE_TYPE 1.f
 #define SPRITE_TYPE 2.f
 #define ENTITY_TYPE 3.f
+
+uint FLIPPED_HORIZONTALLY_FLAG = 0x80000000u;
+uint FLIPPED_VERTICALLY_FLAG = 0x40000000u;
+uint FLIPPED_DIAGONALLY_FLAG = 0x20000000u;
 
 vec2 swapXY(vec2 vec) {
     float temp = vec.x;
@@ -62,7 +67,23 @@ void main() {
         gl_Position = projection * view * (model * vec4(sprite.xy, 0.f, 1.0f)  + vec4(xyr.xy, 0.f, 0.f));
     } else if (type == SPRITE_TYPE || type == ENTITY_TYPE) {
         uvOffset = uvr.xy;
-        float rotate = uvr.z;
+        //float rotate = uvr.z;
+        bool flippedHorizontally = bool(flipped & FLIPPED_HORIZONTALLY_FLAG);
+        bool flippedVertically = bool(flipped & FLIPPED_VERTICALLY_FLAG);
+        bool flippedDiagonally = bool(flipped & FLIPPED_DIAGONALLY_FLAG);
+        
+        if (flippedHorizontally) {
+            uv.x = spriteSize.x - uv.x;
+        }
+        if (flippedVertically) {
+            uv.y = spriteSize.y - uv.y;
+        }
+        if (flippedDiagonally) {
+            uv = swapXY(uv);
+        }
+
+        
+        /*
         if (rotate == ROTATE_90) {
             uv.y = spriteSize.y - uv.y;
             uv = swapXY(uv);
@@ -73,6 +94,7 @@ void main() {
             uv.x = spriteSize.x - uv.x;
             uv = swapXY(uv);
         }
+        */
 
         vec2 position = aabb.xy;
         vec2 size = aabb.zw;

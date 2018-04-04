@@ -8,7 +8,6 @@ uniform int type;
 uniform sampler2D spriteTexture;
 uniform vec2 spriteSize;
 uniform vec2 spriteOffset;
-uniform bool reversed;
 
 #define TILE_TYPE 1.f
 #define SPRITE_TYPE 2.f
@@ -22,10 +21,6 @@ void main() {
             color = vec4(0.f);
         }
     } else if (type == SPRITE_TYPE || type == ENTITY_TYPE) {
-        float x = reversed ? 
-            spriteSize.x - uv.x + uvOffset.x :
-            uv.x + uvOffset.x;
-
-        color = texture(spriteTexture, vec2(x, uv.y + uvOffset.y));   
+        color = texture(spriteTexture, uv + uvOffset);   
     }
 }

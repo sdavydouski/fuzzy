@@ -59,6 +59,10 @@ const f32 TILE_SIZE = 16.f * SCALE;
 // top-left corner
 vec2 camera = vec2(0.f);
 
+const u32 FLIPPED_HORIZONTALLY_FLAG = 0x80000000;
+const u32 FLIPPED_VERTICALLY_FLAG = 0x40000000;
+const u32 FLIPPED_DIAGONALLY_FLAG = 0x20000000;
+
 struct animation {
     s32 x;
     s32 y;
@@ -84,6 +88,9 @@ struct drawableEntity {
 
     vec2 uv;
     f32 rotation;
+    
+    u32 flipped;
+
     u32 offset;
 };
 
@@ -92,7 +99,7 @@ struct sprite {
     animation currentAnimation;
     f32 xAnimationOffset;
     f32 frameTime;
-    b8 reversed;
+    u32 flipped;
 
     aabb box;
     vec2 velocity;
@@ -363,10 +370,6 @@ s32 main(s32 argc, char* argv[]) {
         }
     }
     
-    const u32 FLIPPED_HORIZONTALLY_FLAG = 0x80000000;
-    const u32 FLIPPED_VERTICALLY_FLAG = 0x40000000;
-    const u32 FLIPPED_DIAGONALLY_FLAG = 0x20000000;
-
     vector<vec2> backgroundUvs;
     backgroundUvs.reserve(levelWidth * levelHeight);
     for (u32 i = 0; i < levelWidth * levelHeight; ++i) {
@@ -455,12 +458,12 @@ s32 main(s32 argc, char* argv[]) {
 
             bool flippedHorizontally = gid & FLIPPED_HORIZONTALLY_FLAG;
             bool flippedVertically = gid & FLIPPED_VERTICALLY_FLAG;
+            // todo: objects handle rotation differently from the tiles
             bool flippedDiagonally = gid & FLIPPED_DIAGONALLY_FLAG;
 
             gid &= ~(FLIPPED_HORIZONTALLY_FLAG | FLIPPED_VERTICALLY_FLAG | FLIPPED_DIAGONALLY_FLAG);
 
             f32 rotation = 0.f;
-            // todo: deal with just flipping
             if (flippedVertically && flippedDiagonally) {
                 // 90 degrees
                 rotation = 1.f;
@@ -542,13 +545,17 @@ s32 main(s32 argc, char* argv[]) {
     glBufferData(GL_ARRAY_BUFFER, sizeInBytes({drawableEntities}), drawableEntities.data(), GL_DYNAMIC_DRAW);
     
     // aabb
-    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), (void*) 0);
+    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(drawableEntity), (void*) 0);
     glEnableVertexAttribArray(4);
     glVertexAttribDivisor(4, 1);
     // uv/rotation
-    glVertexAttribPointer(5, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), (void*) (4 * sizeof(f32)));
+    glVertexAttribPointer(5, 3, GL_FLOAT, GL_FALSE, sizeof(drawableEntity), (void*) (4 * sizeof(f32)));
     glEnableVertexAttribArray(5);
     glVertexAttribDivisor(5, 1);
+    // flipped
+    glVertexAttribIPointer(6, 1, GL_UNSIGNED_INT, sizeof(drawableEntity), (void*)(7 * sizeof(f32)));
+    glEnableVertexAttribArray(6);
+    glVertexAttribDivisor(6, 1);
 
 
     f64 lastTime = glfwGetTime();
@@ -751,17 +758,13 @@ s32 main(s32 argc, char* argv[]) {
         drawableEntity player = drawableEntities.back();
         player.uv = vec2(bobXOffset + bob.xAnimationOffset, bobYOffset);
         player.box.position = bob.box.position;
-
-        setShaderUniform(reversedUniformLocation, bob.reversed);
+        player.flipped = bob.flipped;
 
         glBufferSubData(GL_ARRAY_BUFFER, player.offset, 2 * sizeof(f32), &player.box.position);
         glBufferSubData(GL_ARRAY_BUFFER, player.offset + sizeof(aabb), 2 * sizeof(f32), &player.uv);
+        glBufferSubData(GL_ARRAY_BUFFER, player.offset + sizeof(aabb) + 3 * sizeof(f32), sizeof(u32), &player.flipped);
         
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, (s32)drawableEntities.size());
-        //        drawableEntities[0].box.position.x += 1.f;
-        //        glBufferSubData(GL_ARRAY_BUFFER, drawableEntities[0].offset, 2 * sizeof(f32), &drawableEntities[0].box.position);
-        //        drawableEntities[1].box.position.x -= 1.f;
-        //        glBufferSubData(GL_ARRAY_BUFFER, drawableEntities[1].offset, 2 * sizeof(f32), &drawableEntities[1].box.position);
 
 
         glfwSwapBuffers(window);
@@ -784,7 +787,7 @@ void processInput() {
             bob.currentAnimation = bob.animations[2];
         }
         bob.acceleration.x = -12.f;
-        bob.reversed = true;
+        bob.flipped |= FLIPPED_HORIZONTALLY_FLAG;
     }
 
     if (keys[GLFW_KEY_RIGHT] == GLFW_PRESS) {
@@ -796,7 +799,7 @@ void processInput() {
             bob.currentAnimation = bob.animations[2];
         }
         bob.acceleration.x = 12.f;
-        bob.reversed = false;
+        bob.flipped &= 0;
     }
 
     if (keys[GLFW_KEY_LEFT] == GLFW_RELEASE && !processedKeys[GLFW_KEY_LEFT]) {
@@ -804,7 +807,7 @@ void processInput() {
         if (bob.currentAnimation != bob.animations[0]) {
             bob.currentAnimation = bob.animations[0];
             bob.xAnimationOffset = 0.f;
-            bob.reversed = true;
+            bob.flipped |= FLIPPED_HORIZONTALLY_FLAG;
         }
     }
 
@@ -813,7 +816,7 @@ void processInput() {
         if (bob.currentAnimation != bob.animations[0]) {
             bob.currentAnimation= bob.animations[0];
             bob.xAnimationOffset = 0.f;
-            bob.reversed = false;
+            bob.flipped &= 0;
         }
     }
 
@@ -830,12 +833,12 @@ void processInput() {
 
         swoosh.shouldRender = true;
         swoosh.xAnimationOffset = 0.f;
-        swoosh.reversed = bob.reversed;
-        if (swoosh.reversed) {
-            swoosh.box.position = { bob.box.position.x - 2 * SPRITE_SIZE, bob.box.position.y };
-        } else {
-            swoosh.box.position = { bob.box.position.x + SPRITE_SIZE, bob.box.position.y };
-        }
+//        swoosh.flipped = bob.flipped;
+//        if (swoosh.reversed) {
+//            swoosh.box.position = { bob.box.position.x - 2 * SPRITE_SIZE, bob.box.position.y };
+//        } else {
+//            swoosh.box.position = { bob.box.position.x + SPRITE_SIZE, bob.box.position.y };
+//        }
     }
 }
 
