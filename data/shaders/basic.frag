@@ -6,8 +6,6 @@ out vec4 color;
 uniform int type;
 
 uniform sampler2D spriteTexture;
-uniform vec2 spriteSize;
-uniform vec2 spriteOffset;
 
 #define TILE_TYPE 1.f
 #define SPRITE_TYPE 2.f

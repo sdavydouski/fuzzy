@@ -90,6 +90,9 @@ struct drawableEntity {
     f32 rotation;
     
     u32 flipped;
+    
+    vec2 spriteScale;
+    u32 shouldRender;
 
     u32 offset;
 };
@@ -111,7 +114,7 @@ struct effect {
     animation currentAnimation;
     f32 xAnimationOffset;
     f32 frameTime;
-    b8 reversed;
+    u32 flipped;
 
     aabb box;
 
@@ -285,12 +288,6 @@ s32 main(s32 argc, char* argv[]) {
     s32 typeUniformLocation = getUniformLocation(shaderProgram, "type");
     s32 tileTypeUniformLocation = getUniformLocation(shaderProgram, "tileType");
 
-    s32 spriteOffsetUniformLocation = getUniformLocation(shaderProgram, "spriteOffset");
-
-    s32 effectModelUniformLocation = getUniformLocation(shaderProgram, "effectModel");
-    s32 effectOffsetUniformLocation = getUniformLocation(shaderProgram, "effectOffset");
-    s32 effectReversedUniformLocation = getUniformLocation(shaderProgram, "effectReversed");
-    
     std::fstream spritesConfigIn("textures/sprites.json");
     json spritesConfig;
     spritesConfigIn >> spritesConfig;
@@ -334,9 +331,9 @@ s32 main(s32 argc, char* argv[]) {
 
     f32 spriteWidth = ((f32) tileWidth) / textureWidth;
     f32 spriteHeight = ((f32) tileHeight) / textureHeight;
-
+    
     s32 spriteSizeUniformLocation = getUniformLocation(shaderProgram, "spriteSize");
-    s32 reversedUniformLocation = getUniformLocation(shaderProgram, "reversed");
+    setShaderUniform(spriteSizeUniformLocation, vec2(spriteWidth, spriteHeight));
 
     f32 vertices[] = {
         // Pos    // UV
@@ -485,9 +482,10 @@ s32 main(s32 argc, char* argv[]) {
             entity.uv = vec2((uvX * (tileWidth + spacing) + margin) / (f32) textureWidth,
                              (uvY * (tileHeight + spacing) + margin) / (f32) textureHeight);
 
-            //entity.offset = i * sizeof(entity);
             entity.box.size = { (f32)rawEntity["width"] * SCALE, (f32)rawEntity["height"] * SCALE };
             entity.offset = index * sizeof(drawableEntity);
+            entity.spriteScale = vec2(1.f);
+            entity.shouldRender = 1;
             ++index;
             
             drawableEntities.push_back(entity);
@@ -502,8 +500,17 @@ s32 main(s32 argc, char* argv[]) {
     
     drawableEntity player = {};
     player.box = bob.box;
+    player.spriteScale = vec2(1.f);
     player.offset = (u32) sizeInBytes({drawableEntities});
+    player.shouldRender = 1;
     drawableEntities.push_back(player);
+
+    drawableEntity swooshEffect = {};
+    swooshEffect.box = swoosh.box;
+    swooshEffect.spriteScale = vec2(2.f, 1.f);
+    swooshEffect.offset = (u32) sizeInBytes({drawableEntities});
+    swooshEffect.shouldRender = 0;
+    drawableEntities.push_back(swooshEffect);
     
     u32 VAO;
     glGenVertexArrays(1, &VAO);
@@ -556,6 +563,14 @@ s32 main(s32 argc, char* argv[]) {
     glVertexAttribIPointer(6, 1, GL_UNSIGNED_INT, sizeof(drawableEntity), (void*)(7 * sizeof(f32)));
     glEnableVertexAttribArray(6);
     glVertexAttribDivisor(6, 1);
+    // spriteScale
+    glVertexAttribPointer(7, 2, GL_FLOAT, GL_FALSE, sizeof(drawableEntity), (void*)(7 * sizeof(f32) + sizeof(u32)));
+    glEnableVertexAttribArray(7);
+    glVertexAttribDivisor(7, 1);
+    // shouldRender
+    glVertexAttribIPointer(8, 1, GL_UNSIGNED_INT, sizeof(drawableEntity), (void*)(9 * sizeof(f32) + sizeof(u32)));
+    glEnableVertexAttribArray(8);
+    glVertexAttribDivisor(8, 1);
 
 
     f64 lastTime = glfwGetTime();
@@ -692,7 +707,6 @@ s32 main(s32 argc, char* argv[]) {
         //--- drawing tilemap ---
         glBindBuffer(GL_ARRAY_BUFFER, VBOTiles);
         setShaderUniform(typeUniformLocation, 1);
-        setShaderUniform(spriteSizeUniformLocation, vec2(spriteWidth, spriteHeight));
 
         mat4 model = mat4(1.0f);
         model = glm::scale(model, vec3(SPRITE_SIZE));
@@ -704,7 +718,7 @@ s32 main(s32 argc, char* argv[]) {
         setShaderUniform(tileTypeUniformLocation, 1);
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, levelWidth * levelHeight);
 
-        //--- drawing bob ---
+        //--- bob ---
         f32 bobXOffset = (f32) (bob.currentAnimation.x * (tileWidth + spacing) + margin) / textureWidth;
         f32 bobYOffset = (f32) (bob.currentAnimation.y * (tileHeight + spacing) + margin) / textureHeight;
 
@@ -719,11 +733,9 @@ s32 main(s32 argc, char* argv[]) {
 
             bob.frameTime = 0.0f;
         }
-        //glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
         bob.frameTime += (f32) delta;
 
-        //--- drawing effect ---
+        //--- effect ---
         model = mat4(1.0f);
         model = glm::translate(model, vec3(swoosh.box.position, 0.0f));
         model = glm::scale(model, vec3(2 * SPRITE_SIZE, SPRITE_SIZE, SPRITE_SIZE));
@@ -741,29 +753,34 @@ s32 main(s32 argc, char* argv[]) {
 
             swoosh.frameTime = 0.0f;
         }
-        setShaderUniform(spriteOffsetUniformLocation, vec2(effectXOffset + swoosh.xAnimationOffset, effectYOffset));
-        setShaderUniform(reversedUniformLocation, swoosh.reversed);
-        setShaderUniform(spriteSizeUniformLocation, vec2(2 * spriteWidth, spriteHeight));
 
         if (swoosh.shouldRender) {
-            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
             swoosh.frameTime += (f32)delta;
         }
 
         //--- drawing entities ---
         glBindBuffer(GL_ARRAY_BUFFER, VBOEntities);
         setShaderUniform(typeUniformLocation, 3);
-        setShaderUniform(spriteSizeUniformLocation, vec2(spriteWidth, spriteHeight));
         
-        drawableEntity player = drawableEntities.back();
+        drawableEntity player = drawableEntities[2];
         player.uv = vec2(bobXOffset + bob.xAnimationOffset, bobYOffset);
         player.box.position = bob.box.position;
         player.flipped = bob.flipped;
 
+        drawableEntity swooshEffect = drawableEntities[3];
+        swooshEffect.uv = vec2(effectXOffset + swoosh.xAnimationOffset, effectYOffset);
+        swooshEffect.box.position = swoosh.box.position;
+        swooshEffect.flipped = bob.flipped;
+        swooshEffect.shouldRender = swoosh.shouldRender ? 1 : 0;
+
         glBufferSubData(GL_ARRAY_BUFFER, player.offset, 2 * sizeof(f32), &player.box.position);
+        glBufferSubData(GL_ARRAY_BUFFER, swooshEffect.offset, 2 * sizeof(f32), &swooshEffect.box.position);
         glBufferSubData(GL_ARRAY_BUFFER, player.offset + sizeof(aabb), 2 * sizeof(f32), &player.uv);
+        glBufferSubData(GL_ARRAY_BUFFER, swooshEffect.offset + sizeof(aabb), 2 * sizeof(f32), &swooshEffect.uv);
         glBufferSubData(GL_ARRAY_BUFFER, player.offset + sizeof(aabb) + 3 * sizeof(f32), sizeof(u32), &player.flipped);
-        
+        glBufferSubData(GL_ARRAY_BUFFER, swooshEffect.offset + sizeof(aabb) + 3 * sizeof(f32), sizeof(u32), &swooshEffect.flipped);
+        glBufferSubData(GL_ARRAY_BUFFER, swooshEffect.offset + sizeof(aabb) + 5 * sizeof(f32) + sizeof(u32), sizeof(u32), &swooshEffect.shouldRender);
+        //sdf
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, (s32)drawableEntities.size());
 
 
@@ -833,12 +850,12 @@ void processInput() {
 
         swoosh.shouldRender = true;
         swoosh.xAnimationOffset = 0.f;
-//        swoosh.flipped = bob.flipped;
-//        if (swoosh.reversed) {
-//            swoosh.box.position = { bob.box.position.x - 2 * SPRITE_SIZE, bob.box.position.y };
-//        } else {
-//            swoosh.box.position = { bob.box.position.x + SPRITE_SIZE, bob.box.position.y };
-//        }
+        swoosh.flipped = bob.flipped;
+        if (swoosh.flipped & FLIPPED_HORIZONTALLY_FLAG) {
+            swoosh.box.position = { bob.box.position.x - 2 * SPRITE_SIZE, bob.box.position.y };
+        } else {
+            swoosh.box.position = { bob.box.position.x + SPRITE_SIZE, bob.box.position.y };
+        }
     }
 }
 

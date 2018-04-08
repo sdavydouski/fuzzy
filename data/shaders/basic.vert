@@ -7,9 +7,12 @@ layout(location = 1) in vec4 xyr;
 layout(location = 2) in vec2 backgroundUv;
 layout(location = 3) in vec2 foregroundUv;
 
+// todo: combine this differently
 layout(location = 4) in vec4 aabb;
 layout(location = 5) in vec3 uvr;
 layout(location = 6) in uint flipped;
+layout(location = 7) in vec2 spriteScale;
+layout(location = 8) in uint shouldRender;
 
 out vec2 uv;
 out vec2 uvOffset;
@@ -17,7 +20,6 @@ out vec2 uvOffset;
 uniform int type;
 // background or foreground tile
 uniform int tileType;
-
 uniform vec2 spriteSize;
 
 uniform mat4 model;
@@ -66,8 +68,10 @@ void main() {
 
         gl_Position = projection * view * (model * vec4(sprite.xy, 0.f, 1.0f)  + vec4(xyr.xy, 0.f, 0.f));
     } else if (type == SPRITE_TYPE || type == ENTITY_TYPE) {
+        if (shouldRender != 1u) return;
+        
         uvOffset = uvr.xy;
-        //float rotate = uvr.z;
+
         bool flippedHorizontally = bool(flipped & FLIPPED_HORIZONTALLY_FLAG);
         bool flippedVertically = bool(flipped & FLIPPED_VERTICALLY_FLAG);
         bool flippedDiagonally = bool(flipped & FLIPPED_DIAGONALLY_FLAG);
@@ -82,29 +86,18 @@ void main() {
             uv = swapXY(uv);
         }
 
-        
-        /*
-        if (rotate == ROTATE_90) {
-            uv.y = spriteSize.y - uv.y;
-            uv = swapXY(uv);
-        } else if (rotate == ROTATE_180) {
-            uv.x = spriteSize.x - uv.x;
-            uv.y = spriteSize.y - uv.y;
-        } else if (rotate == ROTATE_270) {
-            uv.x = spriteSize.x - uv.x;
-            uv = swapXY(uv);
-        }
-        */
+        uv *= spriteScale;
 
         vec2 position = aabb.xy;
         vec2 size = aabb.zw;
         // scale and translation
         mat4 model = mat4(
-           1.f * 64.f, 0.f, 0.f, 0.f,     // first column (not row!)
-           0.f, 1.f * 64.f, 0.f, 0.f,
+           1.f * 64.f * spriteScale.x, 0.f, 0.f, 0.f,     // first column (not row!)
+           0.f, 1.f * 64.f * spriteScale.y, 0.f, 0.f,
            0.f, 0.f, 1.f * 64.f, 0.f,
            position.x, position.y, 0.f, 1.f
         );
+
         gl_Position = projection * view * model * vec4(sprite.xy, 0.f, 1.0f);
     }
 }
