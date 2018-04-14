@@ -93,6 +93,7 @@ struct drawableEntity {
     
     vec2 spriteScale;
     u32 shouldRender;
+    u32 collides;
 
     u32 offset;
 };
@@ -174,6 +175,7 @@ u64 sizeInBytes(std::initializer_list<const vector<T>> vectors) {
 
 sprite bob;
 effect swoosh;
+vector<drawableEntity> drawableEntities;
 
 s32 main(s32 argc, char* argv[]) {
 
@@ -439,8 +441,6 @@ s32 main(s32 argc, char* argv[]) {
     vector<entity> entities;
     entities.reserve(rawEntities.size());
 
-    vector<drawableEntity> drawableEntities;
-    
     u32 index = 0;
     for (u32 i = 0; i < rawEntities.size(); i++) {
         auto rawEntity = rawEntities[i];
@@ -486,6 +486,7 @@ s32 main(s32 argc, char* argv[]) {
             entity.offset = index * sizeof(drawableEntity);
             entity.spriteScale = vec2(1.f);
             entity.shouldRender = 1;
+            entity.collides = 1;
             ++index;
             
             drawableEntities.push_back(entity);
@@ -503,6 +504,7 @@ s32 main(s32 argc, char* argv[]) {
     player.spriteScale = vec2(1.f);
     player.offset = (u32) sizeInBytes({drawableEntities});
     player.shouldRender = 1;
+    player.collides = 1;
     drawableEntities.push_back(player);
 
     drawableEntity swooshEffect = {};
@@ -510,6 +512,7 @@ s32 main(s32 argc, char* argv[]) {
     swooshEffect.spriteScale = vec2(2.f, 1.f);
     swooshEffect.offset = (u32) sizeInBytes({drawableEntities});
     swooshEffect.shouldRender = 0;
+    swooshEffect.collides = 1;
     drawableEntities.push_back(swooshEffect);
     
     u32 VAO;
@@ -619,15 +622,17 @@ s32 main(s32 argc, char* argv[]) {
             }
             for (auto entity : drawableEntities) {
                 if (entity.uv == drawableEntities.back().uv) break;     // if player - break
+                
                 vec2 t = sweptAABB(oldPosition, move, entity.box, bob.box.size);
 
                 if (t.x >= 0.f && t.x < time.x) time.x = t.x;
                 if (t.y >= 0.f && t.y < time.y) time.y = t.y;
 
                 b8 swooshCollide = intersectAABB(swoosh.box, entity.box);
-                if (swooshCollide) {
-                    auto t = 0;
-                    t++;
+                if (swooshCollide && drawableEntities[0].collides) {
+                    drawableEntities[0].rotation = (f32) (((s32) entity.rotation + 1) % 4);
+                    drawableEntities[0].collides = 0;
+                    glBufferSubData(GL_ARRAY_BUFFER, entity.offset + sizeof(aabb) + 2 * sizeof(f32), sizeof(u32), &drawableEntities[0].rotation);
                 }
             }
             
@@ -780,7 +785,7 @@ s32 main(s32 argc, char* argv[]) {
         glBufferSubData(GL_ARRAY_BUFFER, player.offset + sizeof(aabb) + 3 * sizeof(f32), sizeof(u32), &player.flipped);
         glBufferSubData(GL_ARRAY_BUFFER, swooshEffect.offset + sizeof(aabb) + 3 * sizeof(f32), sizeof(u32), &swooshEffect.flipped);
         glBufferSubData(GL_ARRAY_BUFFER, swooshEffect.offset + sizeof(aabb) + 5 * sizeof(f32) + sizeof(u32), sizeof(u32), &swooshEffect.shouldRender);
-        //sdf
+        
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, (s32)drawableEntities.size());
 
 
@@ -851,6 +856,7 @@ void processInput() {
         swoosh.shouldRender = true;
         swoosh.xAnimationOffset = 0.f;
         swoosh.flipped = bob.flipped;
+        drawableEntities[0].collides = 1;
         if (swoosh.flipped & FLIPPED_HORIZONTALLY_FLAG) {
             swoosh.box.position = { bob.box.position.x - 2 * SPRITE_SIZE, bob.box.position.y };
         } else {

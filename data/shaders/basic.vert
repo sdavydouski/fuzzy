@@ -71,6 +71,19 @@ void main() {
         if (shouldRender != 1u) return;
         
         uvOffset = uvr.xy;
+        
+        float rotate = uvr.z;        
+
+        if (rotate == ROTATE_90) {
+            uv.y = spriteSize.y - uv.y;
+            uv = swapXY(uv);
+        } else if (rotate == ROTATE_180) {
+            uv.x = spriteSize.x - uv.x;
+            uv.y = spriteSize.y - uv.y;
+        } else if (rotate == ROTATE_270) {
+            uv.x = spriteSize.x - uv.x;
+            uv = swapXY(uv);
+        }
 
         bool flippedHorizontally = bool(flipped & FLIPPED_HORIZONTALLY_FLAG);
         bool flippedVertically = bool(flipped & FLIPPED_VERTICALLY_FLAG);
