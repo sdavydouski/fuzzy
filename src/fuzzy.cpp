@@ -79,6 +79,13 @@ struct animation {
     }
 };
 
+enum class entityType {
+    PLAYER,
+    EFFECT,
+    REFLECTOR,
+    UNKNOWN
+};
+
 struct entity {
     aabb box;
 };
@@ -93,7 +100,9 @@ struct drawableEntity {
     
     vec2 spriteScale;
     u32 shouldRender;
-    u32 collides;
+    b8 collides;
+    b8 underEffect;
+    entityType type;
 
     u32 offset;
 };
@@ -447,6 +456,11 @@ s32 main(s32 argc, char* argv[]) {
         
         if (rawEntity.find("gid") != rawEntity.end()) {
             drawableEntity entity = {};
+            if (rawEntity["type"] == "reflector") {
+                entity.type = entityType::REFLECTOR;
+            } else {
+                entity.type = entityType::UNKNOWN;
+            }
             // tile objects have their position at bottom-left
             // see: https://github.com/bjorn/tiled/issues/91
             entity.box.position = { (f32)rawEntity["x"] * SCALE, ((f32)rawEntity["y"] - tileHeight) * SCALE };
@@ -486,7 +500,8 @@ s32 main(s32 argc, char* argv[]) {
             entity.offset = index * sizeof(drawableEntity);
             entity.spriteScale = vec2(1.f);
             entity.shouldRender = 1;
-            entity.collides = 1;
+            entity.collides = true;
+            entity.underEffect = false;
             ++index;
             
             drawableEntities.push_back(entity);
@@ -504,7 +519,8 @@ s32 main(s32 argc, char* argv[]) {
     player.spriteScale = vec2(1.f);
     player.offset = (u32) sizeInBytes({drawableEntities});
     player.shouldRender = 1;
-    player.collides = 1;
+    player.collides = true;
+    player.type = entityType::PLAYER;
     drawableEntities.push_back(player);
 
     drawableEntity swooshEffect = {};
@@ -512,7 +528,8 @@ s32 main(s32 argc, char* argv[]) {
     swooshEffect.spriteScale = vec2(2.f, 1.f);
     swooshEffect.offset = (u32) sizeInBytes({drawableEntities});
     swooshEffect.shouldRender = 0;
-    swooshEffect.collides = 1;
+    swooshEffect.collides = true;
+    swooshEffect.type = entityType::EFFECT;
     drawableEntities.push_back(swooshEffect);
     
     u32 VAO;
@@ -620,19 +637,24 @@ s32 main(s32 argc, char* argv[]) {
                 if (t.x >= 0.f && t.x < time.x) time.x = t.x;
                 if (t.y >= 0.f && t.y < time.y) time.y = t.y;
             }
-            for (auto entity : drawableEntities) {
-                if (entity.uv == drawableEntities.back().uv) break;     // if player - break
-                
+            
+            for (u32 i = 0; i < drawableEntities.size(); ++i) {
+                drawableEntity& entity = drawableEntities[i];
+
+                if (entity.type == entityType::PLAYER) break;
+                if (entity.type == entityType::EFFECT) break;
+                if (!entity.collides) break;
+
                 vec2 t = sweptAABB(oldPosition, move, entity.box, bob.box.size);
 
                 if (t.x >= 0.f && t.x < time.x) time.x = t.x;
                 if (t.y >= 0.f && t.y < time.y) time.y = t.y;
 
                 b8 swooshCollide = intersectAABB(swoosh.box, entity.box);
-                if (swooshCollide && drawableEntities[0].collides) {
-                    drawableEntities[0].rotation = (f32) (((s32) entity.rotation + 1) % 4);
-                    drawableEntities[0].collides = 0;
-                    glBufferSubData(GL_ARRAY_BUFFER, entity.offset + sizeof(aabb) + 2 * sizeof(f32), sizeof(u32), &drawableEntities[0].rotation);
+                if (!entity.underEffect && swooshCollide) {
+                    entity.rotation = (f32)(((s32)entity.rotation + 1) % 4);
+                    entity.underEffect = true;
+                    glBufferSubData(GL_ARRAY_BUFFER, entity.offset + sizeof(aabb) + 2 * sizeof(f32), sizeof(u32), &entity.rotation);
                 }
             }
             
@@ -766,13 +788,13 @@ s32 main(s32 argc, char* argv[]) {
         //--- drawing entities ---
         glBindBuffer(GL_ARRAY_BUFFER, VBOEntities);
         setShaderUniform(typeUniformLocation, 3);
-        
-        drawableEntity player = drawableEntities[2];
+        // todo: remove this lame indexing
+        drawableEntity player = drawableEntities[4];
         player.uv = vec2(bobXOffset + bob.xAnimationOffset, bobYOffset);
         player.box.position = bob.box.position;
         player.flipped = bob.flipped;
 
-        drawableEntity swooshEffect = drawableEntities[3];
+        drawableEntity swooshEffect = drawableEntities[5];
         swooshEffect.uv = vec2(effectXOffset + swoosh.xAnimationOffset, effectYOffset);
         swooshEffect.box.position = swoosh.box.position;
         swooshEffect.flipped = bob.flipped;
@@ -856,7 +878,15 @@ void processInput() {
         swoosh.shouldRender = true;
         swoosh.xAnimationOffset = 0.f;
         swoosh.flipped = bob.flipped;
-        drawableEntities[0].collides = 1;
+
+        // todo: make it better
+        for (u32 i = 0; i < drawableEntities.size(); ++i) {
+            drawableEntity& entity = drawableEntities[i];
+            if (entity.type == entityType::REFLECTOR) {
+                entity.underEffect = false;
+            }
+        }
+        
         if (swoosh.flipped & FLIPPED_HORIZONTALLY_FLAG) {
             swoosh.box.position = { bob.box.position.x - 2 * SPRITE_SIZE, bob.box.position.y };
         } else {
