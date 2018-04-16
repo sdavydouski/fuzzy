@@ -99,9 +99,11 @@ struct drawableEntity {
     u32 flipped;
     
     vec2 spriteScale;
+    // todo: manage it somehow
     u32 shouldRender;
     b8 collides;
     b8 underEffect;
+    b8 isRotating;
     entityType type;
 
     u32 offset;
@@ -467,28 +469,11 @@ s32 main(s32 argc, char* argv[]) {
 
             u32 gid = rawEntity["gid"];
 
-            bool flippedHorizontally = gid & FLIPPED_HORIZONTALLY_FLAG;
-            bool flippedVertically = gid & FLIPPED_VERTICALLY_FLAG;
+            entity.flipped = gid & (7 << 29);       // take three most significant bits
             // todo: objects handle rotation differently from the tiles
-            bool flippedDiagonally = gid & FLIPPED_DIAGONALLY_FLAG;
+            entity.rotation = 0.f;
 
             gid &= ~(FLIPPED_HORIZONTALLY_FLAG | FLIPPED_VERTICALLY_FLAG | FLIPPED_DIAGONALLY_FLAG);
-
-            f32 rotation = 0.f;
-            if (flippedVertically && flippedDiagonally) {
-                // 90 degrees
-                rotation = 1.f;
-            }
-            else if (flippedHorizontally && flippedVertically) {
-                // 180 degrees
-                rotation = 2.f;
-            }
-            else if (flippedHorizontally && flippedDiagonally) {
-                // 270 degrees
-                rotation = 3.f;
-            }
-
-            entity.rotation = rotation;
 
             s32 uvX = (gid - 1) % columns;
             s32 uvY = (gid - 1) / columns;
@@ -652,12 +637,42 @@ s32 main(s32 argc, char* argv[]) {
 
                 b8 swooshCollide = intersectAABB(swoosh.box, entity.box);
                 if (!entity.underEffect && swooshCollide) {
-                    entity.rotation = (f32)(((s32)entity.rotation + 1) % 4);
                     entity.underEffect = true;
+                    entity.isRotating = true;
+                }
+
+                if (entity.isRotating) {
+                    entity.rotation += 5.f;
                     glBufferSubData(GL_ARRAY_BUFFER, entity.offset + sizeof(aabb) + 2 * sizeof(f32), sizeof(u32), &entity.rotation);
+
+                    if (0.f < entity.rotation && entity.rotation <= 90.f) {
+                        if (entity.rotation == 90.f) {
+                            entity.isRotating = false;
+                            break;
+                        }
+                    }
+                    if (90.f < entity.rotation && entity.rotation <= 180.f) {
+                        if (entity.rotation == 180.f) {
+                            entity.isRotating = false;
+                            break;
+                        }
+                    }
+                    if (180.f < entity.rotation && entity.rotation <= 270.f) {
+                        if (entity.rotation == 270.f) {
+                            entity.isRotating = false;
+                            break;
+                        }
+                    }
+                    if (270.f < entity.rotation && entity.rotation <= 360.f) {
+                        if (entity.rotation == 360.f) {
+                            entity.isRotating = false;
+                            entity.rotation = 0.f;
+                            break;
+                        }
+                    }
                 }
             }
-            
+
             if (time.x < 1.f) {
                 bob.velocity.x = 0.f;
             }
@@ -722,8 +737,7 @@ s32 main(s32 argc, char* argv[]) {
 
             lag -= updateRate;
         }
-
-
+        
         mat4 view = mat4(1.0f);
         view = glm::translate(view, vec3(-camera, 0.f));
         setShaderUniform(viewUniformLocation, view);

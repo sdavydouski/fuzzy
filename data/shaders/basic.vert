@@ -46,6 +46,12 @@ vec2 swapXY(vec2 vec) {
     return vec;
 }
 
+#define PI 3.14159265
+
+float toRadians(float angleInDegrees) {
+    return angleInDegrees * PI / 180.f;    
+}
+
 void main() {
     uv = spriteSize * sprite.zw;
     
@@ -72,19 +78,6 @@ void main() {
         
         uvOffset = uvr.xy;
         
-        float rotate = uvr.z;        
-
-        if (rotate == ROTATE_90) {
-            uv.y = spriteSize.y - uv.y;
-            uv = swapXY(uv);
-        } else if (rotate == ROTATE_180) {
-            uv.x = spriteSize.x - uv.x;
-            uv.y = spriteSize.y - uv.y;
-        } else if (rotate == ROTATE_270) {
-            uv.x = spriteSize.x - uv.x;
-            uv = swapXY(uv);
-        }
-
         bool flippedHorizontally = bool(flipped & FLIPPED_HORIZONTALLY_FLAG);
         bool flippedVertically = bool(flipped & FLIPPED_VERTICALLY_FLAG);
         bool flippedDiagonally = bool(flipped & FLIPPED_DIAGONALLY_FLAG);
@@ -103,13 +96,45 @@ void main() {
 
         vec2 position = aabb.xy;
         vec2 size = aabb.zw;
-        // scale and translation
-        mat4 model = mat4(
-           1.f * 64.f * spriteScale.x, 0.f, 0.f, 0.f,     // first column (not row!)
+
+        float rotate = uvr.z;
+
+        mat4 translationMatrix = mat4(
+            1.f, 0.f, 0.f, 0.f,                 // first column (not row!)
+            0.f, 1.f, 0.f, 0.f,
+            0.f, 0.f, 1.f, 0.f,
+            position.x, position.y, 0.f, 1.f
+        );
+        
+        mat4 preRotationTranslationMatrix = mat4(
+            1.f, 0.f, 0.f, 0.f,
+            0.f, 1.f, 0.f, 0.f,
+            0.f, 0.f, 1.f, 0.f,
+            64.f * spriteScale.x / 2.f, 64.f * spriteScale.y / 2.f, 0.f, 1.f
+        );
+
+        mat4 postRotationTranslationMatrix = mat4(
+            1.f, 0.f, 0.f, 0.f,
+            0.f, 1.f, 0.f, 0.f,
+            0.f, 0.f, 1.f, 0.f,
+            -64.f * spriteScale.x / 2.f, -64.f * spriteScale.y / 2.f, 0.f, 1.f
+        );
+        
+        mat4 rotationMatrix = preRotationTranslationMatrix * mat4(
+            cos(toRadians(rotate)), sin(toRadians(rotate)), 0.f, 0.f,
+            -sin(toRadians(rotate)), cos(toRadians(rotate)), 0.f, 0.f,
+            0.f, 0.f, 1.f, 0.f,
+            0.f, 0.f, 0.f, 1.f
+        ) * postRotationTranslationMatrix;
+
+        mat4 scalingMatrix = mat4(
+           1.f * 64.f * spriteScale.x, 0.f, 0.f, 0.f,     
            0.f, 1.f * 64.f * spriteScale.y, 0.f, 0.f,
            0.f, 0.f, 1.f * 64.f, 0.f,
-           position.x, position.y, 0.f, 1.f
+           0.f, 0.f, 0.f, 1.f
         );
+
+        mat4 model = translationMatrix * rotationMatrix * scalingMatrix;
 
         gl_Position = projection * view * model * vec4(sprite.xy, 0.f, 1.0f);
     }
