@@ -90,6 +90,7 @@ struct entity {
     aabb box;
 };
 
+//todo: store in VBO only the ones that are actually used in shaders
 struct drawableEntity {
     aabb box;
 
@@ -133,6 +134,39 @@ struct effect {
     b8 shouldRender;
 };
 
+struct particle {
+    vec2 position;
+    vec2 size;
+    vec2 velocity;
+    vec2 acceleration;
+    vec2 uv;
+    f32 lifespan;
+    f32 alpha;
+};
+
+struct particleEmitter {
+    u32 maxParticlesCount;
+    u32 lastUsedParticle;
+    vector<particle> particles;
+    vec2 position;
+};
+
+u32 findFirstUnusedParticle(const particleEmitter& emitter) {
+    for (u32 i = emitter.lastUsedParticle; i < emitter.maxParticlesCount; ++i) {
+        if (emitter.particles[i].lifespan <= 0.f) {
+            return i;
+        }
+    }
+
+    for (u32 i = 0; i < emitter.lastUsedParticle; ++i) {
+        if (emitter.particles[i].lifespan <= 0.f) {
+            return i;
+        }
+    }
+
+    return 0;       // all particles are taken, override the first one
+}
+
 string readTextFile(const string& path);
 void processInput();
 u32 createAndCompileShader(e32 shaderType, const string& path);
@@ -166,6 +200,11 @@ inline f32 clamp(f32 value, f32 min, f32 max) {
     return value;
 }
 
+inline f32 randomInRange(f32 min, f32 max) {
+    f32 result = min + (f32)(rand()) / ((f32)(RAND_MAX / (max - min)));
+    return result;
+}
+
 inline b8 intersectAABB(const aabb& box1, const aabb& box2) {
     // Separating Axis Theorem
     b8 xCollision = box1.position.x + box1.size.x > box2.position.x && box1.position.x < box2.position.x + box2.size.x;
@@ -194,6 +233,8 @@ s32 main(s32 argc, char* argv[]) {
         std::cout << "Failed to initialize GLFW" << std::endl;
         return EXIT_FAILURE;
     }
+
+    srand((u32) glfwGetTimerValue());
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -238,7 +279,6 @@ s32 main(s32 argc, char* argv[]) {
     }
 
     glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     std::cout << glGetString(GL_VERSION) << std::endl;
 
@@ -577,6 +617,42 @@ s32 main(s32 argc, char* argv[]) {
     glEnableVertexAttribArray(8);
     glVertexAttribDivisor(8, 1);
 
+    particleEmitter charge = {};
+    charge.maxParticlesCount = 1000;
+    charge.position = { 2 * TILE_SIZE, 6 * TILE_SIZE };
+    
+    charge.particles.reserve(charge.maxParticlesCount);
+    charge.particles.assign(charge.maxParticlesCount, particle());
+    
+    u32 VBOParticles;
+    glGenBuffers(1, &VBOParticles);
+    glBindBuffer(GL_ARRAY_BUFFER, VBOParticles);
+    glBufferData(GL_ARRAY_BUFFER, charge.maxParticlesCount * sizeof(particle), nullptr, GL_DYNAMIC_DRAW);
+    
+    /*
+     *struct particle {
+        vec2 position;
+        vec2 size;
+        vec2 velocity;
+        vec2 acceleration;
+        vec2 uv;
+        f32 lifespan;
+        f32 alpha;
+    };
+     *
+     */
+    // particle's position/size
+    glVertexAttribPointer(9, 4, GL_FLOAT, GL_FALSE, sizeof(particle), (void*)0);
+    glEnableVertexAttribArray(9);
+    glVertexAttribDivisor(9, 1);
+    // particle's uv
+    glVertexAttribPointer(10, 2, GL_FLOAT, GL_FALSE, sizeof(particle), (void*)(4 * sizeof(vec2)));
+    glEnableVertexAttribArray(10);
+    glVertexAttribDivisor(10, 1);
+    // particle's alpha value
+    glVertexAttribPointer(11, 1, GL_FLOAT, GL_FALSE, sizeof(particle), (void*)(5 * sizeof(vec2) + sizeof(f32)));
+    glEnableVertexAttribArray(11);
+    glVertexAttribDivisor(11, 1);
 
     f64 lastTime = glfwGetTime();
     f64 currentTime;
@@ -594,7 +670,11 @@ s32 main(s32 argc, char* argv[]) {
         lag += (f32) delta;
 
         glfwPollEvents();
+        
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+        // note: inside this loop we use glBufferSubData on the entities
+        glBindBuffer(GL_ARRAY_BUFFER, VBOEntities);
         while (lag >= updateRate) {
             f32 dt = 0.15f;
             
@@ -822,12 +902,56 @@ s32 main(s32 argc, char* argv[]) {
         glBufferSubData(GL_ARRAY_BUFFER, swooshEffect.offset + sizeof(aabb) + 3 * sizeof(f32), sizeof(u32), &swooshEffect.flipped);
         glBufferSubData(GL_ARRAY_BUFFER, swooshEffect.offset + sizeof(aabb) + 5 * sizeof(f32) + sizeof(u32), sizeof(u32), &swooshEffect.shouldRender);
         
-        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, (s32)drawableEntities.size());
+        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, (s32) drawableEntities.size());
 
+        //--- drawing particles ---
+        glBindBuffer(GL_ARRAY_BUFFER, VBOParticles);
+        setShaderUniform(typeUniformLocation, 4);
 
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+        
+        u32 newParticlesCount = 10;
+
+        for (u32 i = 0; i < newParticlesCount; ++i) {
+            u32 unusedParticleIndex = findFirstUnusedParticle(charge);
+            particle& particle = charge.particles[unusedParticleIndex];
+            
+            // respawing particle
+            f32 randomX = randomInRange(-5.f, 5.f);
+            f32 randomY = randomInRange(-5.f, 5.f);
+            
+            particle.lifespan = 1.f;
+            particle.position.x = charge.position.x + randomX;
+            particle.position.y = charge.position.y + randomY;
+            particle.size = {0.5f, 0.5f};
+            particle.velocity = {0.f, 0.f};
+            particle.acceleration = {randomX * 10.f, 10.f};
+            particle.uv = vec2((13 * (tileHeight + spacing) + margin) / (f32) textureHeight, 
+                               (16 * (tileHeight + spacing) + margin) / (f32) textureHeight);
+            particle.alpha = 1.f;
+        }
+        
+        f32 dt = 0.01f;
+        for (u32 i = 0; i < charge.maxParticlesCount; ++i) {
+            particle& p = charge.particles[i];
+
+            if (p.lifespan > 0.f) {
+                p.lifespan -= (f32) dt;
+                p.velocity = p.acceleration * dt;
+                p.position.x += randomInRange(-5.f, 5.f);
+                p.position.y += randomInRange(-5.f, 5.f);
+                p.alpha -= (f32) dt;
+                p.size -= (f32) dt;
+            }
+        }
+
+        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeInBytes({charge.particles}), charge.particles.data());
+
+        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, (s32) charge.particles.size());
+        
         glfwSwapBuffers(window);
 
-        //std::cout << delta * 1000.f << " ms" << std::endl;
+        std::cout << delta * 1000.f << " ms" << std::endl;
     }
 
     glfwTerminate();

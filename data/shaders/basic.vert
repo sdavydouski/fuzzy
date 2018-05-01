@@ -14,8 +14,13 @@ layout(location = 6) in uint flipped;
 layout(location = 7) in vec2 spriteScale;
 layout(location = 8) in uint shouldRender;
 
+layout(location = 9) in vec4 particleBox;
+layout(location = 10) in vec2 particleUv;
+layout(location = 11) in float particleAlpha;
+
 out vec2 uv;
 out vec2 uvOffset;
+out float alpha;
 
 uniform int type;
 // background or foreground tile
@@ -33,6 +38,7 @@ uniform mat4 projection;
 #define TILE_TYPE 1.f
 #define SPRITE_TYPE 2.f
 #define ENTITY_TYPE 3.f
+#define PARTICLE_TYPE 4.f
 
 uint FLIPPED_HORIZONTALLY_FLAG = 0x80000000u;
 uint FLIPPED_VERTICALLY_FLAG = 0x40000000u;
@@ -71,12 +77,14 @@ void main() {
         }
     
         uvOffset = tileType == 0 ? backgroundUv : foregroundUv;
+        alpha = 1.f;
 
         gl_Position = projection * view * (model * vec4(sprite.xy, 0.f, 1.0f)  + vec4(xyr.xy, 0.f, 0.f));
     } else if (type == SPRITE_TYPE || type == ENTITY_TYPE) {
         if (shouldRender != 1u) return;
         
         uvOffset = uvr.xy;
+        alpha = 1.f;
         
         bool flippedHorizontally = bool(flipped & FLIPPED_HORIZONTALLY_FLAG);
         bool flippedVertically = bool(flipped & FLIPPED_VERTICALLY_FLAG);
@@ -137,5 +145,22 @@ void main() {
         mat4 model = translationMatrix * rotationMatrix * scalingMatrix;
 
         gl_Position = projection * view * model * vec4(sprite.xy, 0.f, 1.0f);
+    } else if (type == PARTICLE_TYPE) {
+        uvOffset = particleUv;
+        alpha = particleAlpha;
+
+        vec2 particlePosition = particleBox.xy;
+        vec2 particleSize = particleBox.zw;  // scale
+
+        mat4 scalingMatrix = mat4(
+           1.f * 16.f * particleSize.x, 0.f, 0.f, 0.f,     
+           0.f, 1.f * 16.f * particleSize.y, 0.f, 0.f,
+           0.f, 0.f, 1.f * 16.f, 0.f,
+           0.f, 0.f, 0.f, 1.f
+        );
+        
+        mat4 model = scalingMatrix;
+
+        gl_Position = projection * view * (model * vec4(sprite.xy, 0.f, 1.0f)  + vec4(particlePosition, 0.f, 0.f));
     }
 }
