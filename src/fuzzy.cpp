@@ -30,6 +30,8 @@
 
 #include "types.h"
 
+#define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
+
 struct aabb {
     vec2 position;      // top-left
     vec2 size;
@@ -147,6 +149,8 @@ struct particle {
 struct particleEmitter {
     u32 maxParticlesCount;
     u32 lastUsedParticle;
+    u32 newParticlesCount;
+    f32 dt;
     vector<particle> particles;
     vec2 position;
 };
@@ -271,7 +275,7 @@ s32 main(s32 argc, char* argv[]) {
 
     glfwMakeContextCurrent(window);
 
-    glfwSwapInterval(1);
+    glfwSwapInterval(0);
 
     if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress)) {
         std::cout << "Failed to initialize OpenGL context" << std::endl;
@@ -619,15 +623,29 @@ s32 main(s32 argc, char* argv[]) {
 
     particleEmitter charge = {};
     charge.maxParticlesCount = 1000;
-    charge.position = { 2 * TILE_SIZE, 6 * TILE_SIZE };
+    charge.newParticlesCount = 50;
+    charge.dt = 0.05f;
+    charge.position = { 2.5 * TILE_SIZE, 6.5 * TILE_SIZE };
     
     charge.particles.reserve(charge.maxParticlesCount);
     charge.particles.assign(charge.maxParticlesCount, particle());
+
+    particleEmitter secondCharge = {};
+    secondCharge.maxParticlesCount = 500;
+    secondCharge.newParticlesCount = 5;
+    secondCharge.dt = 0.01f;
+    secondCharge.position = { 7.5 * TILE_SIZE, 7.5 * TILE_SIZE };
+
+    secondCharge.particles.reserve(secondCharge.maxParticlesCount);
+    secondCharge.particles.assign(secondCharge.maxParticlesCount, particle());
+
+    particleEmitter* particleEmitters[] = {&charge, &secondCharge};
     
     u32 VBOParticles;
     glGenBuffers(1, &VBOParticles);
     glBindBuffer(GL_ARRAY_BUFFER, VBOParticles);
-    glBufferData(GL_ARRAY_BUFFER, charge.maxParticlesCount * sizeof(particle), nullptr, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, (charge.maxParticlesCount + secondCharge.maxParticlesCount) * sizeof(particle), 
+        nullptr, GL_DYNAMIC_DRAW);
     
     /*
      *struct particle {
@@ -662,6 +680,8 @@ s32 main(s32 argc, char* argv[]) {
     f32 lag = 0.f;
     
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+    f32 particleTimer = 0.f;
 
     while (!glfwWindowShouldClose(window)) {
         currentTime = glfwGetTime();
@@ -909,45 +929,55 @@ s32 main(s32 argc, char* argv[]) {
         setShaderUniform(typeUniformLocation, 4);
 
         glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-        
-        u32 newParticlesCount = 10;
 
-        for (u32 i = 0; i < newParticlesCount; ++i) {
-            u32 unusedParticleIndex = findFirstUnusedParticle(charge);
-            particle& particle = charge.particles[unusedParticleIndex];
-            
-            // respawing particle
-            f32 randomX = randomInRange(-5.f, 5.f);
-            f32 randomY = randomInRange(-5.f, 5.f);
-            
-            particle.lifespan = 1.f;
-            particle.position.x = charge.position.x + randomX;
-            particle.position.y = charge.position.y + randomY;
-            particle.size = {0.5f, 0.5f};
-            particle.velocity = {0.f, 0.f};
-            particle.acceleration = {randomX * 10.f, 10.f};
-            particle.uv = vec2((13 * (tileHeight + spacing) + margin) / (f32) textureHeight, 
-                               (16 * (tileHeight + spacing) + margin) / (f32) textureHeight);
-            particle.alpha = 1.f;
-        }
-        
-        f32 dt = 0.01f;
-        for (u32 i = 0; i < charge.maxParticlesCount; ++i) {
-            particle& p = charge.particles[i];
+        particleTimer += (f32) delta;
 
-            if (p.lifespan > 0.f) {
-                p.lifespan -= (f32) dt;
-                p.velocity = p.acceleration * dt;
-                p.position.x += randomInRange(-5.f, 5.f);
-                p.position.y += randomInRange(-5.f, 5.f);
-                p.alpha -= (f32) dt;
-                p.size -= (f32) dt;
+        if (particleTimer >= 0.05f) {
+            particleTimer = 0.f;
+            
+            for (u32 i = 0; i < ArrayCount(particleEmitters); ++i) {
+                particleEmitter& emitter = *particleEmitters[i];
+
+                for (u32 j = 0; j < emitter.newParticlesCount; ++j) {
+                    u32 unusedParticleIndex = findFirstUnusedParticle(emitter);
+                    particle& particle = emitter.particles[unusedParticleIndex];
+
+                    // respawing particle
+                    f32 randomX = randomInRange(-5.f, 5.f);
+                    f32 randomY = randomInRange(-5.f, 5.f);
+
+                    particle.lifespan = 1.f;
+                    particle.position.x = emitter.position.x + randomX;
+                    particle.position.y = emitter.position.y + randomY;
+                    particle.size = { 0.5f, 0.5f };
+                    particle.velocity = { 0.f, 0.f };
+                    particle.acceleration = { randomX * 10.f, 10.f };
+                    particle.uv = vec2((13 * (tileHeight + spacing) + margin) / (f32)textureHeight,
+                        (16 * (tileHeight + spacing) + margin) / (f32)textureHeight);
+                    particle.alpha = 1.f;
+                }
+
+                for (u32 j = 0; j < emitter.maxParticlesCount; ++j) {
+                    particle& p = emitter.particles[j];
+                    f32 dt = emitter.dt;
+
+                    if (p.lifespan > 0.f) {
+                        p.lifespan -= (f32)dt;
+                        p.velocity = p.acceleration * dt;
+                        p.position.x += randomInRange(-1.f, 1.f);
+                        p.position.y += randomInRange(-1.f, 1.f);
+                        p.alpha -= (f32)dt;
+                        p.size -= (f32)dt;
+                    }
+                }
             }
+
+            glBufferSubData(GL_ARRAY_BUFFER, 0, sizeInBytes({ charge.particles }), charge.particles.data());
+            glBufferSubData(GL_ARRAY_BUFFER, sizeInBytes({ charge.particles }), sizeInBytes({ secondCharge.particles }),
+                secondCharge.particles.data());
         }
-
-        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeInBytes({charge.particles}), charge.particles.data());
-
-        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, (s32) charge.particles.size());
+        
+        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, (s32) (charge.particles.size() + secondCharge.particles.size()));
         
         glfwSwapBuffers(window);
 
