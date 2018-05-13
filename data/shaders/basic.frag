@@ -1,4 +1,8 @@
 #version 330 core
+
+#pragma optimize(off)
+#pragma debug(on)
+
 in vec2 uv;
 in vec2 uvOffset;
 in float alpha;

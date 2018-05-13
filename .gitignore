@@ -8,3 +8,5 @@ generated/
 *.user
 *.userosscache
 *.sln.docstates
+
+*.tmp

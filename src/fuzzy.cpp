@@ -30,7 +30,12 @@
 
 #include "types.h"
 
-#define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
+#define length(arr) (sizeof(arr) / sizeof((arr)[0]))
+
+#pragma warning(disable:4302)
+#pragma warning(disable:4311)
+
+#define offset(structType, structMember) ((u32)(&(((structType* )0)->structMember)))
 
 struct aabb {
     vec2 position;      // top-left
@@ -50,8 +55,8 @@ const s32 SCREEN_HEIGHT = 720;
 
 constexpr vec3 backgroundColor = normalizeRGB(29, 33, 45);
 
-b8 keys[512];
-b8 processedKeys[512];
+b32 keys[512];
+b32 processedKeys[512];
 
 const u32 SCALE = 4;
 
@@ -72,11 +77,11 @@ struct animation {
     f32 delay;
     s32 size;
 
-    b8 operator==(const animation& other) const {
+    b32 operator==(const animation& other) const {
         return x == other.x && y == other.y;
     }
 
-    b8 operator!=(const animation& other) const {
+    b32 operator!=(const animation& other) const {
         return !(*this == other);
     }
 };
@@ -104,9 +109,9 @@ struct drawableEntity {
     vec2 spriteScale;
     // todo: manage it somehow
     u32 shouldRender;
-    b8 collides;
-    b8 underEffect;
-    b8 isRotating;
+    b32 collides;
+    b32 underEffect;
+    b32 isRotating;
     entityType type;
 
     u32 offset;
@@ -133,7 +138,7 @@ struct effect {
 
     aabb box;
 
-    b8 shouldRender;
+    b32 shouldRender;
 };
 
 struct particle {
@@ -152,7 +157,8 @@ struct particleEmitter {
     u32 newParticlesCount;
     f32 dt;
     vector<particle> particles;
-    vec2 position;
+    aabb box;
+    vec2 velocity;
 };
 
 u32 findFirstUnusedParticle(const particleEmitter& emitter) {
@@ -182,9 +188,6 @@ inline s32 getUniformLocation(u32 shaderProgram, const string& name) {
     return uniformLocation;
 }
 
-inline void setShaderUniform(s32 location, b8 value) {
-    glUniform1i(location, value);
-}
 inline void setShaderUniform(s32 location, s32 value) {
     glUniform1i(location, value);
 }
@@ -209,10 +212,10 @@ inline f32 randomInRange(f32 min, f32 max) {
     return result;
 }
 
-inline b8 intersectAABB(const aabb& box1, const aabb& box2) {
+inline b32 intersectAABB(const aabb& box1, const aabb& box2) {
     // Separating Axis Theorem
-    b8 xCollision = box1.position.x + box1.size.x > box2.position.x && box1.position.x < box2.position.x + box2.size.x;
-    b8 yCollision = box1.position.y + box1.size.y > box2.position.y && box1.position.y < box2.position.y + box2.size.y;
+    b32 xCollision = box1.position.x + box1.size.x > box2.position.x && box1.position.x < box2.position.x + box2.size.x;
+    b32 yCollision = box1.position.y + box1.size.y > box2.position.y && box1.position.y < box2.position.y + box2.size.y;
 
     return xCollision && yCollision;
 }
@@ -601,31 +604,33 @@ s32 main(s32 argc, char* argv[]) {
     glBufferData(GL_ARRAY_BUFFER, sizeInBytes({drawableEntities}), drawableEntities.data(), GL_DYNAMIC_DRAW);
     
     // aabb
-    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(drawableEntity), (void*) 0);
+    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(drawableEntity), (void*) offset(drawableEntity, box));
     glEnableVertexAttribArray(4);
     glVertexAttribDivisor(4, 1);
     // uv/rotation
-    glVertexAttribPointer(5, 3, GL_FLOAT, GL_FALSE, sizeof(drawableEntity), (void*) (4 * sizeof(f32)));
+    glVertexAttribPointer(5, 3, GL_FLOAT, GL_FALSE, sizeof(drawableEntity), (void*) offset(drawableEntity, uv));
     glEnableVertexAttribArray(5);
     glVertexAttribDivisor(5, 1);
     // flipped
-    glVertexAttribIPointer(6, 1, GL_UNSIGNED_INT, sizeof(drawableEntity), (void*)(7 * sizeof(f32)));
+    glVertexAttribIPointer(6, 1, GL_UNSIGNED_INT, sizeof(drawableEntity), (void*) offset(drawableEntity, flipped));
     glEnableVertexAttribArray(6);
     glVertexAttribDivisor(6, 1);
     // spriteScale
-    glVertexAttribPointer(7, 2, GL_FLOAT, GL_FALSE, sizeof(drawableEntity), (void*)(7 * sizeof(f32) + sizeof(u32)));
+    glVertexAttribPointer(7, 2, GL_FLOAT, GL_FALSE, sizeof(drawableEntity), (void*) offset(drawableEntity, spriteScale));
     glEnableVertexAttribArray(7);
     glVertexAttribDivisor(7, 1);
     // shouldRender
-    glVertexAttribIPointer(8, 1, GL_UNSIGNED_INT, sizeof(drawableEntity), (void*)(9 * sizeof(f32) + sizeof(u32)));
+    glVertexAttribIPointer(8, 1, GL_UNSIGNED_INT, sizeof(drawableEntity), (void*) offset(drawableEntity, shouldRender));
     glEnableVertexAttribArray(8);
     glVertexAttribDivisor(8, 1);
 
     particleEmitter charge = {};
     charge.maxParticlesCount = 1000;
-    charge.newParticlesCount = 50;
-    charge.dt = 0.05f;
-    charge.position = { 2.5 * TILE_SIZE, 6.5 * TILE_SIZE };
+    charge.newParticlesCount = 10;
+    charge.dt = 0.01f;
+    charge.box.position = { 4.5 * TILE_SIZE, 6.5 * TILE_SIZE };
+    charge.box.size = {4.f * SCALE, 4.f * SCALE};
+    charge.velocity = {0.f, 0.f};
     
     charge.particles.reserve(charge.maxParticlesCount);
     charge.particles.assign(charge.maxParticlesCount, particle());
@@ -634,7 +639,9 @@ s32 main(s32 argc, char* argv[]) {
     secondCharge.maxParticlesCount = 500;
     secondCharge.newParticlesCount = 5;
     secondCharge.dt = 0.01f;
-    secondCharge.position = { 7.5 * TILE_SIZE, 7.5 * TILE_SIZE };
+    secondCharge.box.position = { 7.5 * TILE_SIZE, 7.5 * TILE_SIZE };
+    secondCharge.box.size = { 8.f * SCALE, 8.f * SCALE };
+    secondCharge.velocity = { 0.f, 0.f };
 
     secondCharge.particles.reserve(secondCharge.maxParticlesCount);
     secondCharge.particles.assign(secondCharge.maxParticlesCount, particle());
@@ -660,15 +667,15 @@ s32 main(s32 argc, char* argv[]) {
      *
      */
     // particle's position/size
-    glVertexAttribPointer(9, 4, GL_FLOAT, GL_FALSE, sizeof(particle), (void*)0);
+    glVertexAttribPointer(9, 4, GL_FLOAT, GL_FALSE, sizeof(particle), (void*) offset(particle, position));
     glEnableVertexAttribArray(9);
     glVertexAttribDivisor(9, 1);
     // particle's uv
-    glVertexAttribPointer(10, 2, GL_FLOAT, GL_FALSE, sizeof(particle), (void*)(4 * sizeof(vec2)));
+    glVertexAttribPointer(10, 2, GL_FLOAT, GL_FALSE, sizeof(particle), (void*) offset(particle, uv));
     glEnableVertexAttribArray(10);
     glVertexAttribDivisor(10, 1);
     // particle's alpha value
-    glVertexAttribPointer(11, 1, GL_FLOAT, GL_FALSE, sizeof(particle), (void*)(5 * sizeof(vec2) + sizeof(f32)));
+    glVertexAttribPointer(11, 1, GL_FLOAT, GL_FALSE, sizeof(particle), (void*) offset(particle, alpha));
     glEnableVertexAttribArray(11);
     glVertexAttribDivisor(11, 1);
 
@@ -682,6 +689,8 @@ s32 main(s32 argc, char* argv[]) {
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
     f32 particleTimer = 0.f;
+
+    glClearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, 1.0f);
 
     while (!glfwWindowShouldClose(window)) {
         currentTime = glfwGetTime();
@@ -735,7 +744,7 @@ s32 main(s32 argc, char* argv[]) {
                 if (t.x >= 0.f && t.x < time.x) time.x = t.x;
                 if (t.y >= 0.f && t.y < time.y) time.y = t.y;
 
-                b8 swooshCollide = intersectAABB(swoosh.box, entity.box);
+                b32 swooshCollide = intersectAABB(swoosh.box, entity.box);
                 if (!entity.underEffect && swooshCollide) {
                     entity.underEffect = true;
                     entity.isRotating = true;
@@ -834,6 +843,20 @@ s32 main(s32 argc, char* argv[]) {
 
             camera.x = clamp(camera.x, 0.f, (f32) TILE_SIZE * levelWidth - SCREEN_WIDTH);
             camera.y = clamp(camera.y, 0.f, (f32) TILE_SIZE * levelHeight - SCREEN_HEIGHT);
+            
+            //charge.velocity.x = 0.f;
+            b32 chargeCollide = intersectAABB(swoosh.box, charge.box);
+            if (chargeCollide && swoosh.shouldRender) {
+                charge.velocity.x = 10.f;
+            }
+
+            b32 reflectorCollide = intersectAABB(drawableEntities[3].box, charge.box);
+            if (reflectorCollide) {
+                charge.velocity.x = 0.f;
+                charge.velocity.y = 10.f;
+            }
+
+            charge.box.position += charge.velocity * dt;
 
             lag -= updateRate;
         }
@@ -842,7 +865,6 @@ s32 main(s32 argc, char* argv[]) {
         view = glm::translate(view, vec3(-camera, 0.f));
         setShaderUniform(viewUniformLocation, view);
 
-        glClearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
         //--- drawing tilemap ---
@@ -903,12 +925,12 @@ s32 main(s32 argc, char* argv[]) {
         glBindBuffer(GL_ARRAY_BUFFER, VBOEntities);
         setShaderUniform(typeUniformLocation, 3);
         // todo: remove this lame indexing
-        drawableEntity player = drawableEntities[4];
+        //drawableEntity player = drawableEntities[4];
         player.uv = vec2(bobXOffset + bob.xAnimationOffset, bobYOffset);
         player.box.position = bob.box.position;
         player.flipped = bob.flipped;
 
-        drawableEntity swooshEffect = drawableEntities[5];
+        //drawableEntity swooshEffect = drawableEntities[5];
         swooshEffect.uv = vec2(effectXOffset + swoosh.xAnimationOffset, effectYOffset);
         swooshEffect.box.position = swoosh.box.position;
         swooshEffect.flipped = bob.flipped;
@@ -935,11 +957,13 @@ s32 main(s32 argc, char* argv[]) {
         if (particleTimer >= 0.05f) {
             particleTimer = 0.f;
             
-            for (u32 i = 0; i < ArrayCount(particleEmitters); ++i) {
+            for (u32 i = 0; i < length(particleEmitters); ++i) {
                 particleEmitter& emitter = *particleEmitters[i];
 
                 for (u32 j = 0; j < emitter.newParticlesCount; ++j) {
                     u32 unusedParticleIndex = findFirstUnusedParticle(emitter);
+                    emitter.lastUsedParticle = unusedParticleIndex;
+
                     particle& particle = emitter.particles[unusedParticleIndex];
 
                     // respawing particle
@@ -947,8 +971,8 @@ s32 main(s32 argc, char* argv[]) {
                     f32 randomY = randomInRange(-5.f, 5.f);
 
                     particle.lifespan = 1.f;
-                    particle.position.x = emitter.position.x + randomX;
-                    particle.position.y = emitter.position.y + randomY;
+                    particle.position.x = emitter.box.position.x + randomX;
+                    particle.position.y = emitter.box.position.y + randomY;
                     particle.size = { 0.5f, 0.5f };
                     particle.velocity = { 0.f, 0.f };
                     particle.acceleration = { randomX * 10.f, 10.f };
@@ -967,7 +991,7 @@ s32 main(s32 argc, char* argv[]) {
                         p.position.x += randomInRange(-1.f, 1.f);
                         p.position.y += randomInRange(-1.f, 1.f);
                         p.alpha -= (f32)dt;
-                        p.size -= (f32)dt;
+                        p.size -= (f32)dt * 0.5f;
                     }
                 }
             }
@@ -979,6 +1003,7 @@ s32 main(s32 argc, char* argv[]) {
         
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, (s32) (charge.particles.size() + secondCharge.particles.size()));
         
+        glFinish();
         glfwSwapBuffers(window);
 
         std::cout << delta * 1000.f << " ms" << std::endl;

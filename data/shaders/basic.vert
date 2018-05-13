@@ -1,4 +1,8 @@
 #version 330 core
+
+#pragma optimize(off)
+#pragma debug(on)
+
 // <vec2 - position, vec2 - uv>
 layout(location = 0) in vec4 sprite;
 // <vec2 - offset, float - rotation in background tile, float - rotation in foreground tile>
