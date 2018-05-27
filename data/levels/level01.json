@@ -183,52 +183,52 @@
                  "y":112
                 }, 
                 {
-                 "gid":3221225814,
+                 "gid":342,
                  "height":16,
                  "id":26,
                  "name":"",
-                 "rotation":0,
+                 "rotation":180,
                  "type":"reflector",
                  "visible":true,
                  "width":16,
-                 "x":128,
-                 "y":160
+                 "x":144,
+                 "y":144
                 }, 
                 {
-                 "gid":2147483990,
+                 "gid":342,
                  "height":16,
                  "id":29,
                  "name":"",
-                 "rotation":0,
+                 "rotation":270,
                  "type":"reflector",
                  "visible":true,
                  "width":16,
-                 "x":176,
+                 "x":192,
                  "y":240
                 }, 
                 {
-                 "gid":3221225814,
+                 "gid":342,
                  "height":16,
                  "id":31,
                  "name":"",
-                 "rotation":0,
+                 "rotation":180,
                  "type":"reflector",
                  "visible":true,
                  "width":16,
-                 "x":176,
-                 "y":160
+                 "x":192,
+                 "y":144
                 }, 
                 {
-                 "gid":3221225814,
+                 "gid":342,
                  "height":16,
                  "id":32,
                  "name":"",
-                 "rotation":0,
+                 "rotation":180,
                  "type":"reflector",
                  "visible":true,
                  "width":16,
-                 "x":128,
-                 "y":112
+                 "x":144,
+                 "y":96
                 }, 
                 {
                  "height":1,
@@ -258,10 +258,10 @@
          "x":0,
          "y":0
         }],
- "nextobjectid":35,
+ "nextobjectid":42,
  "orientation":"orthogonal",
  "renderorder":"right-down",
- "tiledversion":"1.1.4",
+ "tiledversion":"1.1.5",
  "tileheight":16,
  "tilesets":[
         {
@@ -275,6 +275,47 @@
          "spacing":2,
          "tilecount":1024,
          "tileheight":16,
+         "tiles":
+            {
+             "341":
+                {
+                 "objectgroup":
+                    {
+                     "draworder":"index",
+                     "name":"",
+                     "objects":[
+                            {
+                             "height":0,
+                             "id":1,
+                             "name":"",
+                             "polygon":[
+                                    {
+                                     "x":0,
+                                     "y":0
+                                    }, 
+                                    {
+                                     "x":0.130434782608696,
+                                     "y":15.304347826087
+                                    }, 
+                                    {
+                                     "x":15.1739130434783,
+                                     "y":15.4782608695652
+                                    }],
+                             "rotation":0,
+                             "type":"",
+                             "visible":true,
+                             "width":0,
+                             "x":0.391304347826087,
+                             "y":0.130434782608696
+                            }],
+                     "opacity":1,
+                     "type":"objectgroup",
+                     "visible":true,
+                     "x":0,
+                     "y":0
+                    }
+                }
+            },
          "tilewidth":16
         }],
  "tilewidth":16,

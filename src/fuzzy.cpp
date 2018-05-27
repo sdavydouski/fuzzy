@@ -42,6 +42,10 @@ struct aabb {
     vec2 size;
 };
 
+enum class side {
+    TOP, LEFT, BOTTOM, RIGHT
+};
+
 constexpr vec3 normalizeRGB(s32 red, s32 green, s32 blue) {
     const f32 MAX = 255.f;
     return vec3(red / MAX, green / MAX, blue / MAX);
@@ -113,6 +117,8 @@ struct drawableEntity {
     b32 underEffect;
     b32 isRotating;
     entityType type;
+
+    b32 isColliding;
 
     u32 offset;
 };
@@ -234,6 +240,8 @@ sprite bob;
 effect swoosh;
 vector<drawableEntity> drawableEntities;
 
+b32 isColliding = false;
+
 s32 main(s32 argc, char* argv[]) {
 
     if (!glfwInit()) {
@@ -278,7 +286,7 @@ s32 main(s32 argc, char* argv[]) {
 
     glfwMakeContextCurrent(window);
 
-    glfwSwapInterval(0);
+    glfwSwapInterval(1);
 
     if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress)) {
         std::cout << "Failed to initialize OpenGL context" << std::endl;
@@ -432,9 +440,9 @@ s32 main(s32 argc, char* argv[]) {
     for (u32 i = 0; i < levelWidth * levelHeight; ++i) {
         s32 tile = backgroundRawTiles[i];
 
-        bool flippedHorizontally = tile & FLIPPED_HORIZONTALLY_FLAG;
-        bool flippedVertically = tile & FLIPPED_VERTICALLY_FLAG;
-        bool flippedDiagonally = tile & FLIPPED_DIAGONALLY_FLAG;
+        b32 flippedHorizontally = tile & FLIPPED_HORIZONTALLY_FLAG;
+        b32 flippedVertically = tile & FLIPPED_VERTICALLY_FLAG;
+        b32 flippedDiagonally = tile & FLIPPED_DIAGONALLY_FLAG;
 
         // Clear the flags
         tile &= ~(FLIPPED_HORIZONTALLY_FLAG | FLIPPED_VERTICALLY_FLAG | FLIPPED_DIAGONALLY_FLAG);
@@ -512,13 +520,27 @@ s32 main(s32 argc, char* argv[]) {
             }
             // tile objects have their position at bottom-left
             // see: https://github.com/bjorn/tiled/issues/91
-            entity.box.position = { (f32)rawEntity["x"] * SCALE, ((f32)rawEntity["y"] - tileHeight) * SCALE };
+
+            entity.rotation = rawEntity["rotation"];
+            // todo: handle negative angles?
+            if (entity.rotation == -90.f) {
+                entity.rotation = 270.f;
+            }
+
+            // adjusting position
+            if (entity.rotation == 0.f) {
+                entity.box.position = { (f32)rawEntity["x"] * SCALE, ((f32)rawEntity["y"] - tileHeight) * SCALE };
+            } else if (entity.rotation == 90.f) {
+                entity.box.position = { (f32)rawEntity["x"] * SCALE, (f32)rawEntity["y"] * SCALE };
+            } else if (entity.rotation == 180.f) {
+                entity.box.position = { ((f32)rawEntity["x"] - tileWidth) * SCALE, (f32)rawEntity["y"] * SCALE };
+            } else if (entity.rotation == 270.f) {
+                entity.box.position = { ((f32)rawEntity["x"] - tileWidth) * SCALE, ((f32)rawEntity["y"] - tileHeight) * SCALE };
+            }
 
             u32 gid = rawEntity["gid"];
 
             entity.flipped = gid & (7 << 29);       // take three most significant bits
-            // todo: objects handle rotation differently from the tiles
-            entity.rotation = 0.f;
 
             gid &= ~(FLIPPED_HORIZONTALLY_FLAG | FLIPPED_VERTICALLY_FLAG | FLIPPED_DIAGONALLY_FLAG);
 
@@ -601,7 +623,7 @@ s32 main(s32 argc, char* argv[]) {
     u32 VBOEntities;
     glGenBuffers(1, &VBOEntities);
     glBindBuffer(GL_ARRAY_BUFFER, VBOEntities);
-    glBufferData(GL_ARRAY_BUFFER, sizeInBytes({drawableEntities}), drawableEntities.data(), GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeInBytes({drawableEntities}), drawableEntities.data(), GL_STREAM_DRAW);
     
     // aabb
     glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(drawableEntity), (void*) offset(drawableEntity, box));
@@ -652,7 +674,7 @@ s32 main(s32 argc, char* argv[]) {
     glGenBuffers(1, &VBOParticles);
     glBindBuffer(GL_ARRAY_BUFFER, VBOParticles);
     glBufferData(GL_ARRAY_BUFFER, (charge.maxParticlesCount + secondCharge.maxParticlesCount) * sizeof(particle), 
-        nullptr, GL_DYNAMIC_DRAW);
+        nullptr, GL_STREAM_DRAW);
     
     /*
      *struct particle {
@@ -717,10 +739,7 @@ s32 main(s32 argc, char* argv[]) {
             bob.acceleration.y += -0.01f * bob.velocity.y;
             bob.velocity.y += bob.acceleration.y * dt;
 
-            vec2 move = vec2(
-                0.5f * bob.acceleration.x * dt * dt + bob.velocity.x * dt,
-                0.5f * bob.acceleration.y * dt * dt + bob.velocity.y * dt
-            );
+            vec2 move = 0.5f * bob.acceleration * dt * dt + bob.velocity * dt;
             
             vec2 oldPosition = bob.box.position;
             vec2 time = vec2(1.f);
@@ -731,6 +750,10 @@ s32 main(s32 argc, char* argv[]) {
                 if (t.x >= 0.f && t.x < time.x) time.x = t.x;
                 if (t.y >= 0.f && t.y < time.y) time.y = t.y;
             }
+
+            vec2 oldChargePosition = charge.box.position;
+            vec2 chargeMove = charge.velocity * dt;
+            vec2 chargeTime = vec2(1.f);
             
             for (u32 i = 0; i < drawableEntities.size(); ++i) {
                 drawableEntity& entity = drawableEntities[i];
@@ -777,6 +800,109 @@ s32 main(s32 argc, char* argv[]) {
                             entity.isRotating = false;
                             entity.rotation = 0.f;
                             break;
+                        }
+                    }
+                }
+
+                if (entity.type == entityType::REFLECTOR) {
+                    aabb reflectorBox = entity.box;
+
+                    vec2 t = sweptAABB(oldChargePosition, chargeMove, reflectorBox, charge.box.size);
+
+                    if ((0.f <= t.x && t.x < 1.f) || (0.f <= t.y && t.y < 1.f)) {
+                        entity.isColliding = true;
+                    }
+
+                    // if collides check direction of the charge
+                    // check reflector's angle
+                    // dimiss charge if it's coming from the wrong side
+                    // proceed with new collision rule otherwise.
+
+                    if (entity.isColliding) {
+                        aabb testBox = {};
+
+                        if (chargeMove.x > 0.f) {
+                            if (entity.rotation == 180.f || entity.rotation == 270.f) {
+                                testBox.position.x = reflectorBox.position.x + reflectorBox.size.x / 2.f + charge.box.size.x / 2.f;
+                                testBox.position.y = reflectorBox.position.y;
+                                testBox.size.x = reflectorBox.size.x / 2.f - charge.box.size.x / 2.f;
+                                testBox.size.y = reflectorBox.size.y;
+
+                                vec2 t = sweptAABB(oldChargePosition, chargeMove, testBox, charge.box.size);
+                                
+                                if (0.f <= t.x && t.x < 1.f) {
+                                    entity.isColliding = false;
+                                    chargeTime.x = t.x;
+
+                                    charge.velocity.x = 0.f;
+                                    charge.velocity.y = entity.rotation == 180.f ? 10.f : -10.f;
+                                }
+                            } else {
+                                // collided with outer border: stop processing
+                                entity.isColliding = false;
+                                chargeTime = t;
+                            }
+                        } else if (chargeMove.x < 0.f) {
+                            if (entity.rotation == 0.f || entity.rotation == 90.f) {
+                                testBox.position.x = reflectorBox.position.x;
+                                testBox.position.y = reflectorBox.position.y;
+                                testBox.size.x = reflectorBox.size.x / 2.f - charge.box.size.x / 2.f;
+                                testBox.size.y = reflectorBox.size.y;
+
+                                vec2 t = sweptAABB(oldChargePosition, chargeMove, testBox, charge.box.size);
+                                
+                                if (0.f <= t.x && t.x < 1.f) {
+                                    entity.isColliding = false;
+                                    chargeTime.x = t.x;
+
+                                    charge.velocity.x = 0.f;
+                                    charge.velocity.y = entity.rotation == 0.f ? -10.f : 10.f;
+                                }
+                                
+                            } else {
+                                entity.isColliding = false;
+                                chargeTime = t;
+                            }
+                        } else if (chargeMove.y > 0.f) {
+                            if (entity.rotation == 0.f || entity.rotation == 270.f) {
+                                testBox.position.x = reflectorBox.position.x;
+                                testBox.position.y = reflectorBox.position.y + reflectorBox.size.y / 2.f + charge.box.size.y / 2.f;
+                                testBox.size.x = reflectorBox.size.x;
+                                testBox.size.y = reflectorBox.size.y / 2.f - charge.box.size.y / 2.f;
+
+                                vec2 t = sweptAABB(oldChargePosition, chargeMove, testBox, charge.box.size);
+                                
+                                if (0.f <= t.y && t.y < 1.f) {
+                                    entity.isColliding = false;
+                                    chargeTime.y = t.y;
+
+                                    charge.velocity.x = entity.rotation == 0.f ? 10.f : -10.f;
+                                    charge.velocity.y = 0.f;
+                                }
+                            } else {
+                                entity.isColliding = false;
+                                chargeTime = t;
+                            }
+                        } else if (chargeMove.y < 0.f) {
+                            if (entity.rotation == 90.f || entity.rotation == 180.f) {
+                                testBox.position.x = reflectorBox.position.x;
+                                testBox.position.y = reflectorBox.position.y;
+                                testBox.size.x = reflectorBox.size.x;
+                                testBox.size.y = reflectorBox.size.y / 2.f - charge.box.size.y / 2.f;
+
+                                vec2 t = sweptAABB(oldChargePosition, chargeMove, testBox, charge.box.size);
+                                
+                                if (0.f <= t.y && t.y < 1.f) {
+                                    entity.isColliding = false;
+                                    chargeTime.y = t.y;
+
+                                    charge.velocity.x = entity.rotation == 90.f ? 10.f : -10.f;
+                                    charge.velocity.y = 0.f;
+                                }
+                            } else {
+                                entity.isColliding = false;
+                                chargeTime = t;
+                            }
                         }
                     }
                 }
@@ -843,20 +969,22 @@ s32 main(s32 argc, char* argv[]) {
 
             camera.x = clamp(camera.x, 0.f, (f32) TILE_SIZE * levelWidth - SCREEN_WIDTH);
             camera.y = clamp(camera.y, 0.f, (f32) TILE_SIZE * levelHeight - SCREEN_HEIGHT);
+
+            chargeMove *= chargeTime;
+            charge.box.position += chargeMove;
             
-            //charge.velocity.x = 0.f;
             b32 chargeCollide = intersectAABB(swoosh.box, charge.box);
+            // todo: make a copy of original charge
             if (chargeCollide && swoosh.shouldRender) {
-                charge.velocity.x = 10.f;
+                charge.velocity.x = bob.flipped ? -10.f: 10.f;
             }
 
-            b32 reflectorCollide = intersectAABB(drawableEntities[3].box, charge.box);
-            if (reflectorCollide) {
-                charge.velocity.x = 0.f;
-                charge.velocity.y = 10.f;
+            if (charge.box.position.x <= 0.f || charge.box.position.x >= (f32) TILE_SIZE * levelWidth) {
+                charge.velocity.x = -charge.velocity.x;
             }
-
-            charge.box.position += charge.velocity * dt;
+            if (charge.box.position.y <= 0.f || charge.box.position.y >= (f32) TILE_SIZE * levelHeight) {
+                charge.velocity.y = -charge.velocity.y;
+            }
 
             lag -= updateRate;
         }
@@ -956,7 +1084,8 @@ s32 main(s32 argc, char* argv[]) {
 
         if (particleTimer >= 0.05f) {
             particleTimer = 0.f;
-            
+
+            // todo: use transform feedback instead?
             for (u32 i = 0; i < length(particleEmitters); ++i) {
                 particleEmitter& emitter = *particleEmitters[i];
 
@@ -1006,7 +1135,7 @@ s32 main(s32 argc, char* argv[]) {
         glFinish();
         glfwSwapBuffers(window);
 
-        std::cout << delta * 1000.f << " ms" << std::endl;
+        //std::cout << delta * 1000.f << " ms" << std::endl;
     }
 
     glfwTerminate();
@@ -1125,35 +1254,35 @@ string readTextFile(const string& path) {
 vec2 sweptAABB(const vec2 point, const vec2 delta, const aabb& box, const vec2 padding) {
     vec2 time = vec2(1.f);
 
-    f32 nearTimeX = 1.f;
-    f32 farTimeX = 1.f;
-    f32 nearTimeY = 1.f;
-    f32 farTimeY = 1.f;
+    f32 leftTime = 1.f;
+    f32 rightTime = 1.f;
+    f32 topTime = 1.f;
+    f32 bottomTime = 1.f;
     
     vec2 position = box.position - padding;
     vec2 size= box.size + padding;
 
     if (delta.x != 0.f && position.y <= point.y && point.y <= position.y + size.y) {
-        nearTimeX = (position.x - point.x) / delta.x;
-        if (nearTimeX < time.x) {
-            time.x = nearTimeX;
+        leftTime = (position.x - point.x) / delta.x;
+        if (leftTime < time.x) {
+            time.x = leftTime;
         }
         
-        farTimeX = (position.x + size.x - point.x) / delta.x;
-        if (farTimeX < time.x) {
-            time.x = farTimeX;
+        rightTime = (position.x + size.x - point.x) / delta.x;
+        if (rightTime < time.x) {
+            time.x = rightTime;
         }
     }
 
     if (delta.y != 0.f && position.x < point.x && point.x < position.x + size.x) {
-        nearTimeY = (position.y - point.y) / delta.y;
-        if (nearTimeY < time.y) {
-            time.y = nearTimeY;
+        topTime = (position.y - point.y) / delta.y;
+        if (topTime < time.y) {
+            time.y = topTime;
         }
         
-        farTimeY = (position.y + size.y - point.y) / delta.y;
-        if (farTimeY < time.y) {
-            time.y = farTimeY;
+        bottomTime = (position.y + size.y - point.y) / delta.y;
+        if (bottomTime < time.y) {
+            time.y = bottomTime;
         }
     }
 

@@ -7,6 +7,47 @@
  "spacing":2,
  "tilecount":1024,
  "tileheight":16,
+ "tiles":
+    {
+     "341":
+        {
+         "objectgroup":
+            {
+             "draworder":"index",
+             "name":"",
+             "objects":[
+                    {
+                     "height":0,
+                     "id":1,
+                     "name":"",
+                     "polygon":[
+                            {
+                             "x":0,
+                             "y":0
+                            }, 
+                            {
+                             "x":0.130434782608696,
+                             "y":15.0434782608696
+                            }, 
+                            {
+                             "x":15.1304347826087,
+                             "y":15.0869565217391
+                            }],
+                     "rotation":0,
+                     "type":"",
+                     "visible":true,
+                     "width":0,
+                     "x":0.391304347826087,
+                     "y":0.391304347826087
+                    }],
+             "opacity":1,
+             "type":"objectgroup",
+             "visible":true,
+             "x":0,
+             "y":0
+            }
+        }
+    },
  "tilewidth":16,
  "type":"tileset"
 }

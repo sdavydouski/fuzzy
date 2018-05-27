@@ -188,6 +188,7 @@
   <ItemGroup>
     <ClCompile Include="..\generated\glad\src\glad.c" />
     <ClCompile Include="fuzzy.cpp" />
+    <ClCompile Include="tiled.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="types.h" />
