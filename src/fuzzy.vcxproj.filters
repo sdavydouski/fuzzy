@@ -5,7 +5,6 @@
     <ClCompile Include="..\generated\glad\src\glad.c">
       <Filter>generated</Filter>
     </ClCompile>
-    <ClCompile Include="tiled.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="generated">
@@ -14,5 +13,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="types.h" />
+    <ClInclude Include="fuzzy.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="tiled.cpp" />
   </ItemGroup>
 </Project>

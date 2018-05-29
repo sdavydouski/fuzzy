@@ -1,15 +1,6 @@
-// GLAD will not include windows.h for APIENTRY if it was previously defined
-#ifdef _WIN32
-#define APIENTRY __stdcall
-#endif
-
-#include <glad/glad.h>
+//#include <glad/glad.h>
+#include "../generated/glad/src/glad.c"
 #include <GLFW/glfw3.h>
-
-// confirm that neither GLAD nor GLFW didn't include windows.h
-#ifdef _WINDOWS_
-#error windows.h was included!
-#endif
 
 #include <nlohmann\json.hpp>
 
@@ -29,6 +20,8 @@
 #include <vector>
 
 #include "types.h"
+#include "fuzzy.h"
+#include "tiled.cpp"
 
 #define length(arr) (sizeof(arr) / sizeof((arr)[0]))
 
@@ -36,11 +29,6 @@
 #pragma warning(disable:4311)
 
 #define offset(structType, structMember) ((u32)(&(((structType* )0)->structMember)))
-
-struct aabb {
-    vec2 position;      // top-left
-    vec2 size;
-};
 
 enum class side {
     TOP, LEFT, BOTTOM, RIGHT
@@ -62,17 +50,11 @@ constexpr vec3 backgroundColor = normalizeRGB(29, 33, 45);
 b32 keys[512];
 b32 processedKeys[512];
 
-const u32 SCALE = 4;
-
 const f32 SPRITE_SIZE = 16.f * SCALE;
 const f32 TILE_SIZE = 16.f * SCALE;
 
 // top-left corner
 vec2 camera = vec2(0.f);
-
-const u32 FLIPPED_HORIZONTALLY_FLAG = 0x80000000;
-const u32 FLIPPED_VERTICALLY_FLAG = 0x40000000;
-const u32 FLIPPED_DIAGONALLY_FLAG = 0x20000000;
 
 struct animation {
     s32 x;
@@ -88,39 +70,6 @@ struct animation {
     b32 operator!=(const animation& other) const {
         return !(*this == other);
     }
-};
-
-enum class entityType {
-    PLAYER,
-    EFFECT,
-    REFLECTOR,
-    UNKNOWN
-};
-
-struct entity {
-    aabb box;
-};
-
-//todo: store in VBO only the ones that are actually used in shaders
-struct drawableEntity {
-    aabb box;
-
-    vec2 uv;
-    f32 rotation;
-    
-    u32 flipped;
-    
-    vec2 spriteScale;
-    // todo: manage it somehow
-    u32 shouldRender;
-    b32 collides;
-    b32 underEffect;
-    b32 isRotating;
-    entityType type;
-
-    b32 isColliding;
-
-    u32 offset;
 };
 
 struct sprite {
@@ -411,16 +360,15 @@ s32 main(s32 argc, char* argv[]) {
         1.f, 1.f, 1.f, 1.f
     };
 
-    std::fstream levelInfoIn("levels/level01.json");
-    std::fstream tileSetInfoIn("levels/tileset.json");
-    json levelInfo;
-    json tilesetInfo;
-    levelInfoIn >> levelInfo;
-    tileSetInfoIn >> tilesetInfo;
+    tileset tileset = loadTileset("levels/tileset.json");
+    map level = loadMap("levels/level01.json", tileset);
 
-    u32 columns = tilesetInfo["columns"];
-    s32 margin = tilesetInfo["margin"];
-    s32 spacing = tilesetInfo["spacing"];
+    // todo: wire up new map to vbos, entities, etc.
+
+    std::fstream levelInfoIn("levels/level01.json");
+    json levelInfo;
+    levelInfoIn >> levelInfo;
+
     u32 levelWidth = levelInfo["width"];
     u32 levelHeight = levelInfo["height"];
 
@@ -434,7 +382,7 @@ s32 main(s32 argc, char* argv[]) {
             xyr.push_back(vec4(x * TILE_SIZE, y * TILE_SIZE, 0.f, 0.f));
         }
     }
-    
+
     vector<vec2> backgroundUvs;
     backgroundUvs.reserve(levelWidth * levelHeight);
     for (u32 i = 0; i < levelWidth * levelHeight; ++i) {
@@ -463,11 +411,11 @@ s32 main(s32 argc, char* argv[]) {
         
         // todo: completely arbitrary negative value
         // handle sparseness???
-        s32 uvX = tile > 0 ? ((tile - 1) % columns) : -10;
-        s32 uvY = tile > 0 ? ((tile - 1) / columns) : -10;
+        s32 uvX = tile > 0 ? ((tile - 1) % tileset.columns) : -10;
+        s32 uvY = tile > 0 ? ((tile - 1) / tileset.columns) : -10;
 
-        backgroundUvs.push_back(vec2((uvX * (tileWidth + spacing) + margin) / (f32) textureWidth, 
-                                     (uvY * (tileHeight + spacing) + margin) / (f32) textureHeight));
+        backgroundUvs.push_back(vec2((uvX * (tileWidth + tileset.spacing) + tileset.margin) / (f32) textureWidth, 
+                                     (uvY * (tileHeight + tileset.spacing) + tileset.margin) / (f32) textureHeight));
     }
 
     vector<vec2> foregroundUvs;
@@ -496,11 +444,11 @@ s32 main(s32 argc, char* argv[]) {
 
         xyr[i].w = rotate;
 
-        s32 uvX = tile > 0 ? ((tile - 1) % columns) : -10;
-        s32 uvY = tile > 0 ? ((tile - 1) / columns) : -10;
+        s32 uvX = tile > 0 ? ((tile - 1) % tileset.columns) : -10;
+        s32 uvY = tile > 0 ? ((tile - 1) / tileset.columns) : -10;
 
-        foregroundUvs.push_back(vec2((uvX * (tileWidth + spacing) + margin) / (f32)textureWidth,
-                                     (uvY * (tileHeight + spacing) + margin) / (f32)textureHeight));
+        foregroundUvs.push_back(vec2((uvX * (tileWidth + tileset.spacing) + tileset.margin) / (f32)textureWidth,
+                                     (uvY * (tileHeight + tileset.spacing) + tileset.margin) / (f32)textureHeight));
     }
 
     auto rawEntities = levelInfo["layers"][2]["objects"];
@@ -544,11 +492,11 @@ s32 main(s32 argc, char* argv[]) {
 
             gid &= ~(FLIPPED_HORIZONTALLY_FLAG | FLIPPED_VERTICALLY_FLAG | FLIPPED_DIAGONALLY_FLAG);
 
-            s32 uvX = (gid - 1) % columns;
-            s32 uvY = (gid - 1) / columns;
+            s32 uvX = (gid - 1) % tileset.columns;
+            s32 uvY = (gid - 1) / tileset.columns;
 
-            entity.uv = vec2((uvX * (tileWidth + spacing) + margin) / (f32) textureWidth,
-                             (uvY * (tileHeight + spacing) + margin) / (f32) textureHeight);
+            entity.uv = vec2((uvX * (tileWidth + tileset.spacing) + tileset.margin) / (f32) textureWidth,
+                             (uvY * (tileHeight + tileset.spacing) + tileset.margin) / (f32) textureHeight);
 
             entity.box.size = { (f32)rawEntity["width"] * SCALE, (f32)rawEntity["height"] * SCALE };
             entity.offset = index * sizeof(drawableEntity);
@@ -1010,11 +958,11 @@ s32 main(s32 argc, char* argv[]) {
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, levelWidth * levelHeight);
 
         //--- bob ---
-        f32 bobXOffset = (f32) (bob.currentAnimation.x * (tileWidth + spacing) + margin) / textureWidth;
-        f32 bobYOffset = (f32) (bob.currentAnimation.y * (tileHeight + spacing) + margin) / textureHeight;
+        f32 bobXOffset = (f32) (bob.currentAnimation.x * (tileWidth + tileset.spacing) + tileset.margin) / textureWidth;
+        f32 bobYOffset = (f32) (bob.currentAnimation.y * (tileHeight + tileset.spacing) + tileset.margin) / textureHeight;
 
         if (bob.frameTime >= bob.currentAnimation.delay) {
-            bob.xAnimationOffset += (spriteWidth + (f32) spacing / textureWidth) * bob.currentAnimation.size;
+            bob.xAnimationOffset += (spriteWidth + (f32) tileset.spacing / textureWidth) * bob.currentAnimation.size;
             if (bob.xAnimationOffset >= ((bob.currentAnimation.frames * tileWidth * bob.currentAnimation.size) / (f32) textureWidth)) {
                 bob.xAnimationOffset = 0.f;
                 if (bob.currentAnimation == bob.animations[1] || bob.currentAnimation == bob.animations[3]) {
@@ -1032,11 +980,11 @@ s32 main(s32 argc, char* argv[]) {
         model = glm::scale(model, vec3(2 * SPRITE_SIZE, SPRITE_SIZE, SPRITE_SIZE));
         setShaderUniform(modelUniformLocation, model);
 
-        f32 effectXOffset = (f32)(swoosh.currentAnimation.x * (tileWidth + spacing) + margin) / textureWidth;
-        f32 effectYOffset = (f32)(swoosh.currentAnimation.y * (tileHeight + spacing) + margin) / textureHeight;
+        f32 effectXOffset = (f32)(swoosh.currentAnimation.x * (tileWidth + tileset.spacing) + tileset.margin) / textureWidth;
+        f32 effectYOffset = (f32)(swoosh.currentAnimation.y * (tileHeight + tileset.spacing) + tileset.margin) / textureHeight;
 
         if (swoosh.frameTime >= swoosh.currentAnimation.delay) {
-            swoosh.xAnimationOffset += (spriteWidth + (f32)spacing / textureWidth) * swoosh.currentAnimation.size;
+            swoosh.xAnimationOffset += (spriteWidth + (f32)tileset.spacing / textureWidth) * swoosh.currentAnimation.size;
             if (swoosh.xAnimationOffset >= ((swoosh.currentAnimation.frames * tileWidth * swoosh.currentAnimation.size) / (f32)textureWidth)) {
                 swoosh.xAnimationOffset = 0.f;
                 swoosh.shouldRender = false;
@@ -1105,8 +1053,8 @@ s32 main(s32 argc, char* argv[]) {
                     particle.size = { 0.5f, 0.5f };
                     particle.velocity = { 0.f, 0.f };
                     particle.acceleration = { randomX * 10.f, 10.f };
-                    particle.uv = vec2((13 * (tileHeight + spacing) + margin) / (f32)textureHeight,
-                        (16 * (tileHeight + spacing) + margin) / (f32)textureHeight);
+                    particle.uv = vec2((13 * (tileHeight + tileset.spacing) + tileset.margin) / (f32)textureHeight,
+                        (16 * (tileHeight + tileset.spacing) + tileset.margin) / (f32)textureHeight);
                     particle.alpha = 1.f;
                 }
 

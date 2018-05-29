@@ -186,11 +186,12 @@
     </BuildLog>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\generated\glad\src\glad.c" />
+    <None Include="..\generated\glad\src\glad.c" />
     <ClCompile Include="fuzzy.cpp" />
-    <ClCompile Include="tiled.cpp" />
+    <None Include="tiled.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="fuzzy.h" />
     <ClInclude Include="types.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
