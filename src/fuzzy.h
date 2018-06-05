@@ -38,4 +38,3 @@ struct drawableEntity {
     u32 offset;
 };
 
-const u32 SCALE = 4;

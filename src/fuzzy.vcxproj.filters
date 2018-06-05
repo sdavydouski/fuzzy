@@ -2,9 +2,6 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="fuzzy.cpp" />
-    <ClCompile Include="..\generated\glad\src\glad.c">
-      <Filter>generated</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="generated">
@@ -17,5 +14,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="tiled.cpp" />
+    <None Include="..\generated\glad\src\glad.c">
+      <Filter>generated</Filter>
+    </None>
   </ItemGroup>
 </Project>

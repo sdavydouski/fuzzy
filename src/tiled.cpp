@@ -3,6 +3,7 @@ const u32 FLIPPED_VERTICALLY_FLAG = 0x40000000;
 const u32 FLIPPED_DIAGONALLY_FLAG = 0x20000000;
 
 struct tile {
+    vec2 position;
     vec2 uv;
     u32 flipped;
 };
@@ -20,7 +21,6 @@ struct map {
     u32 width;
     u32 height;
 
-    vector<vec2> coords;
     vector<tileLayer> tileLayers;
     vector<objectLayer> objectLayers;
 };
@@ -92,10 +92,9 @@ void from_json(const json& j, rawObject& object) {
     object.rotation = j.at("rotation").get<f32>();
     object.visible = j.at("visible").get<b32>();
 
-    try {
+    if (j.find("gid") != j.end()) {
         object.gid = j.at("gid").get<u32>();
-    }
-    catch(json::out_of_range&) {
+    } else {
         object.gid = 0;
     }
 }
@@ -111,8 +110,8 @@ void from_json(const json& j, rawObjectLayer& layer) {
     layer.visible = j.at("visible").get<b32>();
 }
 
-tileLayer parseTileLayer(const rawTileLayer& layer, const tileset& tileset);
-objectLayer parseObjectLayer(const rawObjectLayer& layer, const tileset& tileset);
+tileLayer parseTileLayer(const rawTileLayer& layer, const tileset& tileset, vec2 scale);
+objectLayer parseObjectLayer(const rawObjectLayer& layer, const tileset& tileset, vec2 scale);
 
 tileset loadTileset(const string& path) {
     tileset tileset = {};
@@ -130,7 +129,7 @@ tileset loadTileset(const string& path) {
     return tileset;
 }
 
-map loadMap(const string& path, const tileset& tileset) {
+map loadMap(const string& path, const tileset& tileset, const vec2 scale) {
     map map = {};
 
     std::fstream mapIn(path);
@@ -140,56 +139,52 @@ map loadMap(const string& path, const tileset& tileset) {
     map.width = mapInfo["width"];
     map.height = mapInfo["height"];
 
-    map.coords.reserve(map.width * map.height);
-    for (u32 y = 0; y < map.height; ++y) {
-        for (u32 x = 0; x < map.width; ++x) {
-            map.coords.push_back(vec2(x * tileset.tileSize.x, y * tileset.tileSize.y));
-        }
-    }
-
     auto layers = mapInfo["layers"];
     for (const auto& layer : layers) {
         string type = layer["type"];
 
         if (type == "tilelayer") {
-            map.tileLayers.push_back(parseTileLayer(layer, tileset));            
+            map.tileLayers.push_back(parseTileLayer(layer, tileset, scale));            
         } else if (type == "objectgroup") {
-            map.objectLayers.push_back(parseObjectLayer(layer, tileset));
+            map.objectLayers.push_back(parseObjectLayer(layer, tileset, scale));
         }
     }
     
     return map;
 }
 
-tileLayer parseTileLayer(const rawTileLayer& layer, const tileset& tileset) {
+tileLayer parseTileLayer(const rawTileLayer& layer, const tileset& tileset, vec2 scale) {
     tileLayer tileLayer = {};
 
-    tileLayer.tiles.reserve(layer.width * layer.height);
+    for (u32 y = 0; y < layer.height; ++y) {
+        for (u32 x = 0; x < layer.width; ++x) {
+            u32 gid = layer.data[x + y * layer.width];
 
-    for (u32 i = 0; i < layer.width * layer.height; ++i) {
-        u32 gid = layer.data[i];
-        tile tile = {};
+            if (gid > 0) {
+                tile tile = {};
 
-        tile.flipped = gid & (7 << 29);       // take three most significant bits
+                tile.position = {x * tileset.tileSize.x * scale.x, y * tileset.tileSize.y * scale.y};
+                // take three most significant bits
+                tile.flipped = gid & (7 << 29);
 
-        // Clear the flags
-        gid &= ~(FLIPPED_HORIZONTALLY_FLAG | FLIPPED_VERTICALLY_FLAG | FLIPPED_DIAGONALLY_FLAG);
+                // Clear the flags
+                gid &= ~(FLIPPED_HORIZONTALLY_FLAG | FLIPPED_VERTICALLY_FLAG | FLIPPED_DIAGONALLY_FLAG);
 
-        // todo: completely arbitrary negative value
-        // handle sparseness???
-        s32 uvX = gid > 0 ? ((gid - 1) % tileset.columns) : -10;
-        s32 uvY = gid > 0 ? ((gid - 1) / tileset.columns) : -10;
+                s32 uvX = (gid - 1) % tileset.columns;
+                s32 uvY = (gid - 1) / tileset.columns;
 
-        tile.uv = {(uvX * (tileset.tileSize.x + tileset.spacing) + tileset.margin) / tileset.imageSize.x, 
-                   (uvY * (tileset.tileSize.y + tileset.spacing) + tileset.margin) / tileset.imageSize.y};
+                tile.uv = {(uvX * (tileset.tileSize.x + tileset.spacing) + tileset.margin) / tileset.imageSize.x, 
+                           (uvY * (tileset.tileSize.y + tileset.spacing) + tileset.margin) / tileset.imageSize.y};
 
-        tileLayer.tiles.push_back(tile);
+                tileLayer.tiles.push_back(tile);
+            }
+        }
     }
 
     return tileLayer;
 }
 
-objectLayer parseObjectLayer(const rawObjectLayer& layer, const tileset& tileset) {
+objectLayer parseObjectLayer(const rawObjectLayer& layer, const tileset& tileset, vec2 scale) {
     objectLayer objectLayer = {};
 
     u32 index = 0;
@@ -213,13 +208,13 @@ objectLayer parseObjectLayer(const rawObjectLayer& layer, const tileset& tileset
             // tile objects have their position at bottom-left
             // see: https://github.com/bjorn/tiled/issues/91
             if (entity.rotation == 0.f) {
-                entity.box.position = { (f32) object.x * SCALE, ((f32) object.y - tileset.tileSize.y) * SCALE };
+                entity.box.position = { (f32) object.x * scale.x, ((f32) object.y - tileset.tileSize.y) * scale.y };
             } else if (entity.rotation == 90.f) {
-                entity.box.position = { (f32) object.x * SCALE, (f32) object.y * SCALE };
+                entity.box.position = { (f32) object.x * scale.x, (f32) object.y * scale.y };
             } else if (entity.rotation == 180.f) {
-                entity.box.position = { ((f32) object.x - tileset.tileSize.x) * SCALE, (f32) object.y * SCALE };
+                entity.box.position = { ((f32) object.x - tileset.tileSize.x) * scale.x, (f32) object.y * scale.y };
             } else if (entity.rotation == 270.f) {
-                entity.box.position = { ((f32) object.x - tileset.tileSize.x) * SCALE, ((f32) object.y - tileset.tileSize.y) * SCALE };
+                entity.box.position = { ((f32) object.x - tileset.tileSize.x) * scale.x, ((f32) object.y - tileset.tileSize.y) * scale.y };
             }
 
             u32 gid = object.gid;
@@ -234,7 +229,7 @@ objectLayer parseObjectLayer(const rawObjectLayer& layer, const tileset& tileset
             entity.uv = {(uvX * (tileset.tileSize.x + tileset.spacing) + tileset.margin) / (f32) tileset.imageSize.x,
                          (uvY * (tileset.tileSize.y + tileset.spacing) + tileset.margin) / (f32) tileset.imageSize.y};
 
-            entity.box.size = {(f32) object.width * SCALE, (f32) object.height * SCALE};
+            entity.box.size = {(f32) object.width * scale.x, (f32) object.height * scale.y};
             entity.offset = index * sizeof(drawableEntity);
             entity.spriteScale = vec2(1.f);
             entity.shouldRender = 1;
@@ -245,8 +240,8 @@ objectLayer parseObjectLayer(const rawObjectLayer& layer, const tileset& tileset
             objectLayer.drawableEntities.push_back(entity);
         } else {
             entity entity = {};
-            entity.box.position = {(f32) object.x * SCALE, (f32) object.y * SCALE};
-            entity.box.size = {(f32) object.width * SCALE, (f32) object.height * SCALE};
+            entity.box.position = {(f32) object.x * scale.x, (f32) object.y * scale.y};
+            entity.box.size = {(f32) object.width * scale.x, (f32) object.height * scale.y};
 
             objectLayer.entities.push_back(entity);
         }

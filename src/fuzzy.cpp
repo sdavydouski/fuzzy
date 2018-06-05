@@ -50,8 +50,9 @@ constexpr vec3 backgroundColor = normalizeRGB(29, 33, 45);
 b32 keys[512];
 b32 processedKeys[512];
 
-const f32 SPRITE_SIZE = 16.f * SCALE;
-const f32 TILE_SIZE = 16.f * SCALE;
+vec2 scale = vec2(4.f);
+// todo: could be different value than 16.f
+const vec2 TILE_SIZE = {16.f * scale.x, 16.f * scale.y};
 
 // top-left corner
 vec2 camera = vec2(0.f);
@@ -309,15 +310,14 @@ s32 main(s32 argc, char* argv[]) {
     json spritesConfig;
     spritesConfigIn >> spritesConfig;
 
-    s32 tileWidth = spritesConfig["tileWidth"];
-    s32 tileHeight = spritesConfig["tileHeight"];
+    tileset tileset = loadTileset("levels/tileset.json");
 
     auto bobConfig = spritesConfig["sprites"][0];
     auto bobAnimations = bobConfig["animations"];
 
     bob = {};
-    bob.box.position = {5 * TILE_SIZE, 0 * TILE_SIZE};
-    bob.box.size = {13.f * SCALE, 16.f * SCALE};
+    bob.box.position = {5 * TILE_SIZE.x, 0 * TILE_SIZE.y};
+    bob.box.size = {13.f * scale.x, 16.f * scale.y};
     bob.velocity = {0.f, 0.f};
     bob.acceleration = {0.f, 10.f};
     bob.animations.reserve(bobAnimations.size());
@@ -335,7 +335,7 @@ s32 main(s32 argc, char* argv[]) {
 
     swoosh = {};
     swoosh.box.position = { 0.f, 0.f };     // todo: think about better ways
-    swoosh.box.size = { 2 * SPRITE_SIZE, SPRITE_SIZE };
+    swoosh.box.size = { 2 * TILE_SIZE.x, TILE_SIZE.y };
     swoosh.shouldRender = false;
 
     for (auto animation : effectsAnimations) {
@@ -346,8 +346,8 @@ s32 main(s32 argc, char* argv[]) {
     swoosh.xAnimationOffset = 0.f;
     swoosh.frameTime = 0.f;
 
-    f32 spriteWidth = ((f32) tileWidth) / textureWidth;
-    f32 spriteHeight = ((f32) tileHeight) / textureHeight;
+    f32 spriteWidth = ((f32) tileset.tileSize.x) / textureWidth;
+    f32 spriteHeight = ((f32) tileset.tileSize.y) / textureHeight;
     
     s32 spriteSizeUniformLocation = getUniformLocation(shaderProgram, "spriteSize");
     setShaderUniform(spriteSizeUniformLocation, vec2(spriteWidth, spriteHeight));
@@ -360,162 +360,55 @@ s32 main(s32 argc, char* argv[]) {
         1.f, 1.f, 1.f, 1.f
     };
 
-    tileset tileset = loadTileset("levels/tileset.json");
-    map level = loadMap("levels/level01.json", tileset);
+    map level = loadMap("levels/level01.json", tileset, scale);
 
-    // todo: wire up new map to vbos, entities, etc.
-
-    std::fstream levelInfoIn("levels/level01.json");
-    json levelInfo;
-    levelInfoIn >> levelInfo;
-
-    u32 levelWidth = levelInfo["width"];
-    u32 levelHeight = levelInfo["height"];
-
-    vector<s32> backgroundRawTiles = levelInfo["layers"][0]["data"];
-    vector<s32> foregroundRawTiles = levelInfo["layers"][1]["data"];
-
-    vector<vec4> xyr;
-    xyr.reserve(levelWidth * levelHeight);
-    for (u32 y = 0; y < levelHeight; ++y) {
-        for (u32 x = 0; x < levelWidth; ++x) {
-            xyr.push_back(vec4(x * TILE_SIZE, y * TILE_SIZE, 0.f, 0.f));
+    // todo: make it efficient
+    vector<tile> tiles;
+    for (auto& layer : level.tileLayers) {
+        for (auto& tile : layer.tiles) {
+            tiles.push_back(tile);
         }
     }
 
-    vector<vec2> backgroundUvs;
-    backgroundUvs.reserve(levelWidth * levelHeight);
-    for (u32 i = 0; i < levelWidth * levelHeight; ++i) {
-        s32 tile = backgroundRawTiles[i];
+    u64 totalTileSizeInBytes = sizeInBytes({tiles});
 
-        b32 flippedHorizontally = tile & FLIPPED_HORIZONTALLY_FLAG;
-        b32 flippedVertically = tile & FLIPPED_VERTICALLY_FLAG;
-        b32 flippedDiagonally = tile & FLIPPED_DIAGONALLY_FLAG;
+    u32 VAO;
+    glGenVertexArrays(1, &VAO);
+    glBindVertexArray(VAO);
 
-        // Clear the flags
-        tile &= ~(FLIPPED_HORIZONTALLY_FLAG | FLIPPED_VERTICALLY_FLAG | FLIPPED_DIAGONALLY_FLAG);
+    u32 VBOTiles;
+    glGenBuffers(1, &VBOTiles);
+    glBindBuffer(GL_ARRAY_BUFFER, VBOTiles);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices) + totalTileSizeInBytes, nullptr, GL_STATIC_DRAW);
 
-        f32 rotate = 0.f;
-        if (flippedVertically && flippedDiagonally) {
-            // 90 degrees
-            rotate = 1.f;
-        } else if (flippedHorizontally && flippedVertically) {
-            // 180 degrees
-            rotate = 2.f;
-        } else if (flippedHorizontally && flippedDiagonally) {
-            // 270 degrees
-            rotate = 3.f;
-        }
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+    glBufferSubData(GL_ARRAY_BUFFER, sizeof(vertices), totalTileSizeInBytes, tiles.data());
 
-        xyr[i].z = rotate;
-        
-        // todo: completely arbitrary negative value
-        // handle sparseness???
-        s32 uvX = tile > 0 ? ((tile - 1) % tileset.columns) : -10;
-        s32 uvY = tile > 0 ? ((tile - 1) / tileset.columns) : -10;
+    // vertices
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(f32), (void*) 0);
+    glEnableVertexAttribArray(0);
 
-        backgroundUvs.push_back(vec2((uvX * (tileWidth + tileset.spacing) + tileset.margin) / (f32) textureWidth, 
-                                     (uvY * (tileHeight + tileset.spacing) + tileset.margin) / (f32) textureHeight));
-    }
+    // tile position/uv
+    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(tile), (void*) sizeof(vertices));
+    glEnableVertexAttribArray(1);
+    glVertexAttribDivisor(1, 1);
 
-    vector<vec2> foregroundUvs;
-    foregroundUvs.reserve(levelWidth * levelHeight);
-    for (u32 i = 0; i < levelWidth * levelHeight; ++i) {
-        s32 tile = foregroundRawTiles[i];
+    // tile flipped
+    glVertexAttribIPointer(2, 1, GL_UNSIGNED_INT, sizeof(tile), (void*) (sizeof(vertices) + offset(tile, flipped)));
+    glEnableVertexAttribArray(2);
+    glVertexAttribDivisor(2, 1);
 
-        bool flippedHorizontally = tile & FLIPPED_HORIZONTALLY_FLAG;
-        bool flippedVertically = tile & FLIPPED_VERTICALLY_FLAG;
-        bool flippedDiagonally = tile & FLIPPED_DIAGONALLY_FLAG;
 
-        // Clear the flags
-        tile &= ~(FLIPPED_HORIZONTALLY_FLAG | FLIPPED_VERTICALLY_FLAG | FLIPPED_DIAGONALLY_FLAG);
-
-        f32 rotate = 0.f;
-        if (flippedVertically && flippedDiagonally) {
-            // 90 degrees
-            rotate = 1.f;
-        } else if (flippedHorizontally && flippedVertically) {
-            // 180 degrees
-            rotate = 2.f;
-        } else if (flippedHorizontally && flippedDiagonally) {
-            // 270 degrees
-            rotate = 3.f;
-        }
-
-        xyr[i].w = rotate;
-
-        s32 uvX = tile > 0 ? ((tile - 1) % tileset.columns) : -10;
-        s32 uvY = tile > 0 ? ((tile - 1) / tileset.columns) : -10;
-
-        foregroundUvs.push_back(vec2((uvX * (tileWidth + tileset.spacing) + tileset.margin) / (f32)textureWidth,
-                                     (uvY * (tileHeight + tileset.spacing) + tileset.margin) / (f32)textureHeight));
-    }
-
-    auto rawEntities = levelInfo["layers"][2]["objects"];
     vector<entity> entities;
-    entities.reserve(rawEntities.size());
-
-    u32 index = 0;
-    for (u32 i = 0; i < rawEntities.size(); i++) {
-        auto rawEntity = rawEntities[i];
-        
-        if (rawEntity.find("gid") != rawEntity.end()) {
-            drawableEntity entity = {};
-            if (rawEntity["type"] == "reflector") {
-                entity.type = entityType::REFLECTOR;
-            } else {
-                entity.type = entityType::UNKNOWN;
-            }
-            // tile objects have their position at bottom-left
-            // see: https://github.com/bjorn/tiled/issues/91
-
-            entity.rotation = rawEntity["rotation"];
-            // todo: handle negative angles?
-            if (entity.rotation == -90.f) {
-                entity.rotation = 270.f;
-            }
-
-            // adjusting position
-            if (entity.rotation == 0.f) {
-                entity.box.position = { (f32)rawEntity["x"] * SCALE, ((f32)rawEntity["y"] - tileHeight) * SCALE };
-            } else if (entity.rotation == 90.f) {
-                entity.box.position = { (f32)rawEntity["x"] * SCALE, (f32)rawEntity["y"] * SCALE };
-            } else if (entity.rotation == 180.f) {
-                entity.box.position = { ((f32)rawEntity["x"] - tileWidth) * SCALE, (f32)rawEntity["y"] * SCALE };
-            } else if (entity.rotation == 270.f) {
-                entity.box.position = { ((f32)rawEntity["x"] - tileWidth) * SCALE, ((f32)rawEntity["y"] - tileHeight) * SCALE };
-            }
-
-            u32 gid = rawEntity["gid"];
-
-            entity.flipped = gid & (7 << 29);       // take three most significant bits
-
-            gid &= ~(FLIPPED_HORIZONTALLY_FLAG | FLIPPED_VERTICALLY_FLAG | FLIPPED_DIAGONALLY_FLAG);
-
-            s32 uvX = (gid - 1) % tileset.columns;
-            s32 uvY = (gid - 1) / tileset.columns;
-
-            entity.uv = vec2((uvX * (tileWidth + tileset.spacing) + tileset.margin) / (f32) textureWidth,
-                             (uvY * (tileHeight + tileset.spacing) + tileset.margin) / (f32) textureHeight);
-
-            entity.box.size = { (f32)rawEntity["width"] * SCALE, (f32)rawEntity["height"] * SCALE };
-            entity.offset = index * sizeof(drawableEntity);
-            entity.spriteScale = vec2(1.f);
-            entity.shouldRender = 1;
-            entity.collides = true;
-            entity.underEffect = false;
-            ++index;
-            
-            drawableEntities.push_back(entity);
-        } else {
-            entity entity = {};
-            entity.box.position = {(f32) rawEntity["x"] * SCALE, (f32) rawEntity["y"] * SCALE};
-            entity.box.size = { (f32)rawEntity["width"] * SCALE, (f32)rawEntity["height"] * SCALE };
-
+    for (auto& layer : level.objectLayers) {
+        for (auto& entity : layer.entities) {
             entities.push_back(entity);
         }
+        for (auto& drawableEntity : layer.drawableEntities) {
+            drawableEntities.push_back(drawableEntity);
+        }
     }
-    
+
     drawableEntity player = {};
     player.box = bob.box;
     player.spriteScale = vec2(1.f);
@@ -533,41 +426,7 @@ s32 main(s32 argc, char* argv[]) {
     swooshEffect.collides = true;
     swooshEffect.type = entityType::EFFECT;
     drawableEntities.push_back(swooshEffect);
-    
-    u32 VAO;
-    glGenVertexArrays(1, &VAO);
-    glBindVertexArray(VAO);
 
-    u32 VBOTiles;
-    glGenBuffers(1, &VBOTiles);
-    glBindBuffer(GL_ARRAY_BUFFER, VBOTiles);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices) + sizeInBytes({xyr}) + sizeInBytes({backgroundUvs, foregroundUvs}), 
-        nullptr, GL_STATIC_DRAW);
-
-    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
-    glBufferSubData(GL_ARRAY_BUFFER, sizeof(vertices), sizeInBytes({xyr}), xyr.data());
-    glBufferSubData(GL_ARRAY_BUFFER, sizeof(vertices) + sizeInBytes({xyr}),
-        sizeInBytes({backgroundUvs}), backgroundUvs.data());
-    glBufferSubData(GL_ARRAY_BUFFER, sizeof(vertices) + sizeInBytes({ xyr }) + sizeInBytes({backgroundUvs}),
-        sizeInBytes({foregroundUvs}), foregroundUvs.data());
-
-    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(f32), (void*) 0);
-    glEnableVertexAttribArray(0);
-    
-    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(f32), (void*) sizeof(vertices));
-    glEnableVertexAttribArray(1);
-    glVertexAttribDivisor(1, 1);
-
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(f32), (void*) (sizeof(vertices) + sizeInBytes({xyr})));
-    glEnableVertexAttribArray(2);
-    glVertexAttribDivisor(2, 1);
-
-    glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(f32), 
-        (void*) (sizeof(vertices) + sizeInBytes({xyr}) + sizeInBytes({backgroundUvs})));
-    glEnableVertexAttribArray(3);
-    glVertexAttribDivisor(3, 1);
-
-    
     u32 VBOEntities;
     glGenBuffers(1, &VBOEntities);
     glBindBuffer(GL_ARRAY_BUFFER, VBOEntities);
@@ -598,8 +457,8 @@ s32 main(s32 argc, char* argv[]) {
     charge.maxParticlesCount = 1000;
     charge.newParticlesCount = 10;
     charge.dt = 0.01f;
-    charge.box.position = { 4.5 * TILE_SIZE, 6.5 * TILE_SIZE };
-    charge.box.size = {4.f * SCALE, 4.f * SCALE};
+    charge.box.position = { 4.5 * TILE_SIZE.x, 6.5 * TILE_SIZE.y };
+    charge.box.size = {0.5f * TILE_SIZE.x, 0.5f * TILE_SIZE.x};
     charge.velocity = {0.f, 0.f};
     
     charge.particles.reserve(charge.maxParticlesCount);
@@ -609,9 +468,9 @@ s32 main(s32 argc, char* argv[]) {
     secondCharge.maxParticlesCount = 500;
     secondCharge.newParticlesCount = 5;
     secondCharge.dt = 0.01f;
-    secondCharge.box.position = { 7.5 * TILE_SIZE, 7.5 * TILE_SIZE };
-    secondCharge.box.size = { 8.f * SCALE, 8.f * SCALE };
-    secondCharge.velocity = { 0.f, 0.f };
+    secondCharge.box.position = {7.5 * TILE_SIZE.x, 7.5 * TILE_SIZE.y};
+    secondCharge.box.size = {0.5f * TILE_SIZE.x, 0.5f * TILE_SIZE.x};
+    secondCharge.velocity = {0.f, 0.f};
 
     secondCharge.particles.reserve(secondCharge.maxParticlesCount);
     secondCharge.particles.assign(secondCharge.maxParticlesCount, particle());
@@ -624,18 +483,6 @@ s32 main(s32 argc, char* argv[]) {
     glBufferData(GL_ARRAY_BUFFER, (charge.maxParticlesCount + secondCharge.maxParticlesCount) * sizeof(particle), 
         nullptr, GL_STREAM_DRAW);
     
-    /*
-     *struct particle {
-        vec2 position;
-        vec2 size;
-        vec2 velocity;
-        vec2 acceleration;
-        vec2 uv;
-        f32 lifespan;
-        f32 alpha;
-    };
-     *
-     */
     // particle's position/size
     glVertexAttribPointer(9, 4, GL_FLOAT, GL_FALSE, sizeof(particle), (void*) offset(particle, position));
     glEnableVertexAttribArray(9);
@@ -681,6 +528,7 @@ s32 main(s32 argc, char* argv[]) {
             processInput();
             
             // friction imitation
+            // todo: take scale into account!
             bob.acceleration.x += -0.5f * bob.velocity.x;
             bob.velocity.x += bob.acceleration.x * dt;
 
@@ -886,15 +734,15 @@ s32 main(s32 argc, char* argv[]) {
             bob.box.position.x = oldPosition.x + updatedMove.x;
             bob.box.position.y = oldPosition.y + updatedMove.y;
 
-            bob.box.position.x = clamp(bob.box.position.x, 0.f, (f32) TILE_SIZE * levelWidth - SPRITE_SIZE);
-            bob.box.position.y = clamp(bob.box.position.y, 0.f, (f32) TILE_SIZE * levelHeight - SPRITE_SIZE);
+            bob.box.position.x = clamp(bob.box.position.x, 0.f, (f32) TILE_SIZE.x * level.width - TILE_SIZE.x);
+            bob.box.position.y = clamp(bob.box.position.y, 0.f, (f32) TILE_SIZE.y * level.height - TILE_SIZE.y);
 
             bob.acceleration.y = 10.f;
 
-            vec2 idleArea = {100.f, 50.f};
+            vec2 idleArea = {2 * TILE_SIZE.x, 1 * TILE_SIZE.y};
 
             if (updatedMove.x > 0.f) {
-                if (bob.box.position.x + SPRITE_SIZE > camera.x + SCREEN_WIDTH / 2 + idleArea.x) {
+                if (bob.box.position.x + TILE_SIZE.x > camera.x + SCREEN_WIDTH / 2 + idleArea.x) {
                     camera.x += updatedMove.x;
                 }
             }
@@ -905,7 +753,7 @@ s32 main(s32 argc, char* argv[]) {
             }
 
             if (updatedMove.y > 0.f) {
-                if (bob.box.position.y + SPRITE_SIZE > camera.y + SCREEN_HEIGHT / 2 + idleArea.y) {
+                if (bob.box.position.y + TILE_SIZE.y > camera.y + SCREEN_HEIGHT / 2 + idleArea.y) {
                     camera.y += updatedMove.y;
                 }
             }
@@ -915,8 +763,15 @@ s32 main(s32 argc, char* argv[]) {
                 }
             }
 
-            camera.x = clamp(camera.x, 0.f, (f32) TILE_SIZE * levelWidth - SCREEN_WIDTH);
-            camera.y = clamp(camera.y, 0.f, (f32) TILE_SIZE * levelHeight - SCREEN_HEIGHT);
+            camera.x = camera.x > 0.f ? camera.x : 0.f;
+            camera.y = camera.y > 0.f ? camera.y : 0.f;
+
+            if (TILE_SIZE.x * level.width - SCREEN_WIDTH >= 0) {
+                camera.x = clamp(camera.x, 0.f, (f32) TILE_SIZE.x * level.width - SCREEN_WIDTH);
+            }
+            if (TILE_SIZE.y * level.height - SCREEN_HEIGHT >= 0) {
+                camera.y = clamp(camera.y, 0.f, (f32) TILE_SIZE.y * level.height - SCREEN_HEIGHT);
+            }
 
             chargeMove *= chargeTime;
             charge.box.position += chargeMove;
@@ -927,10 +782,10 @@ s32 main(s32 argc, char* argv[]) {
                 charge.velocity.x = bob.flipped ? -10.f: 10.f;
             }
 
-            if (charge.box.position.x <= 0.f || charge.box.position.x >= (f32) TILE_SIZE * levelWidth) {
+            if (charge.box.position.x <= 0.f || charge.box.position.x >= (f32) TILE_SIZE.x * level.width) {
                 charge.velocity.x = -charge.velocity.x;
             }
-            if (charge.box.position.y <= 0.f || charge.box.position.y >= (f32) TILE_SIZE * levelHeight) {
+            if (charge.box.position.y <= 0.f || charge.box.position.y >= (f32) TILE_SIZE.y * level.height) {
                 charge.velocity.y = -charge.velocity.y;
             }
 
@@ -948,22 +803,18 @@ s32 main(s32 argc, char* argv[]) {
         setShaderUniform(typeUniformLocation, 1);
 
         mat4 model = mat4(1.0f);
-        model = glm::scale(model, vec3(SPRITE_SIZE));
+        model = glm::scale(model, vec3(TILE_SIZE, 1.f));
         setShaderUniform(modelUniformLocation, model);
         
-        setShaderUniform(tileTypeUniformLocation, 0);
-        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, levelWidth * levelHeight);
-
-        setShaderUniform(tileTypeUniformLocation, 1);
-        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, levelWidth * levelHeight);
+        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, (u32) tiles.size());
 
         //--- bob ---
-        f32 bobXOffset = (f32) (bob.currentAnimation.x * (tileWidth + tileset.spacing) + tileset.margin) / textureWidth;
-        f32 bobYOffset = (f32) (bob.currentAnimation.y * (tileHeight + tileset.spacing) + tileset.margin) / textureHeight;
+        f32 bobXOffset = (f32) (bob.currentAnimation.x * (tileset.tileSize.x + tileset.spacing) + tileset.margin) / textureWidth;
+        f32 bobYOffset = (f32) (bob.currentAnimation.y * (tileset.tileSize.y + tileset.spacing) + tileset.margin) / textureHeight;
 
         if (bob.frameTime >= bob.currentAnimation.delay) {
             bob.xAnimationOffset += (spriteWidth + (f32) tileset.spacing / textureWidth) * bob.currentAnimation.size;
-            if (bob.xAnimationOffset >= ((bob.currentAnimation.frames * tileWidth * bob.currentAnimation.size) / (f32) textureWidth)) {
+            if (bob.xAnimationOffset >= ((bob.currentAnimation.frames * tileset.tileSize.x * bob.currentAnimation.size) / (f32) textureWidth)) {
                 bob.xAnimationOffset = 0.f;
                 if (bob.currentAnimation == bob.animations[1] || bob.currentAnimation == bob.animations[3]) {
                     bob.currentAnimation = bob.animations[0];
@@ -977,15 +828,15 @@ s32 main(s32 argc, char* argv[]) {
         //--- effect ---
         model = mat4(1.0f);
         model = glm::translate(model, vec3(swoosh.box.position, 0.0f));
-        model = glm::scale(model, vec3(2 * SPRITE_SIZE, SPRITE_SIZE, SPRITE_SIZE));
+        model = glm::scale(model, vec3(2 * TILE_SIZE.x, TILE_SIZE.y, 1.f));
         setShaderUniform(modelUniformLocation, model);
 
-        f32 effectXOffset = (f32)(swoosh.currentAnimation.x * (tileWidth + tileset.spacing) + tileset.margin) / textureWidth;
-        f32 effectYOffset = (f32)(swoosh.currentAnimation.y * (tileHeight + tileset.spacing) + tileset.margin) / textureHeight;
+        f32 effectXOffset = (f32)(swoosh.currentAnimation.x * (tileset.tileSize.x + tileset.spacing) + tileset.margin) / textureWidth;
+        f32 effectYOffset = (f32)(swoosh.currentAnimation.y * (tileset.tileSize.y + tileset.spacing) + tileset.margin) / textureHeight;
 
         if (swoosh.frameTime >= swoosh.currentAnimation.delay) {
             swoosh.xAnimationOffset += (spriteWidth + (f32)tileset.spacing / textureWidth) * swoosh.currentAnimation.size;
-            if (swoosh.xAnimationOffset >= ((swoosh.currentAnimation.frames * tileWidth * swoosh.currentAnimation.size) / (f32)textureWidth)) {
+            if (swoosh.xAnimationOffset >= ((swoosh.currentAnimation.frames * tileset.tileSize.x * swoosh.currentAnimation.size) / (f32)textureWidth)) {
                 swoosh.xAnimationOffset = 0.f;
                 swoosh.shouldRender = false;
             }
@@ -1000,13 +851,11 @@ s32 main(s32 argc, char* argv[]) {
         //--- drawing entities ---
         glBindBuffer(GL_ARRAY_BUFFER, VBOEntities);
         setShaderUniform(typeUniformLocation, 3);
-        // todo: remove this lame indexing
-        //drawableEntity player = drawableEntities[4];
+
         player.uv = vec2(bobXOffset + bob.xAnimationOffset, bobYOffset);
         player.box.position = bob.box.position;
         player.flipped = bob.flipped;
 
-        //drawableEntity swooshEffect = drawableEntities[5];
         swooshEffect.uv = vec2(effectXOffset + swoosh.xAnimationOffset, effectYOffset);
         swooshEffect.box.position = swoosh.box.position;
         swooshEffect.flipped = bob.flipped;
@@ -1044,17 +893,17 @@ s32 main(s32 argc, char* argv[]) {
                     particle& particle = emitter.particles[unusedParticleIndex];
 
                     // respawing particle
-                    f32 randomX = randomInRange(-5.f, 5.f);
-                    f32 randomY = randomInRange(-5.f, 5.f);
+                    f32 randomX = randomInRange(-1.f * scale.x, 1.f * scale.x);
+                    f32 randomY = randomInRange(-1.f * scale.y, 1.f * scale.y);
 
                     particle.lifespan = 1.f;
                     particle.position.x = emitter.box.position.x + randomX;
                     particle.position.y = emitter.box.position.y + randomY;
-                    particle.size = { 0.5f, 0.5f };
+                    particle.size = { 0.2f * TILE_SIZE.x, 0.2f * TILE_SIZE.y };
                     particle.velocity = { 0.f, 0.f };
                     particle.acceleration = { randomX * 10.f, 10.f };
-                    particle.uv = vec2((13 * (tileHeight + tileset.spacing) + tileset.margin) / (f32)textureHeight,
-                        (16 * (tileHeight + tileset.spacing) + tileset.margin) / (f32)textureHeight);
+                    particle.uv = vec2((13 * (tileset.tileSize.y + tileset.spacing) + tileset.margin) / (f32)textureHeight,
+                        (16 * (tileset.tileSize.y + tileset.spacing) + tileset.margin) / (f32)textureHeight);
                     particle.alpha = 1.f;
                 }
 
@@ -1068,7 +917,7 @@ s32 main(s32 argc, char* argv[]) {
                         p.position.x += randomInRange(-1.f, 1.f);
                         p.position.y += randomInRange(-1.f, 1.f);
                         p.alpha -= (f32)dt;
-                        p.size -= (f32)dt * 0.5f;
+                        p.size -= (f32)dt;
                     }
                 }
             }
@@ -1158,9 +1007,9 @@ void processInput() {
         }
         
         if (swoosh.flipped & FLIPPED_HORIZONTALLY_FLAG) {
-            swoosh.box.position = { bob.box.position.x - 2 * SPRITE_SIZE, bob.box.position.y };
+            swoosh.box.position = { bob.box.position.x - 2 * TILE_SIZE.x, bob.box.position.y };
         } else {
-            swoosh.box.position = { bob.box.position.x + SPRITE_SIZE, bob.box.position.y };
+            swoosh.box.position = { bob.box.position.x + TILE_SIZE.x, bob.box.position.y };
         }
     }
 }
