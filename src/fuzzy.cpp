@@ -1,3 +1,4 @@
+#include <Windows.h>
 //#include <glad/glad.h>
 #include "../generated/glad/src/glad.c"
 #include <GLFW/glfw3.h>
@@ -115,6 +116,11 @@ struct particleEmitter {
     vector<particle> particles;
     aabb box;
     vec2 velocity;
+
+    b32 stopProcessingCollision;
+    s32 reflectorIndex;
+    b32 isFading;
+    f32 timeLeft;
 };
 
 u32 findFirstUnusedParticle(const particleEmitter& emitter) {
@@ -189,11 +195,11 @@ u64 sizeInBytes(std::initializer_list<const vector<T>> vectors) {
 sprite bob;
 effect swoosh;
 vector<drawableEntity> drawableEntities;
+vector<particleEmitter> particleEmitters;
 
 b32 isColliding = false;
 
-s32 main(s32 argc, char* argv[]) {
-
+s32 main(s32 argc, c8* argv[]) {
     if (!glfwInit()) {
         std::cout << "Failed to initialize GLFW" << std::endl;
         return EXIT_FAILURE;
@@ -398,7 +404,7 @@ s32 main(s32 argc, char* argv[]) {
     glEnableVertexAttribArray(2);
     glVertexAttribDivisor(2, 1);
 
-
+    // todo: make it efficient
     vector<entity> entities;
     for (auto& layer : level.objectLayers) {
         for (auto& entity : layer.entities) {
@@ -453,34 +459,26 @@ s32 main(s32 argc, char* argv[]) {
     glEnableVertexAttribArray(8);
     glVertexAttribDivisor(8, 1);
 
-    particleEmitter charge = {};
-    charge.maxParticlesCount = 1000;
-    charge.newParticlesCount = 10;
-    charge.dt = 0.01f;
-    charge.box.position = { 4.5 * TILE_SIZE.x, 6.5 * TILE_SIZE.y };
-    charge.box.size = {0.5f * TILE_SIZE.x, 0.5f * TILE_SIZE.x};
-    charge.velocity = {0.f, 0.f};
+    particleEmitter firstCharge = {};
+    firstCharge.maxParticlesCount = 500;
+    firstCharge.newParticlesCount = 5;
+    firstCharge.dt = 0.01f;
+    firstCharge.box.position = { 4.5 * TILE_SIZE.x, 6.5 * TILE_SIZE.y };
+    firstCharge.box.size = {0.1f * TILE_SIZE.x, 0.1f * TILE_SIZE.x};
+    firstCharge.velocity = {0.f, 0.f};
+    firstCharge.reflectorIndex = -1;
+    firstCharge.timeLeft = 3.f;
     
-    charge.particles.reserve(charge.maxParticlesCount);
-    charge.particles.assign(charge.maxParticlesCount, particle());
+    firstCharge.particles.reserve(firstCharge.maxParticlesCount);
+    firstCharge.particles.assign(firstCharge.maxParticlesCount, particle());
 
-    particleEmitter secondCharge = {};
-    secondCharge.maxParticlesCount = 500;
-    secondCharge.newParticlesCount = 5;
-    secondCharge.dt = 0.01f;
-    secondCharge.box.position = {7.5 * TILE_SIZE.x, 7.5 * TILE_SIZE.y};
-    secondCharge.box.size = {0.5f * TILE_SIZE.x, 0.5f * TILE_SIZE.x};
-    secondCharge.velocity = {0.f, 0.f};
-
-    secondCharge.particles.reserve(secondCharge.maxParticlesCount);
-    secondCharge.particles.assign(secondCharge.maxParticlesCount, particle());
-
-    particleEmitter* particleEmitters[] = {&charge, &secondCharge};
+    particleEmitters.push_back(firstCharge);
     
     u32 VBOParticles;
     glGenBuffers(1, &VBOParticles);
     glBindBuffer(GL_ARRAY_BUFFER, VBOParticles);
-    glBufferData(GL_ARRAY_BUFFER, (charge.maxParticlesCount + secondCharge.maxParticlesCount) * sizeof(particle), 
+    // todo: manage it somehow
+    glBufferData(GL_ARRAY_BUFFER, 50 * (firstCharge.maxParticlesCount) * sizeof(particle), 
         nullptr, GL_STREAM_DRAW);
     
     // particle's position/size
@@ -506,6 +504,8 @@ s32 main(s32 argc, char* argv[]) {
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
     f32 particleTimer = 0.f;
+
+    f32 chargeSpawnCooldown = 0.f;
 
     glClearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, 1.0f);
 
@@ -540,17 +540,13 @@ s32 main(s32 argc, char* argv[]) {
             vec2 oldPosition = bob.box.position;
             vec2 time = vec2(1.f);
 
-            for (auto entity : entities) {
+            for (auto& entity : entities) {
                 vec2 t = sweptAABB(oldPosition, move, entity.box, bob.box.size);
                 
                 if (t.x >= 0.f && t.x < time.x) time.x = t.x;
                 if (t.y >= 0.f && t.y < time.y) time.y = t.y;
             }
 
-            vec2 oldChargePosition = charge.box.position;
-            vec2 chargeMove = charge.velocity * dt;
-            vec2 chargeTime = vec2(1.f);
-            
             for (u32 i = 0; i < drawableEntities.size(); ++i) {
                 drawableEntity& entity = drawableEntities[i];
 
@@ -596,109 +592,6 @@ s32 main(s32 argc, char* argv[]) {
                             entity.isRotating = false;
                             entity.rotation = 0.f;
                             break;
-                        }
-                    }
-                }
-
-                if (entity.type == entityType::REFLECTOR) {
-                    aabb reflectorBox = entity.box;
-
-                    vec2 t = sweptAABB(oldChargePosition, chargeMove, reflectorBox, charge.box.size);
-
-                    if ((0.f <= t.x && t.x < 1.f) || (0.f <= t.y && t.y < 1.f)) {
-                        entity.isColliding = true;
-                    }
-
-                    // if collides check direction of the charge
-                    // check reflector's angle
-                    // dimiss charge if it's coming from the wrong side
-                    // proceed with new collision rule otherwise.
-
-                    if (entity.isColliding) {
-                        aabb testBox = {};
-
-                        if (chargeMove.x > 0.f) {
-                            if (entity.rotation == 180.f || entity.rotation == 270.f) {
-                                testBox.position.x = reflectorBox.position.x + reflectorBox.size.x / 2.f + charge.box.size.x / 2.f;
-                                testBox.position.y = reflectorBox.position.y;
-                                testBox.size.x = reflectorBox.size.x / 2.f - charge.box.size.x / 2.f;
-                                testBox.size.y = reflectorBox.size.y;
-
-                                vec2 t = sweptAABB(oldChargePosition, chargeMove, testBox, charge.box.size);
-                                
-                                if (0.f <= t.x && t.x < 1.f) {
-                                    entity.isColliding = false;
-                                    chargeTime.x = t.x;
-
-                                    charge.velocity.x = 0.f;
-                                    charge.velocity.y = entity.rotation == 180.f ? 10.f : -10.f;
-                                }
-                            } else {
-                                // collided with outer border: stop processing
-                                entity.isColliding = false;
-                                chargeTime = t;
-                            }
-                        } else if (chargeMove.x < 0.f) {
-                            if (entity.rotation == 0.f || entity.rotation == 90.f) {
-                                testBox.position.x = reflectorBox.position.x;
-                                testBox.position.y = reflectorBox.position.y;
-                                testBox.size.x = reflectorBox.size.x / 2.f - charge.box.size.x / 2.f;
-                                testBox.size.y = reflectorBox.size.y;
-
-                                vec2 t = sweptAABB(oldChargePosition, chargeMove, testBox, charge.box.size);
-                                
-                                if (0.f <= t.x && t.x < 1.f) {
-                                    entity.isColliding = false;
-                                    chargeTime.x = t.x;
-
-                                    charge.velocity.x = 0.f;
-                                    charge.velocity.y = entity.rotation == 0.f ? -10.f : 10.f;
-                                }
-                                
-                            } else {
-                                entity.isColliding = false;
-                                chargeTime = t;
-                            }
-                        } else if (chargeMove.y > 0.f) {
-                            if (entity.rotation == 0.f || entity.rotation == 270.f) {
-                                testBox.position.x = reflectorBox.position.x;
-                                testBox.position.y = reflectorBox.position.y + reflectorBox.size.y / 2.f + charge.box.size.y / 2.f;
-                                testBox.size.x = reflectorBox.size.x;
-                                testBox.size.y = reflectorBox.size.y / 2.f - charge.box.size.y / 2.f;
-
-                                vec2 t = sweptAABB(oldChargePosition, chargeMove, testBox, charge.box.size);
-                                
-                                if (0.f <= t.y && t.y < 1.f) {
-                                    entity.isColliding = false;
-                                    chargeTime.y = t.y;
-
-                                    charge.velocity.x = entity.rotation == 0.f ? 10.f : -10.f;
-                                    charge.velocity.y = 0.f;
-                                }
-                            } else {
-                                entity.isColliding = false;
-                                chargeTime = t;
-                            }
-                        } else if (chargeMove.y < 0.f) {
-                            if (entity.rotation == 90.f || entity.rotation == 180.f) {
-                                testBox.position.x = reflectorBox.position.x;
-                                testBox.position.y = reflectorBox.position.y;
-                                testBox.size.x = reflectorBox.size.x;
-                                testBox.size.y = reflectorBox.size.y / 2.f - charge.box.size.y / 2.f;
-
-                                vec2 t = sweptAABB(oldChargePosition, chargeMove, testBox, charge.box.size);
-                                
-                                if (0.f <= t.y && t.y < 1.f) {
-                                    entity.isColliding = false;
-                                    chargeTime.y = t.y;
-
-                                    charge.velocity.x = entity.rotation == 90.f ? 10.f : -10.f;
-                                    charge.velocity.y = 0.f;
-                                }
-                            } else {
-                                entity.isColliding = false;
-                                chargeTime = t;
-                            }
                         }
                     }
                 }
@@ -773,24 +666,170 @@ s32 main(s32 argc, char* argv[]) {
                 camera.y = clamp(camera.y, 0.f, (f32) TILE_SIZE.y * level.height - SCREEN_HEIGHT);
             }
 
-            chargeMove *= chargeTime;
-            charge.box.position += chargeMove;
-            
-            b32 chargeCollide = intersectAABB(swoosh.box, charge.box);
-            // todo: make a copy of original charge
-            if (chargeCollide && swoosh.shouldRender) {
-                charge.velocity.x = bob.flipped ? -10.f: 10.f;
+            // charges
+
+            u32 chargesCount = (u32) particleEmitters.size();
+
+            for (u32 i = 0; i < chargesCount; ++i) {
+                particleEmitter& charge = particleEmitters[i];
+
+                vec2 oldChargePosition = charge.box.position;
+                vec2 chargeMove = charge.velocity * dt;
+                vec2 chargeTime = vec2(1.f);
+
+                for (u32 j = 0; j < drawableEntities.size(); ++j) {
+                    drawableEntity& entity = drawableEntities[j];
+
+                    if (entity.type == entityType::REFLECTOR) {
+                        aabb reflectorBox = entity.box;
+
+                        vec2 t = sweptAABB(oldChargePosition, chargeMove, reflectorBox, charge.box.size);
+
+                        // if not colliding
+                        if (!((0.f <= t.x && t.x < 1.f) || (0.f <= t.y && t.y < 1.f))) {
+                            if (!intersectAABB(charge.box, reflectorBox)) {
+                                if (charge.reflectorIndex == (s32) j) {
+                                    charge.stopProcessingCollision = false;
+                                    charge.reflectorIndex = -1;
+                                }
+                                continue;
+                            }
+                        }
+
+                        // if collides check direction of the charge
+                        // check reflector's angle
+                        // dimiss charge if it's coming from the wrong side
+                        // proceed with new collision rule otherwise.
+
+                        if (charge.stopProcessingCollision) break;
+
+                        aabb testBox = {};
+
+                        if (chargeMove.x > 0.f) {
+                            if (entity.rotation == 180.f || entity.rotation == 270.f) {
+                                testBox.position.x = reflectorBox.position.x + reflectorBox.size.x / 2.f + charge.box.size.x / 2.f;
+                                testBox.position.y = reflectorBox.position.y;
+                                testBox.size.x = reflectorBox.size.x / 2.f - charge.box.size.x / 2.f;
+                                testBox.size.y = reflectorBox.size.y;
+
+                                vec2 t = sweptAABB(oldChargePosition, chargeMove, testBox, charge.box.size);
+                                
+                                if (0.f <= t.x && t.x < 1.f) {
+                                    chargeTime.x = t.x;
+
+                                    charge.velocity.x = 0.f;
+                                    charge.velocity.y = entity.rotation == 180.f ? 10.f : -10.f;
+                                    charge.stopProcessingCollision = true;
+                                    charge.reflectorIndex = (s32) j;
+                                }
+                            } else {
+                                // collided with outer border: stop processing
+                                chargeTime = t;
+                                charge.isFading = true;
+                            }
+                        } else if (chargeMove.x < 0.f) {
+                            if (entity.rotation == 0.f || entity.rotation == 90.f) {
+                                testBox.position.x = reflectorBox.position.x;
+                                testBox.position.y = reflectorBox.position.y;
+                                testBox.size.x = reflectorBox.size.x / 2.f - charge.box.size.x / 2.f;
+                                testBox.size.y = reflectorBox.size.y;
+
+                                vec2 t = sweptAABB(oldChargePosition, chargeMove, testBox, charge.box.size);
+                                
+                                if (0.f <= t.x && t.x < 1.f) {
+                                    chargeTime.x = t.x;
+
+                                    charge.velocity.x = 0.f;
+                                    charge.velocity.y = entity.rotation == 0.f ? -10.f : 10.f;
+                                    charge.stopProcessingCollision = true;
+                                    charge.reflectorIndex = (s32) j;
+                                }
+                            } else {
+                                chargeTime = t;
+                                charge.isFading = true;
+                            }
+                        } else if (chargeMove.y > 0.f) {
+                            if (entity.rotation == 0.f || entity.rotation == 270.f) {
+                                testBox.position.x = reflectorBox.position.x;
+                                testBox.position.y = reflectorBox.position.y + reflectorBox.size.y / 2.f + charge.box.size.y / 2.f;
+                                testBox.size.x = reflectorBox.size.x;
+                                testBox.size.y = reflectorBox.size.y / 2.f - charge.box.size.y / 2.f;
+
+                                vec2 t = sweptAABB(oldChargePosition, chargeMove, testBox, charge.box.size);
+                                
+                                if (0.f <= t.y && t.y < 1.f) {
+                                    chargeTime.y = t.y;
+
+                                    charge.velocity.x = entity.rotation == 0.f ? 10.f : -10.f;
+                                    charge.velocity.y = 0.f;
+                                    charge.stopProcessingCollision = true;
+                                    charge.reflectorIndex = (s32) j;
+                                }
+                            } else {
+                                chargeTime = t;
+                                charge.isFading = true;
+                            }
+                        } else if (chargeMove.y < 0.f) {
+                            if (entity.rotation == 90.f || entity.rotation == 180.f) {
+                                testBox.position.x = reflectorBox.position.x;
+                                testBox.position.y = reflectorBox.position.y;
+                                testBox.size.x = reflectorBox.size.x;
+                                testBox.size.y = reflectorBox.size.y / 2.f - charge.box.size.y / 2.f;
+
+                                vec2 t = sweptAABB(oldChargePosition, chargeMove, testBox, charge.box.size);
+                                
+                                if (0.f <= t.y && t.y < 1.f) {
+                                    chargeTime.y = t.y;
+
+                                    charge.velocity.x = entity.rotation == 90.f ? 10.f : -10.f;
+                                    charge.velocity.y = 0.f;
+                                    charge.stopProcessingCollision = true;
+                                    charge.reflectorIndex = (s32) j;
+                                }
+                            } else {
+                                chargeTime = t;
+                                charge.isFading = true;
+                            }
+                        }
+                    }
+                }
+
+                chargeMove *= chargeTime;
+                charge.box.position += chargeMove;
+
+                if (charge.box.position.x <= 0.f || charge.box.position.x >= (f32) TILE_SIZE.x * level.width) {
+                    charge.velocity.x = -charge.velocity.x;
+                }
+                if (charge.box.position.y <= 0.f || charge.box.position.y >= (f32) TILE_SIZE.y * level.height) {
+                    charge.velocity.y = -charge.velocity.y;
+                }
+
+                b32 chargeCollide = intersectAABB(swoosh.box, particleEmitters[0].box);
+                if (chargeCollide && swoosh.shouldRender && chargeSpawnCooldown > 1.f) {
+                    chargeSpawnCooldown = 0.f;
+                    
+                    particleEmitter newCharge = particleEmitters[0];        // copy
+                    newCharge.velocity.x = bob.flipped ? -10.f: 10.f;
+
+                    particleEmitters.push_back(newCharge);
+                }
             }
 
-            if (charge.box.position.x <= 0.f || charge.box.position.x >= (f32) TILE_SIZE.x * level.width) {
-                charge.velocity.x = -charge.velocity.x;
-            }
-            if (charge.box.position.y <= 0.f || charge.box.position.y >= (f32) TILE_SIZE.y * level.height) {
-                charge.velocity.y = -charge.velocity.y;
+            for (u32 i = 0; i < particleEmitters.size(); ++i) {
+                if (particleEmitters[i].isFading) {
+                    particleEmitters[i].timeLeft -= (f32) delta;
+                }
+
+                if (particleEmitters[i].timeLeft <= 0.f) {
+                    particleEmitters.erase(particleEmitters.begin() + i);
+                }
             }
 
             lag -= updateRate;
         }
+
+        chargeSpawnCooldown += (f32) delta;
+        std::cout << particleEmitters.size() << std::endl;
         
         mat4 view = mat4(1.0f);
         view = glm::translate(view, vec3(-camera, 0.f));
@@ -879,12 +918,19 @@ s32 main(s32 argc, char* argv[]) {
 
         particleTimer += (f32) delta;
 
-        if (particleTimer >= 0.05f) {
+        // todo: incorporate with physics loop?
+        //if (particleTimer >= 0.05f) {
             particleTimer = 0.f;
+            u64 particlesSize = 0;
 
             // todo: use transform feedback instead?
-            for (u32 i = 0; i < length(particleEmitters); ++i) {
-                particleEmitter& emitter = *particleEmitters[i];
+            for (u32 i = 0; i < particleEmitters.size(); ++i) {
+                particleEmitter& emitter = particleEmitters[i];
+
+                if (emitter.timeLeft <= 0.f) {
+                    particlesSize += sizeInBytes({emitter.particles});
+                    continue;
+                };
 
                 for (u32 j = 0; j < emitter.newParticlesCount; ++j) {
                     u32 unusedParticleIndex = findFirstUnusedParticle(emitter);
@@ -916,18 +962,26 @@ s32 main(s32 argc, char* argv[]) {
                         p.velocity = p.acceleration * dt;
                         p.position.x += randomInRange(-1.f, 1.f);
                         p.position.y += randomInRange(-1.f, 1.f);
-                        p.alpha -= (f32)dt;
-                        p.size -= (f32)dt;
+                        p.alpha -= (f32)dt * 5.f;
+                        p.size -= (f32)dt * 5.f;
                     }
                 }
-            }
 
-            glBufferSubData(GL_ARRAY_BUFFER, 0, sizeInBytes({ charge.particles }), charge.particles.data());
-            glBufferSubData(GL_ARRAY_BUFFER, sizeInBytes({ charge.particles }), sizeInBytes({ secondCharge.particles }),
-                secondCharge.particles.data());
+                glBufferSubData(GL_ARRAY_BUFFER, particlesSize, sizeInBytes({ emitter.particles }),
+                    emitter.particles.data());
+
+                particlesSize += sizeInBytes({emitter.particles});
+            }
+        //}
+
+        // todo: offsets when delete in the middle?
+        s32 totalParticlesCount = 0;
+        for (u32 i = 0; i < particleEmitters.size(); ++i) {
+            totalParticlesCount += (s32) particleEmitters[i].particles.size();
         }
-        
-        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, (s32) (charge.particles.size() + secondCharge.particles.size()));
+
+        // todo: draw only the ones which lifespan is greater than zero
+        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, totalParticlesCount);
         
         glFinish();
         glfwSwapBuffers(window);

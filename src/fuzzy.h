@@ -17,6 +17,7 @@ enum class entityType {
 };
 
 //todo: store in VBO only the ones that are actually used in shaders
+//todo: rework concept of drawable entities (allow creation and removal)
 struct drawableEntity {
     aabb box;
 
