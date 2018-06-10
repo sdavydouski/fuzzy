@@ -51,7 +51,7 @@ constexpr vec3 backgroundColor = normalizeRGB(29, 33, 45);
 b32 keys[512];
 b32 processedKeys[512];
 
-vec2 scale = vec2(4.f);
+vec2 scale = vec2(3.f);
 // todo: could be different value than 16.f
 const vec2 TILE_SIZE = {16.f * scale.x, 16.f * scale.y};
 
@@ -197,7 +197,7 @@ effect swoosh;
 vector<drawableEntity> drawableEntities;
 vector<particleEmitter> particleEmitters;
 
-b32 isColliding = false;
+const f32 chargeVelocity = 10.f;
 
 s32 main(s32 argc, c8* argv[]) {
     if (!glfwInit()) {
@@ -459,26 +459,26 @@ s32 main(s32 argc, c8* argv[]) {
     glEnableVertexAttribArray(8);
     glVertexAttribDivisor(8, 1);
 
-    particleEmitter firstCharge = {};
-    firstCharge.maxParticlesCount = 500;
-    firstCharge.newParticlesCount = 5;
-    firstCharge.dt = 0.01f;
-    firstCharge.box.position = { 4.5 * TILE_SIZE.x, 6.5 * TILE_SIZE.y };
-    firstCharge.box.size = {0.1f * TILE_SIZE.x, 0.1f * TILE_SIZE.x};
-    firstCharge.velocity = {0.f, 0.f};
-    firstCharge.reflectorIndex = -1;
-    firstCharge.timeLeft = 3.f;
+    particleEmitter charge = {};
+    charge.maxParticlesCount = 500;
+    charge.newParticlesCount = 5;
+    charge.dt = 0.01f;
+    charge.box.position = { 4.5 * TILE_SIZE.x, 6.5 * TILE_SIZE.y };
+    charge.box.size = {0.1f * TILE_SIZE.x, 0.1f * TILE_SIZE.x};
+    charge.velocity = {0.f, 0.f};
+    charge.reflectorIndex = -1;
+    charge.timeLeft = 3.f;
     
-    firstCharge.particles.reserve(firstCharge.maxParticlesCount);
-    firstCharge.particles.assign(firstCharge.maxParticlesCount, particle());
+    charge.particles.reserve(charge.maxParticlesCount);
+    charge.particles.assign(charge.maxParticlesCount, particle());
 
-    particleEmitters.push_back(firstCharge);
+    particleEmitters.push_back(charge);
     
     u32 VBOParticles;
     glGenBuffers(1, &VBOParticles);
     glBindBuffer(GL_ARRAY_BUFFER, VBOParticles);
     // todo: manage it somehow
-    glBufferData(GL_ARRAY_BUFFER, 50 * (firstCharge.maxParticlesCount) * sizeof(particle), 
+    glBufferData(GL_ARRAY_BUFFER, 50 * (charge.maxParticlesCount) * sizeof(particle), 
         nullptr, GL_STREAM_DRAW);
     
     // particle's position/size
@@ -503,8 +503,6 @@ s32 main(s32 argc, c8* argv[]) {
     
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
-    f32 particleTimer = 0.f;
-
     f32 chargeSpawnCooldown = 0.f;
 
     glClearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, 1.0f);
@@ -519,9 +517,9 @@ s32 main(s32 argc, c8* argv[]) {
         
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-        // note: inside this loop we use glBufferSubData on the entities
-        glBindBuffer(GL_ARRAY_BUFFER, VBOEntities);
         while (lag >= updateRate) {
+            glBindBuffer(GL_ARRAY_BUFFER, VBOEntities);
+
             f32 dt = 0.15f;
             
             bob.acceleration.x = 0.f;
@@ -666,7 +664,7 @@ s32 main(s32 argc, c8* argv[]) {
                 camera.y = clamp(camera.y, 0.f, (f32) TILE_SIZE.y * level.height - SCREEN_HEIGHT);
             }
 
-            // charges
+            glBindBuffer(GL_ARRAY_BUFFER, VBOParticles);
 
             u32 chargesCount = (u32) particleEmitters.size();
 
@@ -701,7 +699,7 @@ s32 main(s32 argc, c8* argv[]) {
                         // dimiss charge if it's coming from the wrong side
                         // proceed with new collision rule otherwise.
 
-                        if (charge.stopProcessingCollision) break;
+                        if (charge.stopProcessingCollision && charge.reflectorIndex == (s32) j) continue;
 
                         aabb testBox = {};
 
@@ -718,7 +716,7 @@ s32 main(s32 argc, c8* argv[]) {
                                     chargeTime.x = t.x;
 
                                     charge.velocity.x = 0.f;
-                                    charge.velocity.y = entity.rotation == 180.f ? 10.f : -10.f;
+                                    charge.velocity.y = entity.rotation == 180.f ? chargeVelocity : -chargeVelocity;
                                     charge.stopProcessingCollision = true;
                                     charge.reflectorIndex = (s32) j;
                                 }
@@ -740,7 +738,7 @@ s32 main(s32 argc, c8* argv[]) {
                                     chargeTime.x = t.x;
 
                                     charge.velocity.x = 0.f;
-                                    charge.velocity.y = entity.rotation == 0.f ? -10.f : 10.f;
+                                    charge.velocity.y = entity.rotation == 0.f ? -chargeVelocity : chargeVelocity;
                                     charge.stopProcessingCollision = true;
                                     charge.reflectorIndex = (s32) j;
                                 }
@@ -760,7 +758,7 @@ s32 main(s32 argc, c8* argv[]) {
                                 if (0.f <= t.y && t.y < 1.f) {
                                     chargeTime.y = t.y;
 
-                                    charge.velocity.x = entity.rotation == 0.f ? 10.f : -10.f;
+                                    charge.velocity.x = entity.rotation == 0.f ? chargeVelocity : -chargeVelocity;
                                     charge.velocity.y = 0.f;
                                     charge.stopProcessingCollision = true;
                                     charge.reflectorIndex = (s32) j;
@@ -781,7 +779,7 @@ s32 main(s32 argc, c8* argv[]) {
                                 if (0.f <= t.y && t.y < 1.f) {
                                     chargeTime.y = t.y;
 
-                                    charge.velocity.x = entity.rotation == 90.f ? 10.f : -10.f;
+                                    charge.velocity.x = entity.rotation == 90.f ? chargeVelocity : -chargeVelocity;
                                     charge.velocity.y = 0.f;
                                     charge.stopProcessingCollision = true;
                                     charge.reflectorIndex = (s32) j;
@@ -809,7 +807,7 @@ s32 main(s32 argc, c8* argv[]) {
                     chargeSpawnCooldown = 0.f;
                     
                     particleEmitter newCharge = particleEmitters[0];        // copy
-                    newCharge.velocity.x = bob.flipped ? -10.f: 10.f;
+                    newCharge.velocity.x = bob.flipped ? -chargeVelocity: chargeVelocity;
 
                     particleEmitters.push_back(newCharge);
                 }
@@ -825,11 +823,61 @@ s32 main(s32 argc, c8* argv[]) {
                 }
             }
 
+            u64 particlesSize = 0;
+            // todo: use transform feedback instead?
+            for (u32 i = 0; i < particleEmitters.size(); ++i) {
+                particleEmitter& emitter = particleEmitters[i];
+
+                 if (emitter.timeLeft <= 0.f) {
+                     particlesSize += sizeInBytes({emitter.particles});
+                     continue;
+                 };
+                
+                 for (u32 j = 0; j < emitter.newParticlesCount; ++j) {
+                     u32 unusedParticleIndex = findFirstUnusedParticle(emitter);
+                     emitter.lastUsedParticle = unusedParticleIndex;
+                
+                     particle& particle = emitter.particles[unusedParticleIndex];
+                
+                     // respawing particle
+                     f32 randomX = randomInRange(-1.f * scale.x, 1.f * scale.x);
+                     f32 randomY = randomInRange(-1.f * scale.y, 1.f * scale.y);
+                
+                     particle.lifespan = 1.f;
+                     particle.position.x = emitter.box.position.x + randomX;
+                     particle.position.y = emitter.box.position.y + randomY;
+                     particle.size = { 0.2f * TILE_SIZE.x, 0.2f * TILE_SIZE.y };
+                     particle.velocity = { 0.f, 0.f };
+                     particle.acceleration = { randomX * 10.f, 10.f };
+                     particle.uv = vec2((13 * (tileset.tileSize.y + tileset.spacing) + tileset.margin) / (f32)textureHeight,
+                         (16 * (tileset.tileSize.y + tileset.spacing) + tileset.margin) / (f32)textureHeight);
+                     particle.alpha = 1.f;
+                 }
+                
+                 for (u32 j = 0; j < emitter.maxParticlesCount; ++j) {
+                     particle& p = emitter.particles[j];
+                     f32 dt = emitter.dt;
+                
+                     if (p.lifespan > 0.f) {
+                         p.lifespan -= (f32)dt;
+                         p.velocity = p.acceleration * dt;
+                         p.position.x += randomInRange(-1.f, 1.f);
+                         p.position.y += randomInRange(-1.f, 1.f);
+                         p.alpha -= (f32)dt * 1.f;
+                         p.size -= (f32)dt * 1.f;
+                     }
+                 }
+                
+                 glBufferSubData(GL_ARRAY_BUFFER, particlesSize, sizeInBytes({ emitter.particles }),
+                     emitter.particles.data());
+                
+                 particlesSize += sizeInBytes({emitter.particles});
+            }
+
             lag -= updateRate;
         }
 
         chargeSpawnCooldown += (f32) delta;
-        std::cout << particleEmitters.size() << std::endl;
         
         mat4 view = mat4(1.0f);
         view = glm::translate(view, vec3(-camera, 0.f));
@@ -915,64 +963,6 @@ s32 main(s32 argc, c8* argv[]) {
         setShaderUniform(typeUniformLocation, 4);
 
         glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-
-        particleTimer += (f32) delta;
-
-        // todo: incorporate with physics loop?
-        //if (particleTimer >= 0.05f) {
-            particleTimer = 0.f;
-            u64 particlesSize = 0;
-
-            // todo: use transform feedback instead?
-            for (u32 i = 0; i < particleEmitters.size(); ++i) {
-                particleEmitter& emitter = particleEmitters[i];
-
-                if (emitter.timeLeft <= 0.f) {
-                    particlesSize += sizeInBytes({emitter.particles});
-                    continue;
-                };
-
-                for (u32 j = 0; j < emitter.newParticlesCount; ++j) {
-                    u32 unusedParticleIndex = findFirstUnusedParticle(emitter);
-                    emitter.lastUsedParticle = unusedParticleIndex;
-
-                    particle& particle = emitter.particles[unusedParticleIndex];
-
-                    // respawing particle
-                    f32 randomX = randomInRange(-1.f * scale.x, 1.f * scale.x);
-                    f32 randomY = randomInRange(-1.f * scale.y, 1.f * scale.y);
-
-                    particle.lifespan = 1.f;
-                    particle.position.x = emitter.box.position.x + randomX;
-                    particle.position.y = emitter.box.position.y + randomY;
-                    particle.size = { 0.2f * TILE_SIZE.x, 0.2f * TILE_SIZE.y };
-                    particle.velocity = { 0.f, 0.f };
-                    particle.acceleration = { randomX * 10.f, 10.f };
-                    particle.uv = vec2((13 * (tileset.tileSize.y + tileset.spacing) + tileset.margin) / (f32)textureHeight,
-                        (16 * (tileset.tileSize.y + tileset.spacing) + tileset.margin) / (f32)textureHeight);
-                    particle.alpha = 1.f;
-                }
-
-                for (u32 j = 0; j < emitter.maxParticlesCount; ++j) {
-                    particle& p = emitter.particles[j];
-                    f32 dt = emitter.dt;
-
-                    if (p.lifespan > 0.f) {
-                        p.lifespan -= (f32)dt;
-                        p.velocity = p.acceleration * dt;
-                        p.position.x += randomInRange(-1.f, 1.f);
-                        p.position.y += randomInRange(-1.f, 1.f);
-                        p.alpha -= (f32)dt * 5.f;
-                        p.size -= (f32)dt * 5.f;
-                    }
-                }
-
-                glBufferSubData(GL_ARRAY_BUFFER, particlesSize, sizeInBytes({ emitter.particles }),
-                    emitter.particles.data());
-
-                particlesSize += sizeInBytes({emitter.particles});
-            }
-        //}
 
         // todo: offsets when delete in the middle?
         s32 totalParticlesCount = 0;
