@@ -19,6 +19,7 @@
 #include <sstream>
 #include <iostream>
 #include <vector>
+#include <map>
 
 #include "types.h"
 #include "fuzzy.h"
@@ -51,7 +52,7 @@ constexpr vec3 backgroundColor = normalizeRGB(29, 33, 45);
 b32 keys[512];
 b32 processedKeys[512];
 
-vec2 scale = vec2(3.f);
+vec2 scale = vec2(4.f);
 // todo: could be different value than 16.f
 const vec2 TILE_SIZE = {16.f * scale.x, 16.f * scale.y};
 
@@ -81,6 +82,7 @@ struct sprite {
     f32 frameTime;
     u32 flipped;
 
+    vec2 position;
     aabb box;
     vec2 velocity;
     vec2 acceleration;
@@ -93,6 +95,7 @@ struct effect {
     f32 frameTime;
     u32 flipped;
 
+    vec2 position;
     aabb box;
 
     b32 shouldRender;
@@ -114,6 +117,7 @@ struct particleEmitter {
     u32 newParticlesCount;
     f32 dt;
     vector<particle> particles;
+    vec2 position;
     aabb box;
     vec2 velocity;
 
@@ -322,6 +326,7 @@ s32 main(s32 argc, c8* argv[]) {
     auto bobAnimations = bobConfig["animations"];
 
     bob = {};
+    bob.position = {5 * TILE_SIZE.x, 0 * TILE_SIZE.y};
     bob.box.position = {5 * TILE_SIZE.x, 0 * TILE_SIZE.y};
     bob.box.size = {13.f * scale.x, 16.f * scale.y};
     bob.velocity = {0.f, 0.f};
@@ -340,6 +345,7 @@ s32 main(s32 argc, c8* argv[]) {
     auto effectsAnimations = effectsConfig["animations"];
 
     swoosh = {};
+    swoosh.position = { 0.f, 0.f };     // todo: think about better ways
     swoosh.box.position = { 0.f, 0.f };     // todo: think about better ways
     swoosh.box.size = { 2 * TILE_SIZE.x, TILE_SIZE.y };
     swoosh.shouldRender = false;
@@ -366,7 +372,7 @@ s32 main(s32 argc, c8* argv[]) {
         1.f, 1.f, 1.f, 1.f
     };
 
-    map level = loadMap("levels/level01.json", tileset, scale);
+    tiledMap level = loadMap("levels/level01.json", tileset, scale);
 
     // todo: make it efficient
     vector<tile> tiles;
@@ -416,6 +422,7 @@ s32 main(s32 argc, c8* argv[]) {
     }
 
     drawableEntity player = {};
+    player.position = bob.position;
     player.box = bob.box;
     player.spriteScale = vec2(1.f);
     player.offset = (u32) sizeInBytes({drawableEntities});
@@ -425,6 +432,7 @@ s32 main(s32 argc, c8* argv[]) {
     drawableEntities.push_back(player);
 
     drawableEntity swooshEffect = {};
+    swooshEffect.position = swoosh.position;
     swooshEffect.box = swoosh.box;
     swooshEffect.spriteScale = vec2(2.f, 1.f);
     swooshEffect.offset = (u32) sizeInBytes({drawableEntities});
@@ -438,10 +446,14 @@ s32 main(s32 argc, c8* argv[]) {
     glBindBuffer(GL_ARRAY_BUFFER, VBOEntities);
     glBufferData(GL_ARRAY_BUFFER, sizeInBytes({drawableEntities}), drawableEntities.data(), GL_STREAM_DRAW);
     
+    // position
+    glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, sizeof(drawableEntity), (void*) offset(drawableEntity, position));
+    glEnableVertexAttribArray(3);
+    glVertexAttribDivisor(3, 1);
     // aabb
-    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(drawableEntity), (void*) offset(drawableEntity, box));
-    glEnableVertexAttribArray(4);
-    glVertexAttribDivisor(4, 1);
+    //glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(drawableEntity), (void*) offset(drawableEntity, box));
+    //glEnableVertexAttribArray(4);
+    //glVertexAttribDivisor(4, 1);
     // uv/rotation
     glVertexAttribPointer(5, 3, GL_FLOAT, GL_FALSE, sizeof(drawableEntity), (void*) offset(drawableEntity, uv));
     glEnableVertexAttribArray(5);
@@ -463,6 +475,7 @@ s32 main(s32 argc, c8* argv[]) {
     charge.maxParticlesCount = 500;
     charge.newParticlesCount = 5;
     charge.dt = 0.01f;
+    charge.position = { 4.5 * TILE_SIZE.x, 6.5 * TILE_SIZE.y };
     charge.box.position = { 4.5 * TILE_SIZE.x, 6.5 * TILE_SIZE.y };
     charge.box.size = {0.1f * TILE_SIZE.x, 0.1f * TILE_SIZE.x};
     charge.velocity = {0.f, 0.f};
@@ -501,6 +514,7 @@ s32 main(s32 argc, c8* argv[]) {
     f32 updateRate = 0.01f;   // 10 ms
     f32 lag = 0.f;
     
+    // todo: draw collision regions
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
     f32 chargeSpawnCooldown = 0.f;
@@ -510,6 +524,7 @@ s32 main(s32 argc, c8* argv[]) {
     while (!glfwWindowShouldClose(window)) {
         currentTime = glfwGetTime();
         delta = currentTime - lastTime;
+
         lastTime = currentTime;
         lag += (f32) delta;
 
@@ -535,7 +550,7 @@ s32 main(s32 argc, c8* argv[]) {
 
             vec2 move = 0.5f * bob.acceleration * dt * dt + bob.velocity * dt;
             
-            vec2 oldPosition = bob.box.position;
+            vec2 oldPosition = bob.position;
             vec2 time = vec2(1.f);
 
             for (auto& entity : entities) {
@@ -548,48 +563,50 @@ s32 main(s32 argc, c8* argv[]) {
             for (u32 i = 0; i < drawableEntities.size(); ++i) {
                 drawableEntity& entity = drawableEntities[i];
 
-                if (entity.type == entityType::PLAYER) break;
-                if (entity.type == entityType::EFFECT) break;
-                if (!entity.collides) break;
+                if (entity.type == entityType::REFLECTOR) {
+                    if (!entity.collides) break;
 
-                vec2 t = sweptAABB(oldPosition, move, entity.box, bob.box.size);
+                    vec2 t = sweptAABB(oldPosition, move, entity.box, bob.box.size);
 
-                if (t.x >= 0.f && t.x < time.x) time.x = t.x;
-                if (t.y >= 0.f && t.y < time.y) time.y = t.y;
+                    if (t.x >= 0.f && t.x < time.x) time.x = t.x;
+                    if (t.y >= 0.f && t.y < time.y) time.y = t.y;
 
-                b32 swooshCollide = intersectAABB(swoosh.box, entity.box);
-                if (!entity.underEffect && swooshCollide) {
-                    entity.underEffect = true;
-                    entity.isRotating = true;
-                }
-
-                if (entity.isRotating) {
-                    entity.rotation += 5.f;
-                    glBufferSubData(GL_ARRAY_BUFFER, entity.offset + sizeof(aabb) + 2 * sizeof(f32), sizeof(u32), &entity.rotation);
-
-                    if (0.f < entity.rotation && entity.rotation <= 90.f) {
-                        if (entity.rotation == 90.f) {
-                            entity.isRotating = false;
-                            break;
+                    if (entity.type == entityType::REFLECTOR) {
+                        b32 swooshCollide = intersectAABB(swoosh.box, entity.box);
+                        if (!entity.underEffect && swooshCollide) {
+                            entity.underEffect = true;
+                            entity.isRotating = true;
                         }
-                    }
-                    if (90.f < entity.rotation && entity.rotation <= 180.f) {
-                        if (entity.rotation == 180.f) {
-                            entity.isRotating = false;
-                            break;
-                        }
-                    }
-                    if (180.f < entity.rotation && entity.rotation <= 270.f) {
-                        if (entity.rotation == 270.f) {
-                            entity.isRotating = false;
-                            break;
-                        }
-                    }
-                    if (270.f < entity.rotation && entity.rotation <= 360.f) {
-                        if (entity.rotation == 360.f) {
-                            entity.isRotating = false;
-                            entity.rotation = 0.f;
-                            break;
+
+                        if (entity.isRotating) {
+                            entity.rotation += 5.f;
+                            glBufferSubData(GL_ARRAY_BUFFER, entity.offset + offset(drawableEntity, rotation), sizeof(u32), &entity.rotation);
+
+                            if (0.f < entity.rotation && entity.rotation <= 90.f) {
+                                if (entity.rotation == 90.f) {
+                                    entity.isRotating = false;
+                                    break;
+                                }
+                            }
+                            if (90.f < entity.rotation && entity.rotation <= 180.f) {
+                                if (entity.rotation == 180.f) {
+                                    entity.isRotating = false;
+                                    break;
+                                }
+                            }
+                            if (180.f < entity.rotation && entity.rotation <= 270.f) {
+                                if (entity.rotation == 270.f) {
+                                    entity.isRotating = false;
+                                    break;
+                                }
+                            }
+                            if (270.f < entity.rotation && entity.rotation <= 360.f) {
+                                if (entity.rotation == 360.f) {
+                                    entity.isRotating = false;
+                                    entity.rotation = 0.f;
+                                    break;
+                                }
+                            }
                         }
                     }
                 }
@@ -622,34 +639,36 @@ s32 main(s32 argc, c8* argv[]) {
 
             vec2 updatedMove = move * time;
 
-            bob.box.position.x = oldPosition.x + updatedMove.x;
-            bob.box.position.y = oldPosition.y + updatedMove.y;
+            bob.position.x = oldPosition.x + updatedMove.x;
+            bob.position.y = oldPosition.y + updatedMove.y;
 
-            bob.box.position.x = clamp(bob.box.position.x, 0.f, (f32) TILE_SIZE.x * level.width - TILE_SIZE.x);
-            bob.box.position.y = clamp(bob.box.position.y, 0.f, (f32) TILE_SIZE.y * level.height - TILE_SIZE.y);
+            bob.position.x = clamp(bob.position.x, 0.f, (f32) TILE_SIZE.x * level.width - TILE_SIZE.x);
+            bob.position.y = clamp(bob.position.y, 0.f, (f32) TILE_SIZE.y * level.height - TILE_SIZE.y);
+
+            bob.box.position = bob.position;
 
             bob.acceleration.y = 10.f;
 
             vec2 idleArea = {2 * TILE_SIZE.x, 1 * TILE_SIZE.y};
 
             if (updatedMove.x > 0.f) {
-                if (bob.box.position.x + TILE_SIZE.x > camera.x + SCREEN_WIDTH / 2 + idleArea.x) {
+                if (bob.position.x + TILE_SIZE.x > camera.x + SCREEN_WIDTH / 2 + idleArea.x) {
                     camera.x += updatedMove.x;
                 }
             }
             else if (updatedMove.x < 0.f) {
-                if (bob.box.position.x < camera.x + SCREEN_WIDTH / 2 - idleArea.x) {
+                if (bob.position.x < camera.x + SCREEN_WIDTH / 2 - idleArea.x) {
                     camera.x += updatedMove.x;
                 }
             }
 
             if (updatedMove.y > 0.f) {
-                if (bob.box.position.y + TILE_SIZE.y > camera.y + SCREEN_HEIGHT / 2 + idleArea.y) {
+                if (bob.position.y + TILE_SIZE.y > camera.y + SCREEN_HEIGHT / 2 + idleArea.y) {
                     camera.y += updatedMove.y;
                 }
             }
             else if (updatedMove.y < 0.f) {
-                if (bob.box.position.y < camera.y + SCREEN_HEIGHT / 2 - idleArea.y) {
+                if (bob.position.y < camera.y + SCREEN_HEIGHT / 2 - idleArea.y) {
                     camera.y += updatedMove.y;
                 }
             }
@@ -790,10 +809,20 @@ s32 main(s32 argc, c8* argv[]) {
                             }
                         }
                     }
+
+                    if (entity.type == entityType::LAMP) {
+                        vec2 t = sweptAABB(oldChargePosition, chargeMove, entity.box, charge.box.size);
+
+                        if ((0.f <= t.x && t.x < 1.f) || (0.f <= t.y && t.y < 1.f)) {
+                            std::cout << "collides!" << std::endl;
+                            // todo: trigger lamp animation, etc.
+                        }
+                    }
                 }
 
                 chargeMove *= chargeTime;
                 charge.box.position += chargeMove;
+                charge.position += chargeMove;
 
                 if (charge.box.position.x <= 0.f || charge.box.position.x >= (f32) TILE_SIZE.x * level.width) {
                     charge.velocity.x = -charge.velocity.x;
@@ -844,8 +873,8 @@ s32 main(s32 argc, c8* argv[]) {
                      f32 randomY = randomInRange(-1.f * scale.y, 1.f * scale.y);
                 
                      particle.lifespan = 1.f;
-                     particle.position.x = emitter.box.position.x + randomX;
-                     particle.position.y = emitter.box.position.y + randomY;
+                     particle.position.x = emitter.position.x + randomX;
+                     particle.position.y = emitter.position.y + randomY;
                      particle.size = { 0.2f * TILE_SIZE.x, 0.2f * TILE_SIZE.y };
                      particle.velocity = { 0.f, 0.f };
                      particle.acceleration = { randomX * 10.f, 10.f };
@@ -912,10 +941,8 @@ s32 main(s32 argc, c8* argv[]) {
         }
         bob.frameTime += (f32) delta;
 
-        //--- effect ---
         model = mat4(1.0f);
-        model = glm::translate(model, vec3(swoosh.box.position, 0.0f));
-        model = glm::scale(model, vec3(2 * TILE_SIZE.x, TILE_SIZE.y, 1.f));
+        model = glm::scale(model, vec3(TILE_SIZE, 1.f));
         setShaderUniform(modelUniformLocation, model);
 
         f32 effectXOffset = (f32)(swoosh.currentAnimation.x * (tileset.tileSize.x + tileset.spacing) + tileset.margin) / textureWidth;
@@ -940,21 +967,23 @@ s32 main(s32 argc, c8* argv[]) {
         setShaderUniform(typeUniformLocation, 3);
 
         player.uv = vec2(bobXOffset + bob.xAnimationOffset, bobYOffset);
+        player.position = bob.position;
         player.box.position = bob.box.position;
         player.flipped = bob.flipped;
 
         swooshEffect.uv = vec2(effectXOffset + swoosh.xAnimationOffset, effectYOffset);
+        swooshEffect.position = swoosh.position;
         swooshEffect.box.position = swoosh.box.position;
         swooshEffect.flipped = bob.flipped;
         swooshEffect.shouldRender = swoosh.shouldRender ? 1 : 0;
 
-        glBufferSubData(GL_ARRAY_BUFFER, player.offset, 2 * sizeof(f32), &player.box.position);
-        glBufferSubData(GL_ARRAY_BUFFER, swooshEffect.offset, 2 * sizeof(f32), &swooshEffect.box.position);
-        glBufferSubData(GL_ARRAY_BUFFER, player.offset + sizeof(aabb), 2 * sizeof(f32), &player.uv);
-        glBufferSubData(GL_ARRAY_BUFFER, swooshEffect.offset + sizeof(aabb), 2 * sizeof(f32), &swooshEffect.uv);
-        glBufferSubData(GL_ARRAY_BUFFER, player.offset + sizeof(aabb) + 3 * sizeof(f32), sizeof(u32), &player.flipped);
-        glBufferSubData(GL_ARRAY_BUFFER, swooshEffect.offset + sizeof(aabb) + 3 * sizeof(f32), sizeof(u32), &swooshEffect.flipped);
-        glBufferSubData(GL_ARRAY_BUFFER, swooshEffect.offset + sizeof(aabb) + 5 * sizeof(f32) + sizeof(u32), sizeof(u32), &swooshEffect.shouldRender);
+        glBufferSubData(GL_ARRAY_BUFFER, player.offset, 2 * sizeof(f32), &player.position);
+        glBufferSubData(GL_ARRAY_BUFFER, swooshEffect.offset, 2 * sizeof(f32), &swooshEffect.position);
+        glBufferSubData(GL_ARRAY_BUFFER, player.offset + offset(drawableEntity, uv), 2 * sizeof(f32), &player.uv);
+        glBufferSubData(GL_ARRAY_BUFFER, swooshEffect.offset + offset(drawableEntity, uv), 2 * sizeof(f32), &swooshEffect.uv);
+        glBufferSubData(GL_ARRAY_BUFFER, player.offset + offset(drawableEntity, flipped), sizeof(u32), &player.flipped);
+        glBufferSubData(GL_ARRAY_BUFFER, swooshEffect.offset + offset(drawableEntity, flipped), sizeof(u32), &swooshEffect.flipped);
+        glBufferSubData(GL_ARRAY_BUFFER, swooshEffect.offset + offset(drawableEntity, shouldRender), sizeof(u32), &swooshEffect.shouldRender);
         
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, (s32) drawableEntities.size());
 
@@ -1051,8 +1080,10 @@ void processInput() {
         }
         
         if (swoosh.flipped & FLIPPED_HORIZONTALLY_FLAG) {
+            swoosh.position = { bob.box.position.x - 2 * TILE_SIZE.x, bob.box.position.y };
             swoosh.box.position = { bob.box.position.x - 2 * TILE_SIZE.x, bob.box.position.y };
         } else {
+            swoosh.position = { bob.box.position.x + TILE_SIZE.x, bob.box.position.y };
             swoosh.box.position = { bob.box.position.x + TILE_SIZE.x, bob.box.position.y };
         }
     }

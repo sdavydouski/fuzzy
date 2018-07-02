@@ -65,5 +65,19 @@
         "size": 2
       }
     ]
-  }]
+  },
+  {
+    "name": "lamp",
+    "animations": [
+      {
+        "title": "turn_on",
+        "x": 21,
+        "y": 9,
+        "frames": 7,
+        "delay": 0.05,
+        "size": 1
+      }
+    ]
+   }
+  ]
 }

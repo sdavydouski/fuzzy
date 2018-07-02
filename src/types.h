@@ -6,12 +6,15 @@
 #include <nlohmann/json.hpp>
 #include <string>
 #include <vector>
+#include <map>
 
 
 using string = std::string;
 
 template<typename T>
 using vector = std::vector<T>;
+template<typename K, typename V>
+using map = std::map<K, V>;
 
 using json = nlohmann::json;
 

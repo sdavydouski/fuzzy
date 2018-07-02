@@ -8,7 +8,8 @@ layout(location = 1) in vec4 tile;          // <vec2 - position, vec2 - uv>
 layout(location = 2) in uint tileFlipped;
 
 // todo: combine this differently
-layout(location = 4) in vec4 aabb;
+layout(location = 3) in vec2 position;
+//layout(location = 4) in vec4 aabb;
 layout(location = 5) in vec3 uvr;
 layout(location = 6) in uint flipped;
 layout(location = 7) in vec2 spriteScale;
@@ -102,8 +103,8 @@ void main() {
 
         uv *= spriteScale;
 
-        vec2 position = aabb.xy;
-        vec2 size = aabb.zw;
+        //vec2 position = aabb.xy;
+        //vec2 size = aabb.zw;
 
         float rotate = uvr.z;
 
@@ -114,7 +115,7 @@ void main() {
             position.x, position.y, 0.f, 1.f
         );
 
-        vec2 spriteSize = aabb.zw;
+        vec2 spriteSize = vec2(model[0][0] * spriteScale.x, model[1][1] * spriteScale.y);
         
         mat4 preRotationTranslationMatrix = mat4(
             1.f, 0.f, 0.f, 0.f,
@@ -142,7 +143,7 @@ void main() {
            0.f, spriteSize.y, 0.f, 0.f,
            0.f, 0.f, 1.f, 0.f,
            0.f, 0.f, 0.f, 1.f
-        );
+        );   // todo: same as uniform model
 
         mat4 model = translationMatrix * rotationMatrix * scalingMatrix;
 

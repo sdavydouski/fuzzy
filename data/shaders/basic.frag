@@ -27,6 +27,7 @@ void main() {
         }
     } else if (type == SPRITE_TYPE || type == ENTITY_TYPE) {
         color = texture(spriteTexture, uv + uvOffset);
+        //color = vec4(1.f);
     } else if (type == PARTICLE_TYPE) {
         color = texture(spriteTexture, uv + uvOffset);
         color.a = alpha;

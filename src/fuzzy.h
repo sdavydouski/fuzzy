@@ -6,6 +6,8 @@ struct aabb {
 };
 
 struct entity {
+    // todo: do not use size from aabb struct; use separate vec2 size; (maybe even store it as scale number)
+    vec2 position;
     aabb box;
 };
 
@@ -13,12 +15,14 @@ enum class entityType {
     PLAYER,
     EFFECT,
     REFLECTOR,
+    LAMP,
     UNKNOWN
 };
 
 //todo: store in VBO only the ones that are actually used in shaders
 //todo: rework concept of drawable entities (allow creation and removal)
 struct drawableEntity {
+    vec2 position;
     aabb box;
 
     vec2 uv;
