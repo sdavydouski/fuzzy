@@ -10,7 +10,8 @@
         "y": 16,
         "frames": 3,
         "delay": 0.25,
-        "size": 1
+        "size": 1,
+        "direction": "right"
       },
       {
         "title": "squash",
@@ -18,7 +19,8 @@
         "y": 16,
         "frames": 5,
         "delay": 0.05,
-        "size": 1
+        "size": 1,
+        "direction": "right"
       },
       {
         "title": "run",
@@ -26,7 +28,8 @@
         "y": 17,
         "frames": 8,
         "delay": 0.1,
-        "size": 1
+        "size": 1,
+        "direction": "right"
       },
       {
         "title": "attack",
@@ -34,7 +37,8 @@
         "y": 19,
         "frames": 4,
         "delay": 0.1,
-        "size": 1
+        "size": 1,
+        "direction": "right"
       },
       {
         "title": "jump-up",
@@ -42,7 +46,8 @@
         "y": 17,
         "frames": 1,
         "delay": 0.1,
-        "size": 1
+        "size": 1,
+        "direction": "right"
       },
       {
         "title": "jump-down",
@@ -50,7 +55,8 @@
         "y": 17,
         "frames": 1,
         "delay": 0.1,
-        "size": 1
+        "size": 1,
+        "direction": "right"
       }
     ]
   }, {
@@ -62,7 +68,8 @@
         "y": 18,
         "frames": 4,
         "delay": 0.05,
-        "size": 2
+        "size": 2,
+        "direction": "right"
       }
     ]
   },
@@ -73,9 +80,24 @@
         "title": "turn_on",
         "x": 21,
         "y": 9,
-        "frames": 7,
+        "frames": 6,
         "delay": 0.05,
-        "size": 1
+        "size": 1,
+        "direction": "right"
+      }
+    ]
+   },
+  {
+    "name": "platform",
+    "animations": [
+      {
+        "title": "on",
+        "x": 3,
+        "y": 11,
+        "frames": 4,
+        "delay": 0.05,
+        "size": 1,
+        "direction": "left"
       }
     ]
    }

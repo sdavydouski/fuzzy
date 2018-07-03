@@ -132,17 +132,21 @@ tileset loadTileset(const string& path) {
     tileset.imageSize = { tilesetInfo["imagewidth"], tilesetInfo["imageheight"] };
 
     for (auto& it = tilesetInfo["tiles"].begin(); it != tilesetInfo["tiles"].end(); ++it) {
-        tileSpec spec = {};
-        u32 gid = (u32) std::stoi(it.key()) + 1;
-        spec.box.position = {
-            it.value()["objectgroup"]["objects"][0]["x"], 
-            it.value()["objectgroup"]["objects"][0]["y"]
-        };
-        spec.box.size = {
-            it.value()["objectgroup"]["objects"][0]["width"], 
-            it.value()["objectgroup"]["objects"][0]["height"]
-        };
-        tileset.tiles.emplace(gid, spec);
+        auto& value = it.value();
+
+        if (value.find("objectgroup") != value.end()) {
+            tileSpec spec = {};
+            u32 gid = (u32)std::stoi(it.key()) + 1;
+            spec.box.position = {
+                value["objectgroup"]["objects"][0]["x"],
+                value["objectgroup"]["objects"][0]["y"]
+            };
+            spec.box.size = {
+                value["objectgroup"]["objects"][0]["width"],
+                value["objectgroup"]["objects"][0]["height"]
+            };
+            tileset.tiles.emplace(gid, spec);
+        }
     }
 
     return tileset;

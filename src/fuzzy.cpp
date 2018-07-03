@@ -32,10 +32,6 @@
 
 #define offset(structType, structMember) ((u32)(&(((structType* )0)->structMember)))
 
-enum class side {
-    TOP, LEFT, BOTTOM, RIGHT
-};
-
 constexpr vec3 normalizeRGB(s32 red, s32 green, s32 blue) {
     const f32 MAX = 255.f;
     return vec3(red / MAX, green / MAX, blue / MAX);
@@ -52,54 +48,12 @@ constexpr vec3 backgroundColor = normalizeRGB(29, 33, 45);
 b32 keys[512];
 b32 processedKeys[512];
 
-vec2 scale = vec2(4.f);
+vec2 scale = vec2(2.f);
 // todo: could be different value than 16.f
 const vec2 TILE_SIZE = {16.f * scale.x, 16.f * scale.y};
 
 // top-left corner
 vec2 camera = vec2(0.f);
-
-struct animation {
-    s32 x;
-    s32 y;
-    s32 frames;
-    f32 delay;
-    s32 size;
-
-    b32 operator==(const animation& other) const {
-        return x == other.x && y == other.y;
-    }
-
-    b32 operator!=(const animation& other) const {
-        return !(*this == other);
-    }
-};
-
-struct sprite {
-    vector<animation> animations;
-    animation currentAnimation;
-    f32 xAnimationOffset;
-    f32 frameTime;
-    u32 flipped;
-
-    vec2 position;
-    aabb box;
-    vec2 velocity;
-    vec2 acceleration;
-};
-
-struct effect {
-    vector<animation> animations;
-    animation currentAnimation;
-    f32 xAnimationOffset;
-    f32 frameTime;
-    u32 flipped;
-
-    vec2 position;
-    aabb box;
-
-    b32 shouldRender;
-};
 
 struct particle {
     vec2 position;
@@ -357,6 +311,33 @@ s32 main(s32 argc, c8* argv[]) {
     swoosh.currentAnimation = swoosh.animations[0];
     swoosh.xAnimationOffset = 0.f;
     swoosh.frameTime = 0.f;
+
+    auto lampConfig = spritesConfig["sprites"][2];
+    auto lampAnimations = lampConfig["animations"];
+
+    animation turnOnAnimation = {};
+    turnOnAnimation.x = lampAnimations[0]["x"];
+    turnOnAnimation.y = lampAnimations[0]["y"];
+    turnOnAnimation.frames = lampAnimations[0]["frames"];
+    turnOnAnimation.delay = lampAnimations[0]["delay"];
+    turnOnAnimation.size = lampAnimations[0]["size"];
+
+    auto platformConfig = spritesConfig["sprites"][3];
+    auto platformAnimations = platformConfig["animations"];
+
+    animation platformOnAnimation = {};
+    platformOnAnimation.x = platformAnimations[0]["x"];
+    platformOnAnimation.y = platformAnimations[0]["y"];
+    platformOnAnimation.frames = platformAnimations[0]["frames"];
+    platformOnAnimation.delay = platformAnimations[0]["delay"];
+    platformOnAnimation.size = platformAnimations[0]["size"];
+    string animationDirection = platformAnimations[0]["direction"];
+    if (animationDirection == "right") {
+        platformOnAnimation.direction = direction::RIGHT;
+    }
+    else if (animationDirection == "left") {
+        platformOnAnimation.direction = direction::LEFT;
+    }
 
     f32 spriteWidth = ((f32) tileset.tileSize.x) / textureWidth;
     f32 spriteHeight = ((f32) tileset.tileSize.y) / textureHeight;
@@ -814,8 +795,10 @@ s32 main(s32 argc, c8* argv[]) {
                         vec2 t = sweptAABB(oldChargePosition, chargeMove, entity.box, charge.box.size);
 
                         if ((0.f <= t.x && t.x < 1.f) || (0.f <= t.y && t.y < 1.f)) {
-                            std::cout << "collides!" << std::endl;
-                            // todo: trigger lamp animation, etc.
+                            entity.currentAnimation = &turnOnAnimation;
+                            chargeTime = t;
+                            charge.isFading = true;
+                            charge.timeLeft = 0.f;
                         }
                     }
                 }
@@ -961,9 +944,34 @@ s32 main(s32 argc, c8* argv[]) {
         if (swoosh.shouldRender) {
             swoosh.frameTime += (f32)delta;
         }
+        
+        glBindBuffer(GL_ARRAY_BUFFER, VBOEntities);
+        // handling animations on all entities
+        for (u32 i = 0; i < drawableEntities.size(); ++i) {
+            auto& entity = drawableEntities[i];
+
+            if (entity.currentAnimation) {
+                f32 entityXOffset = (f32)(entity.currentAnimation->x * (tileset.tileSize.x + tileset.spacing) + tileset.margin) / textureWidth;
+                f32 entityYOffset = (f32)(entity.currentAnimation->y * (tileset.tileSize.y + tileset.spacing) + tileset.margin) / textureHeight;
+
+                if (entity.frameTime >= entity.currentAnimation->delay) {
+                    entity.xAnimationOffset += (spriteWidth + (f32)tileset.spacing / textureWidth) * entity.currentAnimation->size;
+
+                    entity.uv = vec2(entityXOffset + entity.xAnimationOffset, entityYOffset);
+                    glBufferSubData(GL_ARRAY_BUFFER, entity.offset + offset(drawableEntity, uv), sizeof(vec2), &entity.uv);
+
+                    if (entity.xAnimationOffset >= ((entity.currentAnimation->frames * tileset.tileSize.x * entity.currentAnimation->size) / (f32)textureWidth)) {
+                        entity.xAnimationOffset = 0.f;
+                        entity.currentAnimation = nullptr;
+                    }
+
+                    entity.frameTime = 0.0f;
+                }
+                entity.frameTime += (f32)delta;
+            }
+        }
 
         //--- drawing entities ---
-        glBindBuffer(GL_ARRAY_BUFFER, VBOEntities);
         setShaderUniform(typeUniformLocation, 3);
 
         player.uv = vec2(bobXOffset + bob.xAnimationOffset, bobYOffset);

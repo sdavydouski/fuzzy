@@ -7,6 +7,20 @@
  "spacing":2,
  "tilecount":1024,
  "tileheight":16,
+ "tileproperties":
+    {
+     "992":
+        {
+         "name":"platform_on"
+        }
+    },
+ "tilepropertytypes":
+    {
+     "992":
+        {
+         "name":"string"
+        }
+    },
  "tiles":
     {
      "309":
@@ -33,6 +47,52 @@
              "x":0,
              "y":0
             }
+        },
+     "352":
+        {
+         "objectgroup":
+            {
+             "draworder":"index",
+             "name":"",
+             "objects":[
+                    {
+                     "height":1,
+                     "id":1,
+                     "name":"",
+                     "rotation":0,
+                     "type":"",
+                     "visible":true,
+                     "width":16,
+                     "x":0,
+                     "y":0
+                    }],
+             "opacity":1,
+             "type":"objectgroup",
+             "visible":true,
+             "x":0,
+             "y":0
+            }
+        },
+     "992":
+        {
+         "animation":[
+                {
+                 "duration":100,
+                 "tileid":355
+                }, 
+                {
+                 "duration":100,
+                 "tileid":354
+                }, 
+                {
+                 "duration":100,
+                 "tileid":353
+                }, 
+                {
+                 "duration":100,
+                 "tileid":352
+                }],
+         "type":"animation"
         }
     },
  "tilewidth":16,
