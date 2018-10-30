@@ -94,7 +94,7 @@
         "title": "on",
         "x": 3,
         "y": 11,
-        "frames": 4,
+        "frames": 3,
         "delay": 0.05,
         "size": 1,
         "direction": "left"

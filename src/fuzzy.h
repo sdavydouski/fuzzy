@@ -15,7 +15,7 @@ struct animation {
     s32 frames;
     f32 delay;
     s32 size;
-    direction direction;
+    direction direction = direction::RIGHT;
 
     b32 operator==(const animation& other) const {
         return x == other.x && y == other.y;
@@ -30,6 +30,7 @@ struct entity {
     // todo: do not use size from aabb struct; use separate vec2 size; (maybe even store it as scale number)
     vec2 position;
     aabb box;
+    u32 id;
 };
 
 enum class entityType {
@@ -37,12 +38,14 @@ enum class entityType {
     EFFECT,
     REFLECTOR,
     LAMP,
+    PLATFORM,
     UNKNOWN
 };
 
 //todo: store in VBO only the ones that are actually used in shaders
 //todo: rework concept of drawable entities (allow creation and removal)
 struct drawableEntity {
+    u32 id;
     vec2 position;
     aabb box;
 

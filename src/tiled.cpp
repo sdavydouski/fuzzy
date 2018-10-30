@@ -13,8 +13,8 @@ struct tileLayer {
 };
 
 struct objectLayer {
-    vector<entity> entities;
-    vector<drawableEntity> drawableEntities;
+    map<u32, entity> entities;
+    map<u32, drawableEntity> drawableEntities;
 };
 
 struct tiledMap {
@@ -26,6 +26,7 @@ struct tiledMap {
 };
 
 struct tileSpec {
+    entityType type;
     aabb box;
 };
 
@@ -35,7 +36,7 @@ struct tileset {
     u32 spacing;
     vec2 tileSize;
     vec2 imageSize;
-    std::map<u32, tileSpec> tiles;
+    map<u32, tileSpec> tiles;
 };
 
 struct rawTileLayer {
@@ -134,9 +135,20 @@ tileset loadTileset(const string& path) {
     for (auto& it = tilesetInfo["tiles"].begin(); it != tilesetInfo["tiles"].end(); ++it) {
         auto& value = it.value();
 
+        // todo: 
+        //if (value.find("type") != value.end()) {
+        //    tileSpec spec = {};
+        //    u32 gid = (u32)std::stoi(it.key()) + 1;
+
+        //    spec.type = value["type"];
+
+        //    tileset.tiles.emplace(gid, spec);
+        //}
+
         if (value.find("objectgroup") != value.end()) {
             tileSpec spec = {};
             u32 gid = (u32)std::stoi(it.key()) + 1;
+
             spec.box.position = {
                 value["objectgroup"]["objects"][0]["x"],
                 value["objectgroup"]["objects"][0]["y"]
@@ -145,6 +157,7 @@ tileset loadTileset(const string& path) {
                 value["objectgroup"]["objects"][0]["width"],
                 value["objectgroup"]["objects"][0]["height"]
             };
+
             tileset.tiles.emplace(gid, spec);
         }
     }
@@ -216,10 +229,15 @@ objectLayer parseObjectLayer(const rawObjectLayer& layer, const tileset& tileset
         
         if (object.gid != 0) {
             drawableEntity entity = {};
+
+            entity.id = object.id;
+
             if (object.type == "reflector") {
                 entity.type = entityType::REFLECTOR;
             } else if (object.type == "lamp") {
                 entity.type = entityType::LAMP;
+            } else if (object.type == "platform") {
+                entity.type = entityType::PLATFORM;
             } else {
                 entity.type = entityType::UNKNOWN;
             }
@@ -274,14 +292,15 @@ objectLayer parseObjectLayer(const rawObjectLayer& layer, const tileset& tileset
 
             ++index;
             
-            objectLayer.drawableEntities.push_back(entity);
+            objectLayer.drawableEntities.emplace(object.id, entity);
         } else {
             entity entity = {};
+            entity.id = object.id;
             entity.position = {(f32) object.x * scale.x, (f32) object.y * scale.y};
             entity.box.position = {(f32) object.x * scale.x, (f32) object.y * scale.y};
             entity.box.size = {(f32) object.width * scale.x, (f32) object.height * scale.y};
 
-            objectLayer.entities.push_back(entity);
+            objectLayer.entities.emplace(object.id, entity);
         }
     }
 

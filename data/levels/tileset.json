@@ -7,20 +7,6 @@
  "spacing":2,
  "tilecount":1024,
  "tileheight":16,
- "tileproperties":
-    {
-     "992":
-        {
-         "name":"platform_on"
-        }
-    },
- "tilepropertytypes":
-    {
-     "992":
-        {
-         "name":"string"
-        }
-    },
  "tiles":
     {
      "309":
@@ -46,7 +32,44 @@
              "visible":true,
              "x":0,
              "y":0
-            }
+            },
+         "type":"lamp"
+        },
+     "310":
+        {
+         "type":"lamp"
+        },
+     "311":
+        {
+         "type":"lamp"
+        },
+     "312":
+        {
+         "type":"lamp"
+        },
+     "313":
+        {
+         "type":"lamp"
+        },
+     "314":
+        {
+         "type":"lamp"
+        },
+     "315":
+        {
+         "type":"lamp"
+        },
+     "316":
+        {
+         "type":"lamp"
+        },
+     "341":
+        {
+         "type":"reflector"
+        },
+     "342":
+        {
+         "type":"reflector"
         },
      "352":
         {
@@ -71,28 +94,20 @@
              "visible":true,
              "x":0,
              "y":0
-            }
+            },
+         "type":"platform"
         },
-     "992":
+     "353":
         {
-         "animation":[
-                {
-                 "duration":100,
-                 "tileid":355
-                }, 
-                {
-                 "duration":100,
-                 "tileid":354
-                }, 
-                {
-                 "duration":100,
-                 "tileid":353
-                }, 
-                {
-                 "duration":100,
-                 "tileid":352
-                }],
-         "type":"animation"
+         "type":"platform"
+        },
+     "354":
+        {
+         "type":"platform"
+        },
+     "355":
+        {
+         "type":"platform"
         }
     },
  "tilewidth":16,

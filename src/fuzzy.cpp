@@ -48,7 +48,7 @@ constexpr vec3 backgroundColor = normalizeRGB(29, 33, 45);
 b32 keys[512];
 b32 processedKeys[512];
 
-vec2 scale = vec2(2.f);
+vec2 scale = vec2(4.f);
 // todo: could be different value than 16.f
 const vec2 TILE_SIZE = {16.f * scale.x, 16.f * scale.y};
 
@@ -120,12 +120,19 @@ inline void setShaderUniform(s32 location, const mat4& value) {
     glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(value));
 }
 
+// todo: write more efficient functions
 inline f32 clamp(f32 value, f32 min, f32 max) {
     if (value < min) return min;
     if (value > max) return max;
 
     return value;
 }
+
+//inline f32 abs(f32 value) {
+//    if (value < 0.f) return -value;
+//
+//    return value;
+//}
 
 inline f32 randomInRange(f32 min, f32 max) {
     f32 result = min + (f32)(rand()) / ((f32)(RAND_MAX / (max - min)));
@@ -156,6 +163,21 @@ vector<drawableEntity> drawableEntities;
 vector<particleEmitter> particleEmitters;
 
 const f32 chargeVelocity = 10.f;
+
+// todo: replace with smth more performant
+inline drawableEntity* getEntityById(u32 id) {
+    drawableEntity* result = nullptr;
+
+    for (auto& entity : drawableEntities) {
+        if (entity.id == id) {
+            result = &entity;
+        }
+    }
+
+    assert(result);
+
+    return result;
+}
 
 s32 main(s32 argc, c8* argv[]) {
     if (!glfwInit()) {
@@ -395,10 +417,10 @@ s32 main(s32 argc, c8* argv[]) {
     vector<entity> entities;
     for (auto& layer : level.objectLayers) {
         for (auto& entity : layer.entities) {
-            entities.push_back(entity);
+            entities.push_back(entity.second);
         }
         for (auto& drawableEntity : layer.drawableEntities) {
-            drawableEntities.push_back(drawableEntity);
+            drawableEntities.push_back(drawableEntity.second);
         }
     }
 
@@ -416,7 +438,7 @@ s32 main(s32 argc, c8* argv[]) {
     swooshEffect.position = swoosh.position;
     swooshEffect.box = swoosh.box;
     swooshEffect.spriteScale = vec2(2.f, 1.f);
-    swooshEffect.offset = (u32) sizeInBytes({drawableEntities});
+    swooshEffect.offset = (u32) sizeInBytes({ drawableEntities });
     swooshEffect.shouldRender = 0;
     swooshEffect.collides = true;
     swooshEffect.type = entityType::EFFECT;
@@ -425,7 +447,7 @@ s32 main(s32 argc, c8* argv[]) {
     u32 VBOEntities;
     glGenBuffers(1, &VBOEntities);
     glBindBuffer(GL_ARRAY_BUFFER, VBOEntities);
-    glBufferData(GL_ARRAY_BUFFER, sizeInBytes({drawableEntities}), drawableEntities.data(), GL_STREAM_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, (u32) (sizeof(u32) + sizeof(drawableEntity)) * drawableEntities.size(), drawableEntities.data(), GL_STREAM_DRAW);
     
     // position
     glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, sizeof(drawableEntity), (void*) offset(drawableEntity, position));
@@ -544,7 +566,7 @@ s32 main(s32 argc, c8* argv[]) {
             for (u32 i = 0; i < drawableEntities.size(); ++i) {
                 drawableEntity& entity = drawableEntities[i];
 
-                if (entity.type == entityType::REFLECTOR) {
+                if (entity.type == entityType::REFLECTOR || entity.type == entityType::PLATFORM) {
                     if (!entity.collides) break;
 
                     vec2 t = sweptAABB(oldPosition, move, entity.box, bob.box.size);
@@ -791,7 +813,7 @@ s32 main(s32 argc, c8* argv[]) {
                         }
                     }
 
-                    if (entity.type == entityType::LAMP) {
+                    if (entity.id == 52) {
                         vec2 t = sweptAABB(oldChargePosition, chargeMove, entity.box, charge.box.size);
 
                         if ((0.f <= t.x && t.x < 1.f) || (0.f <= t.y && t.y < 1.f)) {
@@ -799,6 +821,14 @@ s32 main(s32 argc, c8* argv[]) {
                             chargeTime = t;
                             charge.isFading = true;
                             charge.timeLeft = 0.f;
+
+                            drawableEntity* platform1 = getEntityById(57);
+                            drawableEntity* platform2 = getEntityById(60);
+                            drawableEntity* platform3 = getEntityById(61);
+
+                            platform1->currentAnimation = &platformOnAnimation;
+                            platform2->currentAnimation = &platformOnAnimation;
+                            platform3->currentAnimation = &platformOnAnimation;
                         }
                     }
                 }
@@ -955,12 +985,17 @@ s32 main(s32 argc, c8* argv[]) {
                 f32 entityYOffset = (f32)(entity.currentAnimation->y * (tileset.tileSize.y + tileset.spacing) + tileset.margin) / textureHeight;
 
                 if (entity.frameTime >= entity.currentAnimation->delay) {
-                    entity.xAnimationOffset += (spriteWidth + (f32)tileset.spacing / textureWidth) * entity.currentAnimation->size;
+                    if (entity.currentAnimation->direction == direction::RIGHT) {
+                        entity.xAnimationOffset += (spriteWidth + (f32)tileset.spacing / textureWidth) * entity.currentAnimation->size;
+                    }
+                    else if (entity.currentAnimation->direction == direction::LEFT) {
+                        entity.xAnimationOffset -= (spriteWidth + (f32)tileset.spacing / textureWidth) * entity.currentAnimation->size;
+                    }
 
                     entity.uv = vec2(entityXOffset + entity.xAnimationOffset, entityYOffset);
                     glBufferSubData(GL_ARRAY_BUFFER, entity.offset + offset(drawableEntity, uv), sizeof(vec2), &entity.uv);
 
-                    if (entity.xAnimationOffset >= ((entity.currentAnimation->frames * tileset.tileSize.x * entity.currentAnimation->size) / (f32)textureWidth)) {
+                    if (abs(entity.xAnimationOffset) >= ((entity.currentAnimation->frames * tileset.tileSize.x * entity.currentAnimation->size) / (f32)textureWidth)) {
                         entity.xAnimationOffset = 0.f;
                         entity.currentAnimation = nullptr;
                     }
@@ -985,8 +1020,8 @@ s32 main(s32 argc, c8* argv[]) {
         swooshEffect.flipped = bob.flipped;
         swooshEffect.shouldRender = swoosh.shouldRender ? 1 : 0;
 
-        glBufferSubData(GL_ARRAY_BUFFER, player.offset, 2 * sizeof(f32), &player.position);
-        glBufferSubData(GL_ARRAY_BUFFER, swooshEffect.offset, 2 * sizeof(f32), &swooshEffect.position);
+        glBufferSubData(GL_ARRAY_BUFFER, player.offset + offset(drawableEntity, position), 2 * sizeof(f32), &player.position);
+        glBufferSubData(GL_ARRAY_BUFFER, swooshEffect.offset + offset(drawableEntity, position), 2 * sizeof(f32), &swooshEffect.position);
         glBufferSubData(GL_ARRAY_BUFFER, player.offset + offset(drawableEntity, uv), 2 * sizeof(f32), &player.uv);
         glBufferSubData(GL_ARRAY_BUFFER, swooshEffect.offset + offset(drawableEntity, uv), 2 * sizeof(f32), &swooshEffect.uv);
         glBufferSubData(GL_ARRAY_BUFFER, player.offset + offset(drawableEntity, flipped), sizeof(u32), &player.flipped);
@@ -1114,6 +1149,8 @@ u32 createAndCompileShader(e32 shaderType, const string& path) {
 
         glGetShaderInfoLog(shader, LOG_LENGTH, nullptr, &errorLog[0]);
         std::cerr << "Shader compilation failed:" << std::endl << &errorLog[0] << std::endl;
+
+        glDeleteShader(shader);
     }
     assert(isShaderCompiled);
 
@@ -1142,7 +1179,7 @@ vec2 sweptAABB(const vec2 point, const vec2 delta, const aabb& box, const vec2 p
     vec2 position = box.position - padding;
     vec2 size= box.size + padding;
 
-    if (delta.x != 0.f && position.y <= point.y && point.y <= position.y + size.y) {
+    if (delta.x != 0.f && position.y < point.y && point.y < position.y + size.y) {
         leftTime = (position.x - point.x) / delta.x;
         if (leftTime < time.x) {
             time.x = leftTime;
