@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="fuzzy.cpp" />
+    <ClCompile Include="tiled.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="fuzzy.h" />
+    <ClInclude Include="types.h" />
+    <ClInclude Include="fuzzy_platform.h" />
+    <ClInclude Include="memory.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="generated">
+      <UniqueIdentifier>{b730d13c-f39c-4c87-b0a0-711d113577a5}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\generated\glad\src\glad.c">
+      <Filter>generated</Filter>
+    </None>
+  </ItemGroup>
+</Project>

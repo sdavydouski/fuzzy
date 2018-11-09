@@ -1,21 +1,19 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="fuzzy.cpp" />
-  </ItemGroup>
-  <ItemGroup>
     <Filter Include="generated">
       <UniqueIdentifier>{d0cec970-4af6-4843-9325-9d652eead848}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="types.h" />
-    <ClInclude Include="fuzzy.h" />
+    <ClInclude Include="win32_fuzzy.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="tiled.cpp" />
-    <None Include="..\generated\glad\src\glad.c">
+    <None Include="..\..\generated\glad\src\glad.c">
       <Filter>generated</Filter>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="win32_fuzzy.cpp" />
   </ItemGroup>
 </Project>
