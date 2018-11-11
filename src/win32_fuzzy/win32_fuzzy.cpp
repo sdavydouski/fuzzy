@@ -1,8 +1,4 @@
-#include <Windows.h>
-//#include <glad/glad.h>
-#include "../../generated/glad/src/glad.c"
-#include <GLFW/glfw3.h>
-
+#include <windows.h>
 #include <cstdlib>
 #include <string>
 #include <cassert>
@@ -10,75 +6,108 @@
 #include <sstream>
 #include <iostream>
 
-#include "types.h"
-#include "win32_fuzzy.h"
+#include "GL/glew.h"
+#include <GLFW/glfw3.h>
+
+#include "fuzzy_types.h"
+#include "fuzzy_memory.h"
 #include "fuzzy_platform.h"
+#include "win32_fuzzy.h"
 
 #pragma warning(disable:4302)
 #pragma warning(disable:4311)
 
-const s32 SCREEN_WIDTH = 1280;
-const s32 SCREEN_HEIGHT = 720;
-
-constexpr inline u64 Kilobytes(u64 bytes) {
-    u64 Result = bytes * 1024;
-    return Result;
-}
-
-constexpr inline u64 Megabytes(u64 bytes) {
-    u64 Result = Kilobytes(bytes) * 1024;
-    return Result;
-}
-
-constexpr inline u64 Gigabytes(u64 bytes) {
-    u64 Result = Megabytes(bytes) * 1024;
-    return Result;
-}
-
-constexpr inline u64 Terabytes(u64 bytes) {
-    u64 Result = Gigabytes(bytes) * 1024;
-    return Result;
-}
-
-struct win32_state {
-    u64 TotalSize;
-    void* GameMemoryBlock;
-};
-
-struct win32_game_code {
-    HMODULE GameCodeDLL;
-    FILETIME DLLLastWriteTime;
-
-    game_update_and_render* UpdateAndRender;
-
-    b32 IsValid;
-};
-
-GAME_PRINT_OUTPUT(GamePrintOutput) {
-    OutputDebugStringA(Output.c_str());
-}
-
-GAME_READ_TEXT_FILE(GameReadTextFile) {
-    std::ifstream In(Path);
-
-    assert(In.good());
-
-    std::ostringstream Result;
-    Result << In.rdbuf();
-    return Result.str();
-}
-
-GAME_READ_JSON_FILE(GameReadJsonFile) {
-    std::fstream In(Path);
-
-    assert(In.good());
-    
-    json Result;
-    In >> Result;
-    return Result;
-}
-
 game_params GameParams = {};
+
+// todo: should probably move these out...
+s32 StringLength(const char* String) {
+    s32 Length = 0;
+
+    while (*String++) {
+        ++Length;
+    }
+
+    return Length;
+}
+
+void ConcatenateStrings(const char* SourceA, const char* SourceB, char* Dest) {
+    s32 SourceALength = StringLength(SourceA);
+    for (s32 Index = 0; Index < SourceALength; ++Index) {
+        *Dest++ = *SourceA++;
+    }
+
+    s32 SourceBLength = StringLength(SourceB);
+    for (s32 Index = 0; Index < SourceBLength; ++Index) {
+        *Dest++ = *SourceB++;
+    }
+
+    *Dest++ = 0;
+}
+
+void Win32GetFullPathToEXEDirectory(win32_state* State) {
+    char EXEFullPath[WIN32_FILE_PATH];
+    GetModuleFileNameA(0, EXEFullPath, sizeof(EXEFullPath));
+
+    char* OnePastLastEXEFullPathSlash = EXEFullPath;
+
+    for (char* Scan = EXEFullPath; *Scan; ++Scan) {
+        if (*Scan == '\\') {
+            OnePastLastEXEFullPathSlash = Scan + 1;
+        }
+    }
+
+    for (char Index = 0; Index < OnePastLastEXEFullPathSlash - EXEFullPath; ++Index) {
+        State->EXEDirectoryFullPath[Index] = EXEFullPath[Index];
+    }
+}
+
+FILETIME Win32GetLastWriteTime(const char* FileName) {
+    FILETIME LastWriteTime = {};
+
+    WIN32_FILE_ATTRIBUTE_DATA FileInformation;
+    if (GetFileAttributesExA(FileName, GetFileExInfoStandard, &FileInformation)) {
+        LastWriteTime = FileInformation.ftLastWriteTime;
+    }
+
+    return LastWriteTime;
+}
+
+b32 Win32FileExists(const char* FileName) {
+    WIN32_FILE_ATTRIBUTE_DATA Ignored;
+    b32 Exists = GetFileAttributesExA(FileName, GetFileExInfoStandard, &Ignored);
+
+    return Exists;
+}
+
+win32_game_code Win32LoadGameCode(const char* SourceDLLName, const char* TempDLLName, const char* LockFileName) {
+    win32_game_code Result = {};
+
+    if (!Win32FileExists(LockFileName)) {
+        Result.DLLLastWriteTime = Win32GetLastWriteTime(SourceDLLName);
+
+        CopyFile(SourceDLLName, TempDLLName, false);
+
+        Result.GameCodeDLL = LoadLibraryA(TempDLLName);
+
+        if (Result.GameCodeDLL) {
+            Result.UpdateAndRender = (game_update_and_render*)GetProcAddress(Result.GameCodeDLL, "GameUpdateAndRender");
+
+            Result.IsValid = (b32)Result.UpdateAndRender;
+        }
+    }
+
+    return Result;
+}
+
+void Win32UnloadGameCode(win32_game_code* GameCode) {
+    if (GameCode->GameCodeDLL) {
+        FreeLibrary(GameCode->GameCodeDLL);
+        GameCode->GameCodeDLL = 0;
+    }
+
+    GameCode->IsValid = false;
+    GameCode->UpdateAndRender = 0;
+}
 
 s32 CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, s32 nCmdShow) {
     win32_state Win32State = {};
@@ -95,21 +124,26 @@ s32 CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
     GameMemory.PermanentStorage = Win32State.GameMemoryBlock;
     GameMemory.TransientStorage = (u8*)GameMemory.PermanentStorage + GameMemory.PermanentStorageSize;
 
-    GameMemory.PlatformAPI = {};
-    GameMemory.PlatformAPI.PrintOutput = GamePrintOutput;
-    GameMemory.PlatformAPI.ReadTextFile = GameReadTextFile;
-    GameMemory.PlatformAPI.ReadJsonFile = GameReadJsonFile;
+    GameMemory.Platform = {};
+    GameMemory.Platform.PrintOutput = GamePrintOutput;
+    GameMemory.Platform.ReadTextFile = GameReadTextFile;
+    GameMemory.Platform.ReadJsonFile = GameReadJsonFile;
 
-    win32_game_code GameCode = {};
-    GameCode.GameCodeDLL = LoadLibraryA("fuzzy.dll");
+    Win32GetFullPathToEXEDirectory(&Win32State);
 
-    if (GameCode.GameCodeDLL) {
-        GameCode.UpdateAndRender = (game_update_and_render*) GetProcAddress(GameCode.GameCodeDLL, "GameUpdateAndRender");
-        GameCode.IsValid = (b32)GameCode.UpdateAndRender;
-    }
+    char SourceGameCodeDLLFullPath[WIN32_FILE_PATH];
+    ConcatenateStrings(Win32State.EXEDirectoryFullPath, "fuzzy.dll", SourceGameCodeDLLFullPath);
 
-    GameParams.ScreenWidth = SCREEN_WIDTH;
-    GameParams.ScreenHeight = SCREEN_HEIGHT;
+    char TempGameCodeDLLFullPath[WIN32_FILE_PATH];
+    ConcatenateStrings(Win32State.EXEDirectoryFullPath, "fuzzy_temp.dll", TempGameCodeDLLFullPath);
+
+    char GameCodeLockFullPath[WIN32_FILE_PATH];
+    ConcatenateStrings(Win32State.EXEDirectoryFullPath, "lock.tmp", GameCodeLockFullPath);
+
+    win32_game_code GameCode = Win32LoadGameCode(SourceGameCodeDLLFullPath, TempGameCodeDLLFullPath, GameCodeLockFullPath);
+    
+    GameParams.ScreenWidth = 1280;
+    GameParams.ScreenHeight = 720;
     
     if (!glfwInit()) {
         OutputDebugStringA("Failed to initialize GLFW\n");
@@ -123,27 +157,27 @@ s32 CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     //glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
-    GLFWwindow* window = glfwCreateWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Fuzzy", nullptr, nullptr);
+    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+    const GLFWvidmode* vidmode = glfwGetVideoMode(monitor);
+
+    GLFWwindow* window = glfwCreateWindow(GameParams.ScreenWidth, GameParams.ScreenHeight, "Fuzzy", nullptr, nullptr);
     if (!window) {
         OutputDebugStringA("Failed to create GLFW window\n");
         glfwTerminate();
         return EXIT_FAILURE;
     }
-    
-    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
-    const GLFWvidmode* vidmode = glfwGetVideoMode(monitor);
 
-    glfwSetWindowPos(window, (vidmode->width - SCREEN_WIDTH) / 2, (vidmode->height - SCREEN_HEIGHT) / 2);
+    glfwSetWindowPos(window, (vidmode->width - GameParams.ScreenWidth) / 2, (vidmode->height - GameParams.ScreenHeight) / 2);
 
     glfwSetKeyCallback(window, [](GLFWwindow* window, s32 key, s32 scancode, s32 action, s32 mods) {
         if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
             glfwSetWindowShouldClose(window, GLFW_TRUE);
         }
         if (action == GLFW_PRESS) {
-            GameParams.Keys[key] = true;
+            GameParams.Input.Keys[key] = true;
         } else if (action == GLFW_RELEASE) {
-            GameParams.Keys[key] = false;
-            GameParams.ProcessedKeys[key] = false;
+            GameParams.Input.Keys[key] = false;
+            GameParams.Input.ProcessedKeys[key] = false;
         }
     });
 
@@ -155,22 +189,33 @@ s32 CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
     glfwSwapInterval(1);
 
-    //if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
-    //    OutputDebugStringA("Failed to initialize OpenGL context\n");
-    //    return EXIT_FAILURE;
-    //}
+    if (glewInit() != GLEW_OK) {
+        OutputDebugStringA("Failed to initialize OpenGL context\n");
+        return EXIT_FAILURE;
+    }
+
+    char* OpenGLVersion = (char*)glGetString(GL_VERSION);
+    OutputDebugStringA(OpenGLVersion);
+    OutputDebugStringA("\n");
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    glViewport(0, 0, GameParams.ScreenWidth, GameParams.ScreenHeight);
     
     f64 lastTime = glfwGetTime();
     f64 currentTime = glfwGetTime();
 
-    //f32 wait = 0.f;
-
     while (!glfwWindowShouldClose(window)) {
+        FILETIME NewDLLWriteTime = Win32GetLastWriteTime(SourceGameCodeDLLFullPath);
+        if (CompareFileTime(&NewDLLWriteTime, &GameCode.DLLLastWriteTime) != 0) {
+            Win32UnloadGameCode(&GameCode);
+            GameCode = Win32LoadGameCode(SourceGameCodeDLLFullPath, TempGameCodeDLLFullPath, GameCodeLockFullPath);
+        }
+
         currentTime = glfwGetTime();
         GameParams.Delta = (f32) (currentTime - lastTime);
         lastTime = currentTime;
-
-        //wait += GameParams.Delta;
 
         glfwPollEvents();
 

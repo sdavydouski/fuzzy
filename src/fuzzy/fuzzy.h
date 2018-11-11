@@ -1,6 +1,6 @@
 #pragma once
 
-#include "memory.h"
+#include "fuzzy_memory.h"
 
 #define length(arr) (sizeof(arr) / sizeof((arr)[0]))
 
@@ -180,6 +180,9 @@ struct game_state {
     vector<drawableEntity> DrawableEntities;
     vector<particleEmitter> ParticleEmitters;
     vector<tile> Tiles;
+
+    // top-left corner
+    vec2 Camera;
 
     drawableEntity Player;
     drawableEntity SwooshEffect;

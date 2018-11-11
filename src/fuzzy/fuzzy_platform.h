@@ -1,22 +1,22 @@
 #pragma once
 
-#include "types.h"
+#include "fuzzy_types.h"
 
 #define EXPORT __declspec(dllexport)
 
 #define GAME_PRINT_OUTPUT(name) void name(const string& Output)
-typedef GAME_PRINT_OUTPUT(game_print_output);
+typedef GAME_PRINT_OUTPUT(platform_print_output);
 
 #define GAME_READ_TEXT_FILE(name) string name(const string& Path)
-typedef GAME_READ_TEXT_FILE(game_read_text_file);
+typedef GAME_READ_TEXT_FILE(platform_read_text_file);
 
 #define GAME_READ_JSON_FILE(name) json name(const string& Path)
-typedef GAME_READ_JSON_FILE(game_read_json_file);
+typedef GAME_READ_JSON_FILE(platform_read_json_file);
 
 struct platform_api {
-    game_print_output* PrintOutput;
-    game_read_text_file* ReadTextFile;
-    game_read_json_file* ReadJsonFile;
+    platform_print_output* PrintOutput;
+    platform_read_text_file* ReadTextFile;
+    platform_read_json_file* ReadJsonFile;
 };
 
 struct game_memory {
@@ -28,7 +28,12 @@ struct game_memory {
     u64 TransientStorageSize;
     void* TransientStorage;
 
-    platform_api PlatformAPI;
+    platform_api Platform;
+};
+
+struct game_input {
+    b32 Keys[512];
+    b32 ProcessedKeys[512];
 };
 
 struct game_params {
@@ -36,8 +41,8 @@ struct game_params {
     s32 ScreenHeight;
 
     f32 Delta;
-    b32 Keys[512];
-    b32 ProcessedKeys[512];
+
+    game_input Input;
 };
 
 #define GAME_UPDATE_AND_RENDER(name) void name(game_memory* Memory, game_params* Params)

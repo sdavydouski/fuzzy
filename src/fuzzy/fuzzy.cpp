@@ -1,4 +1,4 @@
-#include "../../generated/glad/src/glad.c"
+#include "GL/glew.h"
 
 #define STBI_FAILURE_USERMSG
 #define STB_IMAGE_IMPLEMENTATION
@@ -14,18 +14,19 @@
 
 #include <fstream>
 
+#include "fuzzy_types.h"
 #include "fuzzy_platform.h"
 #include "tiled.cpp"
 #include "fuzzy.h"
 
-constexpr vec3 normalizeRGB(s32 red, s32 green, s32 blue) {
+vec3 normalizeRGB(s32 red, s32 green, s32 blue) {
     const f32 MAX = 255.f;
     return vec3(red / MAX, green / MAX, blue / MAX);
 }
 
 u32 createAndCompileShader(game_memory* Memory, e32 shaderType, const string& path) {
     u32 shader = glCreateShader(shaderType);
-    string shaderSource = Memory->PlatformAPI.ReadTextFile(path);
+    string shaderSource = Memory->Platform.ReadTextFile(path);
     const char* shaderSourcePtr = shaderSource.c_str();
     glShaderSource(shader, 1, &shaderSourcePtr, nullptr);
     glCompileShader(shader);
@@ -39,7 +40,7 @@ u32 createAndCompileShader(game_memory* Memory, e32 shaderType, const string& pa
         vector<char> errorLog(LOG_LENGTH);
 
         glGetShaderInfoLog(shader, LOG_LENGTH, nullptr, &errorLog[0]);
-        Memory->PlatformAPI.PrintOutput("Shader compilation failed:\n" + string(&errorLog[0]) + "\n");
+        Memory->Platform.PrintOutput("Shader compilation failed:\n" + string(&errorLog[0]) + "\n");
 
         glDeleteShader(shader);
     }
@@ -174,17 +175,94 @@ vec2 sweptAABB(const vec2 point, const vec2 delta, const aabb& box, const vec2 p
     return time;
 }
 
-
-constexpr vec3 backgroundColor = normalizeRGB(29, 33, 45);
+vec3 backgroundColor = normalizeRGB(29, 33, 45);
 
 vec2 scale = vec2(4.f);
 // todo: could be different value than 16.f
 const vec2 TILE_SIZE = { 16.f * scale.x, 16.f * scale.y };
 
-// top-left corner
-vec2 camera = vec2(0.f);
-
 const f32 chargeVelocity = 10.f;
+
+void processInput(game_state* GameState, game_input* Input) {
+    sprite* Bob = &GameState->Bob;
+    effect* Swoosh = &GameState->Swoosh;
+    vector<drawableEntity>* DrawableEntities = &GameState->DrawableEntities;
+
+    if (Input->Keys[GLFW_KEY_LEFT] == GLFW_PRESS) {
+        if (
+            Bob->currentAnimation != Bob->animations[2] &&
+            Bob->currentAnimation != Bob->animations[1] &&
+            Bob->currentAnimation != Bob->animations[3]
+            ) {
+            Bob->currentAnimation = Bob->animations[2];
+        }
+        Bob->acceleration.x = -12.f;
+        Bob->flipped |= FLIPPED_HORIZONTALLY_FLAG;
+    }
+
+    if (Input->Keys[GLFW_KEY_RIGHT] == GLFW_PRESS) {
+        if (
+            Bob->currentAnimation != Bob->animations[2] &&
+            Bob->currentAnimation != Bob->animations[1] &&
+            Bob->currentAnimation != Bob->animations[3]
+            ) {
+            Bob->currentAnimation = Bob->animations[2];
+        }
+        Bob->acceleration.x = 12.f;
+        Bob->flipped &= 0;
+    }
+
+    if (Input->Keys[GLFW_KEY_LEFT] == GLFW_RELEASE && !Input->ProcessedKeys[GLFW_KEY_LEFT]) {
+        Input->ProcessedKeys[GLFW_KEY_LEFT] = true;
+        if (Bob->currentAnimation != Bob->animations[0]) {
+            Bob->currentAnimation = Bob->animations[0];
+            Bob->xAnimationOffset = 0.f;
+            Bob->flipped |= FLIPPED_HORIZONTALLY_FLAG;
+        }
+    }
+
+    if (Input->Keys[GLFW_KEY_RIGHT] == GLFW_RELEASE && !Input->ProcessedKeys[GLFW_KEY_RIGHT]) {
+        Input->ProcessedKeys[GLFW_KEY_RIGHT] = true;
+        if (Bob->currentAnimation != Bob->animations[0]) {
+            Bob->currentAnimation = Bob->animations[0];
+            Bob->xAnimationOffset = 0.f;
+            Bob->flipped &= 0;
+        }
+    }
+
+    if (Input->Keys[GLFW_KEY_SPACE] == GLFW_PRESS && !Input->ProcessedKeys[GLFW_KEY_SPACE]) {
+        Input->ProcessedKeys[GLFW_KEY_SPACE] = true;
+        Bob->acceleration.y = -350.f;
+        Bob->velocity.y = 0.f;
+    }
+
+    if (Input->Keys[GLFW_KEY_S] == GLFW_PRESS && !Input->ProcessedKeys[GLFW_KEY_S]) {
+        Input->ProcessedKeys[GLFW_KEY_S] = true;
+        Bob->currentAnimation = Bob->animations[3];
+        Bob->xAnimationOffset = 0.f;
+
+        Swoosh->shouldRender = true;
+        Swoosh->xAnimationOffset = 0.f;
+        Swoosh->flipped = Bob->flipped;
+
+        // todo: make it better
+        for (u32 i = 0; i < DrawableEntities->size(); ++i) {
+            drawableEntity& entity = (*DrawableEntities)[i];
+            if (entity.type == entityType::REFLECTOR) {
+                entity.underEffect = false;
+            }
+        }
+
+        if (Swoosh->flipped & FLIPPED_HORIZONTALLY_FLAG) {
+            Swoosh->position = { Bob->box.position.x - 2 * TILE_SIZE.x, Bob->box.position.y };
+            Swoosh->box.position = { Bob->box.position.x - 2 * TILE_SIZE.x, Bob->box.position.y };
+        }
+        else {
+            Swoosh->position = { Bob->box.position.x + TILE_SIZE.x, Bob->box.position.y };
+            Swoosh->box.position = { Bob->box.position.x + TILE_SIZE.x, Bob->box.position.y };
+        }
+    }
+}
 
 extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     assert(sizeof(game_state) <= Memory->PermanentStorageSize);
@@ -201,22 +279,11 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     vector<particleEmitter>* ParticleEmitters = &GameState->ParticleEmitters;
 
     if (!Memory->IsInitalized) {
-        if (!gladLoadGL()) {
-            Memory->PlatformAPI.PrintOutput("Failed to initialize OpenGL context\n");
-        }
-
-        glEnable(GL_BLEND);
-
-        Memory->PlatformAPI.PrintOutput((char*)glGetString(GL_VERSION));
-        Memory->PlatformAPI.PrintOutput("\n");
-
-        glViewport(0, 0, Params->ScreenWidth, Params->ScreenHeight);
-
         s32 textureChannels;
         u8* textureImage = stbi_load("textures/industrial_tileset.png",
             &GameState->TextureWidth, &GameState->TextureHeight, &textureChannels, 0);
         if (!textureImage) {
-            Memory->PlatformAPI.PrintOutput("Texture loading failed:\n" + string(stbi_failure_reason()) + "\n");
+            Memory->Platform.PrintOutput("Texture loading failed:\n" + string(stbi_failure_reason()) + "\n");
         }
         assert(textureImage);
 
@@ -254,7 +321,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
             vector<char> errorLog(LOG_LENGTH);
 
             glGetProgramInfoLog(shaderProgram, LOG_LENGTH, nullptr, &errorLog[0]);
-            Memory->PlatformAPI.PrintOutput("Shader program linkage failed:\n" + string(&errorLog[0]) + "\n");
+            Memory->Platform.PrintOutput("Shader program linkage failed:\n" + string(&errorLog[0]) + "\n");
         }
         assert(isShaderProgramLinked);
 
@@ -269,10 +336,10 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         GameState->TypeUniformLocation = getUniformLocation(shaderProgram, "type");
         s32 tileTypeUniformLocation = getUniformLocation(shaderProgram, "tileType");
 
-        json spritesConfig = Memory->PlatformAPI.ReadJsonFile("textures/sprites.json");
+        json spritesConfig = Memory->Platform.ReadJsonFile("textures/sprites.json");
 
         // todo: std::map isn't working
-        tileset tileset = loadTileset(Memory->PlatformAPI.ReadJsonFile, "levels/tileset.json");
+        tileset tileset = loadTileset(Memory->Platform.ReadJsonFile, "levels/tileset.json");
         GameState->TilesetColumns = tileset.columns;
         GameState->TilesetImageSize = tileset.imageSize;
         GameState->TilesetMargin = tileset.margin;
@@ -356,7 +423,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
             1.f, 1.f, 1.f, 1.f
         };
 
-        GameState->Level = loadMap(Memory->PlatformAPI.ReadJsonFile, "levels/level01.json", tileset, scale);
+        GameState->Level = loadMap(Memory->Platform.ReadJsonFile, "levels/level01.json", tileset, scale);
 
         // todo: make it efficient
         for (auto& layer : GameState->Level.tileLayers) {
@@ -509,82 +576,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         f32 dt = 0.15f;
 
         Bob->acceleration.x = 0.f;
-#pragma region process input
-        if (Params->Keys[GLFW_KEY_LEFT] == GLFW_PRESS) {
-            if (
-                Bob->currentAnimation != Bob->animations[2] &&
-                Bob->currentAnimation != Bob->animations[1] &&
-                Bob->currentAnimation != Bob->animations[3]
-                ) {
-                Bob->currentAnimation = Bob->animations[2];
-            }
-            Bob->acceleration.x = -12.f;
-            Bob->flipped |= FLIPPED_HORIZONTALLY_FLAG;
-        }
-
-        if (Params->Keys[GLFW_KEY_RIGHT] == GLFW_PRESS) {
-            if (
-                Bob->currentAnimation != Bob->animations[2] &&
-                Bob->currentAnimation != Bob->animations[1] &&
-                Bob->currentAnimation != Bob->animations[3]
-                ) {
-                Bob->currentAnimation = Bob->animations[2];
-            }
-            Bob->acceleration.x = 12.f;
-            Bob->flipped &= 0;
-        }
-
-        if (Params->Keys[GLFW_KEY_LEFT] == GLFW_RELEASE && !Params->ProcessedKeys[GLFW_KEY_LEFT]) {
-            Params->ProcessedKeys[GLFW_KEY_LEFT] = true;
-            if (Bob->currentAnimation != Bob->animations[0]) {
-                Bob->currentAnimation = Bob->animations[0];
-                Bob->xAnimationOffset = 0.f;
-                Bob->flipped |= FLIPPED_HORIZONTALLY_FLAG;
-            }
-        }
-
-        if (Params->Keys[GLFW_KEY_RIGHT] == GLFW_RELEASE && !Params->ProcessedKeys[GLFW_KEY_RIGHT]) {
-            Params->ProcessedKeys[GLFW_KEY_RIGHT] = true;
-            if (Bob->currentAnimation != Bob->animations[0]) {
-                Bob->currentAnimation = Bob->animations[0];
-                Bob->xAnimationOffset = 0.f;
-                Bob->flipped &= 0;
-            }
-        }
-
-        if (Params->Keys[GLFW_KEY_SPACE] == GLFW_PRESS && !Params->ProcessedKeys[GLFW_KEY_SPACE]) {
-            Params->ProcessedKeys[GLFW_KEY_SPACE] = true;
-            Bob->acceleration.y = -350.f;
-            Bob->velocity.y = 0.f;
-        }
-
-        if (Params->Keys[GLFW_KEY_S] == GLFW_PRESS && !Params->ProcessedKeys[GLFW_KEY_S]) {
-            Params->ProcessedKeys[GLFW_KEY_S] = true;
-            Bob->currentAnimation = Bob->animations[3];
-            Bob->xAnimationOffset = 0.f;
-
-            Swoosh->shouldRender = true;
-            Swoosh->xAnimationOffset = 0.f;
-            Swoosh->flipped = Bob->flipped;
-
-            // todo: make it better
-            for (u32 i = 0; i < DrawableEntities->size(); ++i) {
-                drawableEntity& entity = (*DrawableEntities)[i];
-                if (entity.type == entityType::REFLECTOR) {
-                    entity.underEffect = false;
-                }
-            }
-
-            if (Swoosh->flipped & FLIPPED_HORIZONTALLY_FLAG) {
-                Swoosh->position = { Bob->box.position.x - 2 * TILE_SIZE.x, Bob->box.position.y };
-                Swoosh->box.position = { Bob->box.position.x - 2 * TILE_SIZE.x, Bob->box.position.y };
-            }
-            else {
-                Swoosh->position = { Bob->box.position.x + TILE_SIZE.x, Bob->box.position.y };
-                Swoosh->box.position = { Bob->box.position.x + TILE_SIZE.x, Bob->box.position.y };
-            }
-        }
-#pragma endregion
+        processInput(GameState, &Params->Input);
 
         // friction imitation
         // todo: take scale into account!
@@ -699,35 +691,35 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         vec2 idleArea = { 2 * TILE_SIZE.x, 1 * TILE_SIZE.y };
 
         if (updatedMove.x > 0.f) {
-            if (Bob->position.x + TILE_SIZE.x > camera.x + ScreenWidth / 2 + idleArea.x) {
-                camera.x += updatedMove.x;
+            if (Bob->position.x + TILE_SIZE.x > GameState->Camera.x + ScreenWidth / 2 + idleArea.x) {
+                GameState->Camera.x += updatedMove.x;
             }
         }
         else if (updatedMove.x < 0.f) {
-            if (Bob->position.x < camera.x + ScreenWidth / 2 - idleArea.x) {
-                camera.x += updatedMove.x;
+            if (Bob->position.x < GameState->Camera.x + ScreenWidth / 2 - idleArea.x) {
+                GameState->Camera.x += updatedMove.x;
             }
         }
 
         if (updatedMove.y > 0.f) {
-            if (Bob->position.y + TILE_SIZE.y > camera.y + ScreenHeight / 2 + idleArea.y) {
-                camera.y += updatedMove.y;
+            if (Bob->position.y + TILE_SIZE.y > GameState->Camera.y + ScreenHeight / 2 + idleArea.y) {
+                GameState->Camera.y += updatedMove.y;
             }
         }
         else if (updatedMove.y < 0.f) {
-            if (Bob->position.y < camera.y + ScreenHeight / 2 - idleArea.y) {
-                camera.y += updatedMove.y;
+            if (Bob->position.y < GameState->Camera.y + ScreenHeight / 2 - idleArea.y) {
+                GameState->Camera.y += updatedMove.y;
             }
         }
 
-        camera.x = camera.x > 0.f ? camera.x : 0.f;
-        camera.y = camera.y > 0.f ? camera.y : 0.f;
+        GameState->Camera.x = GameState->Camera.x > 0.f ? GameState->Camera.x : 0.f;
+        GameState->Camera.y = GameState->Camera.y > 0.f ? GameState->Camera.y : 0.f;
 
         if (TILE_SIZE.x * GameState->Level.width - ScreenWidth >= 0) {
-            camera.x = clamp(camera.x, 0.f, (f32)TILE_SIZE.x * GameState->Level.width - ScreenWidth);
+            GameState->Camera.x = clamp(GameState->Camera.x, 0.f, (f32)TILE_SIZE.x * GameState->Level.width - ScreenWidth);
         }
         if (TILE_SIZE.y * GameState->Level.height - ScreenHeight >= 0) {
-            camera.y = clamp(camera.y, 0.f, (f32)TILE_SIZE.y * GameState->Level.height - ScreenHeight);
+            GameState->Camera.y = clamp(GameState->Camera.y, 0.f, (f32)TILE_SIZE.y * GameState->Level.height - ScreenHeight);
         }
 
         glBindBuffer(GL_ARRAY_BUFFER, GameState->VBOParticles);
@@ -978,7 +970,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     GameState->ChargeSpawnCooldown += Params->Delta;
 
     mat4 view = mat4(1.0f);
-    view = glm::translate(view, vec3(-camera, 0.f));
+    view = glm::translate(view, vec3(-GameState->Camera, 0.f));
     setShaderUniform(GameState->ViewUniformLocation, view);
 
     glClear(GL_COLOR_BUFFER_BIT);

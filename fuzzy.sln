@@ -13,6 +13,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "misc", "misc", "{B8071DF9-9
 		.gitignore = .gitignore
 		.gitmodules = .gitmodules
 		clean.bat = clean.bat
+		game_build.bat = game_build.bat
 		glad_generate.bat = glad_generate.bat
 		glfw_build.bat = glfw_build.bat
 		LICENSE.md = LICENSE.md

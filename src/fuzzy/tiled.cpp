@@ -4,7 +4,7 @@
 
 #include <nlohmann\json.hpp>
 
-#include "types.h"
+#include "fuzzy_types.h"
 #include "fuzzy.h"
 
 const u32 FLIPPED_HORIZONTALLY_FLAG = 0x80000000;
@@ -92,7 +92,7 @@ void from_json(const json& j, rawObjectLayer& layer) {
 tileLayer parseTileLayer(const rawTileLayer& layer, const tileset& tileset, vec2 scale);
 objectLayer parseObjectLayer(const rawObjectLayer& layer, const tileset& tileset, vec2 scale);
 
-tileset loadTileset(game_read_json_file* ReadJsonFile, const string& path) {
+tileset loadTileset(platform_read_json_file* ReadJsonFile, const string& path) {
     tileset tileset = {};
 
     json tilesetInfo = ReadJsonFile(path);
@@ -136,7 +136,7 @@ tileset loadTileset(game_read_json_file* ReadJsonFile, const string& path) {
     return tileset;
 }
 
-tiledMap loadMap(game_read_json_file* ReadJsonFile, const string& path, const tileset& tileset, const vec2 scale) {
+tiledMap loadMap(platform_read_json_file* ReadJsonFile, const string& path, const tileset& tileset, const vec2 scale) {
     tiledMap map = {};
 
     json mapInfo = ReadJsonFile(path);

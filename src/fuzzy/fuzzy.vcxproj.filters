@@ -2,13 +2,12 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="fuzzy.cpp" />
-    <ClCompile Include="tiled.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="fuzzy.h" />
-    <ClInclude Include="types.h" />
     <ClInclude Include="fuzzy_platform.h" />
-    <ClInclude Include="memory.h" />
+    <ClInclude Include="fuzzy_memory.h" />
+    <ClInclude Include="fuzzy_types.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="generated">
@@ -19,5 +18,6 @@
     <None Include="..\..\generated\glad\src\glad.c">
       <Filter>generated</Filter>
     </None>
+    <None Include="tiled.cpp" />
   </ItemGroup>
 </Project>
