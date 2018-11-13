@@ -6,8 +6,12 @@
 #include <sstream>
 #include <iostream>
 
-#include "GL/glew.h"
+#include "..\..\generated\glad\src\glad.c"
 #include <GLFW/glfw3.h>
+
+#define STBI_FAILURE_USERMSG
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
 
 #include "fuzzy_types.h"
 #include "fuzzy_memory.h"
@@ -109,6 +113,44 @@ void Win32UnloadGameCode(win32_game_code* GameCode) {
     GameCode->UpdateAndRender = 0;
 }
 
+void Win32InitOpenGLRenderer(game_memory* GameMemory) {
+    GameMemory->Renderer = {};
+    GameMemory->Renderer.glCreateShader = glCreateShader;
+    GameMemory->Renderer.glShaderSource = glShaderSource;
+    GameMemory->Renderer.glCompileShader = glCompileShader;
+    GameMemory->Renderer.glGetShaderiv = glGetShaderiv;
+    GameMemory->Renderer.glGetShaderInfoLog = glGetShaderInfoLog;
+    GameMemory->Renderer.glDeleteShader = glDeleteShader;
+    GameMemory->Renderer.glGetUniformLocation = glGetUniformLocation;
+    GameMemory->Renderer.glUniform1i = glUniform1i;
+    GameMemory->Renderer.glUniform2f = glUniform2f;
+    GameMemory->Renderer.glUniformMatrix4fv = glUniformMatrix4fv;
+    GameMemory->Renderer.glGenTextures = glGenTextures;
+    GameMemory->Renderer.glBindTexture = glBindTexture;
+    GameMemory->Renderer.glTexParameteri = glTexParameteri;
+    GameMemory->Renderer.glTexImage2D = glTexImage2D;
+    GameMemory->Renderer.glCreateProgram = glCreateProgram;
+    GameMemory->Renderer.glAttachShader = glAttachShader;
+    GameMemory->Renderer.glLinkProgram = glLinkProgram;
+    GameMemory->Renderer.glGetProgramiv = glGetProgramiv;
+    GameMemory->Renderer.glGetProgramInfoLog = glGetProgramInfoLog;
+    GameMemory->Renderer.glUseProgram = glUseProgram;
+    GameMemory->Renderer.glGenVertexArrays = glGenVertexArrays;
+    GameMemory->Renderer.glBindVertexArray = glBindVertexArray;
+    GameMemory->Renderer.glGenBuffers = glGenBuffers;
+    GameMemory->Renderer.glBindBuffer = glBindBuffer;
+    GameMemory->Renderer.glBufferData = glBufferData;
+    GameMemory->Renderer.glBufferSubData = glBufferSubData;
+    GameMemory->Renderer.glVertexAttribPointer = glVertexAttribPointer;
+    GameMemory->Renderer.glVertexAttribIPointer = glVertexAttribIPointer;
+    GameMemory->Renderer.glEnableVertexAttribArray = glEnableVertexAttribArray;
+    GameMemory->Renderer.glVertexAttribDivisor = glVertexAttribDivisor;
+    GameMemory->Renderer.glBlendFunc = glBlendFunc;
+    GameMemory->Renderer.glClear = glClear;
+    GameMemory->Renderer.glClearColor = glClearColor;
+    GameMemory->Renderer.glDrawArraysInstanced = glDrawArraysInstanced;
+}
+
 s32 CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, s32 nCmdShow) {
     win32_state Win32State = {};
     game_memory GameMemory = {};
@@ -128,6 +170,10 @@ s32 CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
     GameMemory.Platform.PrintOutput = GamePrintOutput;
     GameMemory.Platform.ReadTextFile = GameReadTextFile;
     GameMemory.Platform.ReadJsonFile = GameReadJsonFile;
+    GameMemory.Platform.ReadImageFile = stbi_load;
+    GameMemory.Platform.FreeImageFile = stbi_image_free;
+
+    Win32InitOpenGLRenderer(&GameMemory);
 
     Win32GetFullPathToEXEDirectory(&Win32State);
 
@@ -189,7 +235,7 @@ s32 CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
     glfwSwapInterval(1);
 
-    if (glewInit() != GLEW_OK) {
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
         OutputDebugStringA("Failed to initialize OpenGL context\n");
         return EXIT_FAILURE;
     }

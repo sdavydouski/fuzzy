@@ -1,13 +1,9 @@
-#include "GL/glew.h"
-
-#define STBI_FAILURE_USERMSG
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
+#include "glad\glad.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include <nlohmann\json.hpp>
+#include <nlohmann/json.hpp>
 
 // todo: just for key codes
 #include <GLFW/glfw3.h>
@@ -24,47 +20,47 @@ vec3 normalizeRGB(s32 red, s32 green, s32 blue) {
     return vec3(red / MAX, green / MAX, blue / MAX);
 }
 
-u32 createAndCompileShader(game_memory* Memory, e32 shaderType, const string& path) {
-    u32 shader = glCreateShader(shaderType);
+inline u32 createAndCompileShader(game_memory* Memory, GLenum shaderType, const string& path) {
+    u32 shader = Memory->Renderer.glCreateShader(shaderType);
     string shaderSource = Memory->Platform.ReadTextFile(path);
     const char* shaderSourcePtr = shaderSource.c_str();
-    glShaderSource(shader, 1, &shaderSourcePtr, nullptr);
-    glCompileShader(shader);
+    Memory->Renderer.glShaderSource(shader, 1, &shaderSourcePtr, nullptr);
+    Memory->Renderer.glCompileShader(shader);
 
     s32 isShaderCompiled;
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &isShaderCompiled);
+    Memory->Renderer.glGetShaderiv(shader, GL_COMPILE_STATUS, &isShaderCompiled);
     if (!isShaderCompiled) {
         s32 LOG_LENGTH;
-        glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &LOG_LENGTH);
+        Memory->Renderer.glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &LOG_LENGTH);
 
         vector<char> errorLog(LOG_LENGTH);
 
-        glGetShaderInfoLog(shader, LOG_LENGTH, nullptr, &errorLog[0]);
+        Memory->Renderer.glGetShaderInfoLog(shader, LOG_LENGTH, nullptr, &errorLog[0]);
         Memory->Platform.PrintOutput("Shader compilation failed:\n" + string(&errorLog[0]) + "\n");
 
-        glDeleteShader(shader);
+        Memory->Renderer.glDeleteShader(shader);
     }
     assert(isShaderCompiled);
 
     return shader;
 }
 
-inline s32 getUniformLocation(u32 shaderProgram, const string& name) {
-    s32 uniformLocation = glGetUniformLocation(shaderProgram, name.c_str());
+inline s32 getUniformLocation(game_memory* Memory, u32 shaderProgram, const string& name) {
+    s32 uniformLocation = Memory->Renderer.glGetUniformLocation(shaderProgram, name.c_str());
     //assert(uniformLocation != -1);
     return uniformLocation;
 }
 
-inline void setShaderUniform(s32 location, s32 value) {
-    glUniform1i(location, value);
+inline void setShaderUniform(game_memory* Memory, s32 location, s32 value) {
+    Memory->Renderer.glUniform1i(location, value);
 }
 
-inline void setShaderUniform(s32 location, const vec2& value) {
-    glUniform2f(location, value.x, value.y);
+inline void setShaderUniform(game_memory* Memory, s32 location, const vec2& value) {
+    Memory->Renderer.glUniform2f(location, value.x, value.y);
 }
 
-inline void setShaderUniform(s32 location, const mat4& value) {
-    glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(value));
+inline void setShaderUniform(game_memory* Memory, s32 location, const mat4& value) {
+    Memory->Renderer.glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(value));
 }
 
 // todo: write more efficient functions
@@ -278,68 +274,70 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     vector<drawableEntity>* DrawableEntities = &GameState->DrawableEntities;
     vector<particleEmitter>* ParticleEmitters = &GameState->ParticleEmitters;
 
+    platform_api* Platform = &Memory->Platform;
+    renderer_api* Renderer = &Memory->Renderer;
+
     if (!Memory->IsInitalized) {
         s32 textureChannels;
-        u8* textureImage = stbi_load("textures/industrial_tileset.png",
+        u8* textureImage = Platform->ReadImageFile("textures/industrial_tileset.png",
             &GameState->TextureWidth, &GameState->TextureHeight, &textureChannels, 0);
         if (!textureImage) {
-            Memory->Platform.PrintOutput("Texture loading failed:\n" + string(stbi_failure_reason()) + "\n");
+            Platform->PrintOutput("Texture loading failed:\n");
         }
         assert(textureImage);
 
         u32 texture;
-        glGenTextures(1, &texture);
-        glBindTexture(GL_TEXTURE_2D, texture);
+        Renderer->glGenTextures(1, &texture);
+        Renderer->glBindTexture(GL_TEXTURE_2D, texture);
 
         // note: default value for GL_TEXTURE_MIN_FILTER is GL_NEAREST_MIPMAP_LINEAR
         // since we do not use mipmaps we must override this value
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        Renderer->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        Renderer->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, GameState->TextureWidth, GameState->TextureHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, textureImage);
+        Renderer->glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, GameState->TextureWidth, GameState->TextureHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, textureImage);
 
-        stbi_image_free(textureImage);
-
+        Platform->FreeImageFile(textureImage);
 
         u32 vertexShader = createAndCompileShader(Memory, GL_VERTEX_SHADER, "shaders/basic.vert");
         u32 fragmentShader = createAndCompileShader(Memory, GL_FRAGMENT_SHADER, "shaders/basic.frag");
 
-        u32 shaderProgram = glCreateProgram();
-        glAttachShader(shaderProgram, vertexShader);
-        glAttachShader(shaderProgram, fragmentShader);
-        glLinkProgram(shaderProgram);
-        glDeleteShader(vertexShader);
-        glDeleteShader(fragmentShader);
+        u32 shaderProgram = Renderer->glCreateProgram();
+        Renderer->glAttachShader(shaderProgram, vertexShader);
+        Renderer->glAttachShader(shaderProgram, fragmentShader);
+        Renderer->glLinkProgram(shaderProgram);
+        Renderer->glDeleteShader(vertexShader);
+        Renderer->glDeleteShader(fragmentShader);
 
         s32 isShaderProgramLinked;
-        glGetProgramiv(shaderProgram, GL_LINK_STATUS, &isShaderProgramLinked);
+        Renderer->glGetProgramiv(shaderProgram, GL_LINK_STATUS, &isShaderProgramLinked);
 
         if (!isShaderProgramLinked) {
             s32 LOG_LENGTH;
-            glGetProgramiv(shaderProgram, GL_INFO_LOG_LENGTH, &LOG_LENGTH);
+            Renderer->glGetProgramiv(shaderProgram, GL_INFO_LOG_LENGTH, &LOG_LENGTH);
 
             vector<char> errorLog(LOG_LENGTH);
 
-            glGetProgramInfoLog(shaderProgram, LOG_LENGTH, nullptr, &errorLog[0]);
-            Memory->Platform.PrintOutput("Shader program linkage failed:\n" + string(&errorLog[0]) + "\n");
+            Renderer->glGetProgramInfoLog(shaderProgram, LOG_LENGTH, nullptr, &errorLog[0]);
+            Platform->PrintOutput("Shader program linkage failed:\n" + string(&errorLog[0]) + "\n");
         }
         assert(isShaderProgramLinked);
 
-        glUseProgram(shaderProgram);
+        Renderer->glUseProgram(shaderProgram);
 
         mat4 projection = glm::ortho(0.0f, (f32)ScreenWidth, (f32)ScreenHeight, 0.0f);
 
-        s32 projectionUniformLocation = getUniformLocation(shaderProgram, "projection");
-        setShaderUniform(projectionUniformLocation, projection);
-        GameState->ViewUniformLocation = getUniformLocation(shaderProgram, "view");
-        GameState->ModelUniformLocation = getUniformLocation(shaderProgram, "model");
-        GameState->TypeUniformLocation = getUniformLocation(shaderProgram, "type");
-        s32 tileTypeUniformLocation = getUniformLocation(shaderProgram, "tileType");
+        s32 projectionUniformLocation = getUniformLocation(Memory, shaderProgram, "projection");
+        setShaderUniform(Memory, projectionUniformLocation, projection);
+        GameState->ViewUniformLocation = getUniformLocation(Memory, shaderProgram, "view");
+        GameState->ModelUniformLocation = getUniformLocation(Memory, shaderProgram, "model");
+        GameState->TypeUniformLocation = getUniformLocation(Memory, shaderProgram, "type");
+        s32 tileTypeUniformLocation = getUniformLocation(Memory, shaderProgram, "tileType");
 
-        json spritesConfig = Memory->Platform.ReadJsonFile("textures/sprites.json");
+        json spritesConfig = Platform->ReadJsonFile("textures/sprites.json");
 
         // todo: std::map isn't working
-        tileset tileset = loadTileset(Memory->Platform.ReadJsonFile, "levels/tileset.json");
+        tileset tileset = loadTileset(Platform->ReadJsonFile, "levels/tileset.json");
         GameState->TilesetColumns = tileset.columns;
         GameState->TilesetImageSize = tileset.imageSize;
         GameState->TilesetMargin = tileset.margin;
@@ -412,8 +410,8 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         GameState->SpriteWidth = ((f32)GameState->TilesetTileSize.x) / GameState->TextureWidth;
         GameState->SpriteHeight = ((f32)GameState->TilesetTileSize.y) / GameState->TextureHeight;
 
-        s32 spriteSizeUniformLocation = getUniformLocation(shaderProgram, "spriteSize");
-        setShaderUniform(spriteSizeUniformLocation, vec2(GameState->SpriteWidth, GameState->SpriteHeight));
+        s32 spriteSizeUniformLocation = getUniformLocation(Memory, shaderProgram, "spriteSize");
+        setShaderUniform(Memory, spriteSizeUniformLocation, vec2(GameState->SpriteWidth, GameState->SpriteHeight));
 
         f32 vertices[] = {
             // Pos    // UV
@@ -423,7 +421,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
             1.f, 1.f, 1.f, 1.f
         };
 
-        GameState->Level = loadMap(Memory->Platform.ReadJsonFile, "levels/level01.json", tileset, scale);
+        GameState->Level = loadMap(Platform->ReadJsonFile, "levels/level01.json", tileset, scale);
 
         // todo: make it efficient
         for (auto& layer : GameState->Level.tileLayers) {
@@ -435,29 +433,29 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         u64 totalTileSizeInBytes = sizeInBytes({ GameState->Tiles });
 
         u32 VAO;
-        glGenVertexArrays(1, &VAO);
-        glBindVertexArray(VAO);
+        Renderer->glGenVertexArrays(1, &VAO);
+        Renderer->glBindVertexArray(VAO);
 
-        glGenBuffers(1, &GameState->VBOTiles);
-        glBindBuffer(GL_ARRAY_BUFFER, GameState->VBOTiles);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices) + totalTileSizeInBytes, nullptr, GL_STATIC_DRAW);
+        Renderer->glGenBuffers(1, &GameState->VBOTiles);
+        Renderer->glBindBuffer(GL_ARRAY_BUFFER, GameState->VBOTiles);
+        Renderer->glBufferData(GL_ARRAY_BUFFER, sizeof(vertices) + totalTileSizeInBytes, nullptr, GL_STATIC_DRAW);
 
-        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
-        glBufferSubData(GL_ARRAY_BUFFER, sizeof(vertices), totalTileSizeInBytes, GameState->Tiles.data());
+        Renderer->glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+        Renderer->glBufferSubData(GL_ARRAY_BUFFER, sizeof(vertices), totalTileSizeInBytes, GameState->Tiles.data());
 
         // vertices
-        glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(f32), (void*)0);
-        glEnableVertexAttribArray(0);
+        Renderer->glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(f32), (void*)0);
+        Renderer->glEnableVertexAttribArray(0);
 
         // tile position/uv
-        glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(tile), (void*) sizeof(vertices));
-        glEnableVertexAttribArray(1);
-        glVertexAttribDivisor(1, 1);
+        Renderer->glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(tile), (void*) sizeof(vertices));
+        Renderer->glEnableVertexAttribArray(1);
+        Renderer->glVertexAttribDivisor(1, 1);
 
         // tile flipped
-        glVertexAttribIPointer(2, 1, GL_UNSIGNED_INT, sizeof(tile), (void*)(sizeof(vertices) + offset(tile, flipped)));
-        glEnableVertexAttribArray(2);
-        glVertexAttribDivisor(2, 1);
+        Renderer->glVertexAttribIPointer(2, 1, GL_UNSIGNED_INT, sizeof(tile), (void*)(sizeof(vertices) + offset(tile, flipped)));
+        Renderer->glEnableVertexAttribArray(2);
+        Renderer->glVertexAttribDivisor(2, 1);
 
         // todo: make it efficient
         for (auto& layer : GameState->Level.objectLayers) {
@@ -489,34 +487,34 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         GameState->SwooshEffect.type = entityType::EFFECT;
         DrawableEntities->push_back(GameState->SwooshEffect);
 
-        glGenBuffers(1, &GameState->VBOEntities);
-        glBindBuffer(GL_ARRAY_BUFFER, GameState->VBOEntities);
-        glBufferData(GL_ARRAY_BUFFER, (u32)(sizeof(u32) + sizeof(drawableEntity)) * DrawableEntities->size(), DrawableEntities->data(), GL_STREAM_DRAW);
+        Renderer->glGenBuffers(1, &GameState->VBOEntities);
+        Renderer->glBindBuffer(GL_ARRAY_BUFFER, GameState->VBOEntities);
+        Renderer->glBufferData(GL_ARRAY_BUFFER, (u32)(sizeof(u32) + sizeof(drawableEntity)) * DrawableEntities->size(), DrawableEntities->data(), GL_STREAM_DRAW);
 
         // position
-        glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, sizeof(drawableEntity), (void*)offset(drawableEntity, position));
-        glEnableVertexAttribArray(3);
-        glVertexAttribDivisor(3, 1);
+        Renderer->glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, sizeof(drawableEntity), (void*)offset(drawableEntity, position));
+        Renderer->glEnableVertexAttribArray(3);
+        Renderer->glVertexAttribDivisor(3, 1);
         // aabb
         //glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(drawableEntity), (void*) offset(drawableEntity, box));
         //glEnableVertexAttribArray(4);
         //glVertexAttribDivisor(4, 1);
         // uv/rotation
-        glVertexAttribPointer(5, 3, GL_FLOAT, GL_FALSE, sizeof(drawableEntity), (void*)offset(drawableEntity, uv));
-        glEnableVertexAttribArray(5);
-        glVertexAttribDivisor(5, 1);
+        Renderer->glVertexAttribPointer(5, 3, GL_FLOAT, GL_FALSE, sizeof(drawableEntity), (void*)offset(drawableEntity, uv));
+        Renderer->glEnableVertexAttribArray(5);
+        Renderer->glVertexAttribDivisor(5, 1);
         // flipped
-        glVertexAttribIPointer(6, 1, GL_UNSIGNED_INT, sizeof(drawableEntity), (void*)offset(drawableEntity, flipped));
-        glEnableVertexAttribArray(6);
-        glVertexAttribDivisor(6, 1);
+        Renderer->glVertexAttribIPointer(6, 1, GL_UNSIGNED_INT, sizeof(drawableEntity), (void*)offset(drawableEntity, flipped));
+        Renderer->glEnableVertexAttribArray(6);
+        Renderer->glVertexAttribDivisor(6, 1);
         // spriteScale
-        glVertexAttribPointer(7, 2, GL_FLOAT, GL_FALSE, sizeof(drawableEntity), (void*)offset(drawableEntity, spriteScale));
-        glEnableVertexAttribArray(7);
-        glVertexAttribDivisor(7, 1);
+        Renderer->glVertexAttribPointer(7, 2, GL_FLOAT, GL_FALSE, sizeof(drawableEntity), (void*)offset(drawableEntity, spriteScale));
+        Renderer->glEnableVertexAttribArray(7);
+        Renderer->glVertexAttribDivisor(7, 1);
         // shouldRender
-        glVertexAttribIPointer(8, 1, GL_UNSIGNED_INT, sizeof(drawableEntity), (void*)offset(drawableEntity, shouldRender));
-        glEnableVertexAttribArray(8);
-        glVertexAttribDivisor(8, 1);
+        Renderer->glVertexAttribIPointer(8, 1, GL_UNSIGNED_INT, sizeof(drawableEntity), (void*)offset(drawableEntity, shouldRender));
+        Renderer->glEnableVertexAttribArray(8);
+        Renderer->glVertexAttribDivisor(8, 1);
 
         particleEmitter charge = {};
         charge.maxParticlesCount = 500;
@@ -534,24 +532,24 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
         ParticleEmitters->push_back(charge);
 
-        glGenBuffers(1, &GameState->VBOParticles);
-        glBindBuffer(GL_ARRAY_BUFFER, GameState->VBOParticles);
+        Renderer->glGenBuffers(1, &GameState->VBOParticles);
+        Renderer->glBindBuffer(GL_ARRAY_BUFFER, GameState->VBOParticles);
         // todo: manage it somehow
-        glBufferData(GL_ARRAY_BUFFER, 50 * (charge.maxParticlesCount) * sizeof(particle),
+        Renderer->glBufferData(GL_ARRAY_BUFFER, 50 * (charge.maxParticlesCount) * sizeof(particle),
             nullptr, GL_STREAM_DRAW);
 
         // particle's position/size
-        glVertexAttribPointer(9, 4, GL_FLOAT, GL_FALSE, sizeof(particle), (void*)offset(particle, position));
-        glEnableVertexAttribArray(9);
-        glVertexAttribDivisor(9, 1);
+        Renderer->glVertexAttribPointer(9, 4, GL_FLOAT, GL_FALSE, sizeof(particle), (void*)offset(particle, position));
+        Renderer->glEnableVertexAttribArray(9);
+        Renderer->glVertexAttribDivisor(9, 1);
         // particle's uv
-        glVertexAttribPointer(10, 2, GL_FLOAT, GL_FALSE, sizeof(particle), (void*)offset(particle, uv));
-        glEnableVertexAttribArray(10);
-        glVertexAttribDivisor(10, 1);
+        Renderer->glVertexAttribPointer(10, 2, GL_FLOAT, GL_FALSE, sizeof(particle), (void*)offset(particle, uv));
+        Renderer->glEnableVertexAttribArray(10);
+        Renderer->glVertexAttribDivisor(10, 1);
         // particle's alpha value
-        glVertexAttribPointer(11, 1, GL_FLOAT, GL_FALSE, sizeof(particle), (void*)offset(particle, alpha));
-        glEnableVertexAttribArray(11);
-        glVertexAttribDivisor(11, 1);
+        Renderer->glVertexAttribPointer(11, 1, GL_FLOAT, GL_FALSE, sizeof(particle), (void*)offset(particle, alpha));
+        Renderer->glEnableVertexAttribArray(11);
+        Renderer->glVertexAttribDivisor(11, 1);
 
         GameState->UpdateRate = 0.01f;   // 10 ms
         GameState->Lag = 0.f;
@@ -561,17 +559,17 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
         GameState->ChargeSpawnCooldown = 0.f;
 
-        glClearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, 1.0f);
+        Renderer->glClearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, 1.0f);
 
         Memory->IsInitalized = true;
     }
 
     GameState->Lag += Params->Delta;
 
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    Renderer->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     while (GameState->Lag >= GameState->UpdateRate) {
-        glBindBuffer(GL_ARRAY_BUFFER, GameState->VBOEntities);
+        Renderer->glBindBuffer(GL_ARRAY_BUFFER, GameState->VBOEntities);
 
         f32 dt = 0.15f;
 
@@ -618,7 +616,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
                     if (entity.isRotating) {
                         entity.rotation += 5.f;
-                        glBufferSubData(GL_ARRAY_BUFFER, entity.offset + offset(drawableEntity, rotation), sizeof(u32), &entity.rotation);
+                        Renderer->glBufferSubData(GL_ARRAY_BUFFER, entity.offset + offset(drawableEntity, rotation), sizeof(u32), &entity.rotation);
 
                         if (0.f < entity.rotation && entity.rotation <= 90.f) {
                             if (entity.rotation == 90.f) {
@@ -722,7 +720,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
             GameState->Camera.y = clamp(GameState->Camera.y, 0.f, (f32)TILE_SIZE.y * GameState->Level.height - ScreenHeight);
         }
 
-        glBindBuffer(GL_ARRAY_BUFFER, GameState->VBOParticles);
+        Renderer->glBindBuffer(GL_ARRAY_BUFFER, GameState->VBOParticles);
 
         u32 chargesCount = (u32)ParticleEmitters->size();
 
@@ -958,7 +956,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                 }
             }
 
-            glBufferSubData(GL_ARRAY_BUFFER, particlesSize, sizeInBytes({ emitter.particles }),
+            Renderer->glBufferSubData(GL_ARRAY_BUFFER, particlesSize, sizeInBytes({ emitter.particles }),
                 emitter.particles.data());
 
             particlesSize += sizeInBytes({ emitter.particles });
@@ -971,19 +969,19 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
     mat4 view = mat4(1.0f);
     view = glm::translate(view, vec3(-GameState->Camera, 0.f));
-    setShaderUniform(GameState->ViewUniformLocation, view);
+    setShaderUniform(Memory, GameState->ViewUniformLocation, view);
 
-    glClear(GL_COLOR_BUFFER_BIT);
+    Renderer->glClear(GL_COLOR_BUFFER_BIT);
 
     //--- drawing tilemap ---
-    glBindBuffer(GL_ARRAY_BUFFER, GameState->VBOTiles);
-    setShaderUniform(GameState->TypeUniformLocation, 1);
+    Renderer->glBindBuffer(GL_ARRAY_BUFFER, GameState->VBOTiles);
+    setShaderUniform(Memory, GameState->TypeUniformLocation, 1);
 
     mat4 model = mat4(1.0f);
     model = glm::scale(model, vec3(TILE_SIZE, 1.f));
-    setShaderUniform(GameState->ModelUniformLocation, model);
+    setShaderUniform(Memory, GameState->ModelUniformLocation, model);
 
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, (u32)GameState->Tiles.size());
+    Renderer->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, (u32)GameState->Tiles.size());
 
     //--- bob ---
     f32 bobXOffset = (f32)(Bob->currentAnimation.x * (GameState->TilesetTileSize.x + GameState->TilesetSpacing) + GameState->TilesetMargin) / GameState->TextureWidth;
@@ -1004,7 +1002,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
     model = mat4(1.0f);
     model = glm::scale(model, vec3(TILE_SIZE, 1.f));
-    setShaderUniform(GameState->ModelUniformLocation, model);
+    setShaderUniform(Memory, GameState->ModelUniformLocation, model);
 
     f32 effectXOffset = (f32)(Swoosh->currentAnimation.x * (GameState->TilesetTileSize.x + GameState->TilesetSpacing) + GameState->TilesetMargin) / GameState->TextureWidth;
     f32 effectYOffset = (f32)(Swoosh->currentAnimation.y * (GameState->TilesetTileSize.y + GameState->TilesetSpacing) + GameState->TilesetMargin) / GameState->TextureHeight;
@@ -1023,7 +1021,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         Swoosh->frameTime += Params->Delta;
     }
 
-    glBindBuffer(GL_ARRAY_BUFFER, GameState->VBOEntities);
+    Renderer->glBindBuffer(GL_ARRAY_BUFFER, GameState->VBOEntities);
     // handling animations on all entities
     for (u32 i = 0; i < DrawableEntities->size(); ++i) {
         auto& entity = (*DrawableEntities)[i];
@@ -1046,7 +1044,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                 }
 
                 entity.uv = vec2(entityXOffset + entity.xAnimationOffset, entityYOffset);
-                glBufferSubData(GL_ARRAY_BUFFER, entity.offset + offset(drawableEntity, uv), sizeof(vec2), &entity.uv);
+                Renderer->glBufferSubData(GL_ARRAY_BUFFER, entity.offset + offset(drawableEntity, uv), sizeof(vec2), &entity.uv);
 
                 if (abs(entity.xAnimationOffset) >= ((entity.currentAnimation->frames * GameState->TilesetTileSize.x * entity.currentAnimation->size) / (f32)GameState->TextureWidth)) {
                     entity.xAnimationOffset = 0.f;
@@ -1063,7 +1061,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     }
 
     //--- drawing entities ---
-    setShaderUniform(GameState->TypeUniformLocation, 3);
+    setShaderUniform(Memory, GameState->TypeUniformLocation, 3);
 
     GameState->Player.uv = vec2(bobXOffset + Bob->xAnimationOffset, bobYOffset);
     GameState->Player.position = Bob->position;
@@ -1076,21 +1074,21 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     GameState->SwooshEffect.flipped = Bob->flipped;
     GameState->SwooshEffect.shouldRender = Swoosh->shouldRender ? 1 : 0;
 
-    glBufferSubData(GL_ARRAY_BUFFER, GameState->Player.offset + offset(drawableEntity, position), 2 * sizeof(f32), &GameState->Player.position);
-    glBufferSubData(GL_ARRAY_BUFFER, GameState->SwooshEffect.offset + offset(drawableEntity, position), 2 * sizeof(f32), &GameState->SwooshEffect.position);
-    glBufferSubData(GL_ARRAY_BUFFER, GameState->Player.offset + offset(drawableEntity, uv), 2 * sizeof(f32), &GameState->Player.uv);
-    glBufferSubData(GL_ARRAY_BUFFER, GameState->SwooshEffect.offset + offset(drawableEntity, uv), 2 * sizeof(f32), &GameState->SwooshEffect.uv);
-    glBufferSubData(GL_ARRAY_BUFFER, GameState->Player.offset + offset(drawableEntity, flipped), sizeof(u32), &GameState->Player.flipped);
-    glBufferSubData(GL_ARRAY_BUFFER, GameState->SwooshEffect.offset + offset(drawableEntity, flipped), sizeof(u32), &GameState->SwooshEffect.flipped);
-    glBufferSubData(GL_ARRAY_BUFFER, GameState->SwooshEffect.offset + offset(drawableEntity, shouldRender), sizeof(u32), &GameState->SwooshEffect.shouldRender);
+    Renderer->glBufferSubData(GL_ARRAY_BUFFER, GameState->Player.offset + offset(drawableEntity, position), 2 * sizeof(f32), &GameState->Player.position);
+    Renderer->glBufferSubData(GL_ARRAY_BUFFER, GameState->SwooshEffect.offset + offset(drawableEntity, position), 2 * sizeof(f32), &GameState->SwooshEffect.position);
+    Renderer->glBufferSubData(GL_ARRAY_BUFFER, GameState->Player.offset + offset(drawableEntity, uv), 2 * sizeof(f32), &GameState->Player.uv);
+    Renderer->glBufferSubData(GL_ARRAY_BUFFER, GameState->SwooshEffect.offset + offset(drawableEntity, uv), 2 * sizeof(f32), &GameState->SwooshEffect.uv);
+    Renderer->glBufferSubData(GL_ARRAY_BUFFER, GameState->Player.offset + offset(drawableEntity, flipped), sizeof(u32), &GameState->Player.flipped);
+    Renderer->glBufferSubData(GL_ARRAY_BUFFER, GameState->SwooshEffect.offset + offset(drawableEntity, flipped), sizeof(u32), &GameState->SwooshEffect.flipped);
+    Renderer->glBufferSubData(GL_ARRAY_BUFFER, GameState->SwooshEffect.offset + offset(drawableEntity, shouldRender), sizeof(u32), &GameState->SwooshEffect.shouldRender);
 
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, (s32)DrawableEntities->size());
+    Renderer->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, (s32)DrawableEntities->size());
 
     //--- drawing particles ---
-    glBindBuffer(GL_ARRAY_BUFFER, GameState->VBOParticles);
-    setShaderUniform(GameState->TypeUniformLocation, 4);
+    Renderer->glBindBuffer(GL_ARRAY_BUFFER, GameState->VBOParticles);
+    setShaderUniform(Memory, GameState->TypeUniformLocation, 4);
 
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+    Renderer->glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 
     // todo: offsets when delete in the middle?
     s32 totalParticlesCount = 0;
@@ -1099,9 +1097,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     }
 
     // todo: draw only the ones which lifespan is greater than zero
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, totalParticlesCount);
-
-    glFinish();
+    Renderer->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, totalParticlesCount);
 
     //std::cout << delta * 1000.f << " ms" << std::endl;
 }

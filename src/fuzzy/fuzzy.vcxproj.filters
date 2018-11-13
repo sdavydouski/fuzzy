@@ -10,14 +10,6 @@
     <ClInclude Include="fuzzy_types.h" />
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="generated">
-      <UniqueIdentifier>{b730d13c-f39c-4c87-b0a0-711d113577a5}</UniqueIdentifier>
-    </Filter>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="..\..\generated\glad\src\glad.c">
-      <Filter>generated</Filter>
-    </None>
     <None Include="tiled.cpp" />
   </ItemGroup>
 </Project>
