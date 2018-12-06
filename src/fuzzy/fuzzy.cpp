@@ -20,7 +20,7 @@ vec3 normalizeRGB(s32 red, s32 green, s32 blue) {
     return vec3(red / MAX, green / MAX, blue / MAX);
 }
 
-inline u32 createAndCompileShader(game_memory* Memory, GLenum shaderType, const string& path) {
+inline u32 createAndCompileShader(game_memory* Memory, game_state* GameState, GLenum shaderType, const string& path) {
     u32 shader = Memory->Renderer.glCreateShader(shaderType);
     string shaderSource = Memory->Platform.ReadTextFile(path);
     const char* shaderSourcePtr = shaderSource.c_str();
@@ -32,11 +32,14 @@ inline u32 createAndCompileShader(game_memory* Memory, GLenum shaderType, const 
     if (!isShaderCompiled) {
         s32 LOG_LENGTH;
         Memory->Renderer.glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &LOG_LENGTH);
-
-        vector<char> errorLog(LOG_LENGTH);
+        
+        // todo: use transient arena?
+        char* errorLog = PushArray<char>(&GameState->WorldArena, LOG_LENGTH);
 
         Memory->Renderer.glGetShaderInfoLog(shader, LOG_LENGTH, nullptr, &errorLog[0]);
         Memory->Platform.PrintOutput("Shader compilation failed:\n" + string(&errorLog[0]) + "\n");
+
+        // todo: pop array
 
         Memory->Renderer.glDeleteShader(shader);
     }
@@ -90,41 +93,33 @@ inline b32 intersectAABB(const aabb& box1, const aabb& box2) {
     return xCollision && yCollision;
 }
 
-// todo: different Ts
-template<typename T>
-u64 sizeInBytes(std::initializer_list<const vector<T>> vectors) {
-    u64 size = 0;
-    for (auto& vector : vectors) {
-        size += vector.size() * sizeof(T);
-    }
-    return size;
-}
-
 // todo: replace with smth more performant
-inline drawableEntity* getEntityById(vector<drawableEntity>& entities, u32 id) {
-    drawableEntity* result = nullptr;
+inline drawable_entity* GetEntityById(game_state* GameState, u32 Id) {
+    drawable_entity* Result = nullptr;
 
-    for (auto& entity : entities) {
-        if (entity.id == id) {
-            result = &entity;
+    for (u32 DrawableEntityIndex = 0; DrawableEntityIndex < GameState->DrawableEntitiesCount; ++DrawableEntityIndex) {
+        drawable_entity* Entity = &GameState->DrawableEntities[DrawableEntityIndex];
+
+        if (Entity->id == Id) {
+            Result = Entity;
             break;
         }
     }
 
-    assert(result);
+    assert(Result);
 
-    return result;
+    return Result;
 }
 
-u32 findFirstUnusedParticle(const particleEmitter& emitter) {
-    for (u32 i = emitter.lastUsedParticle; i < emitter.maxParticlesCount; ++i) {
-        if (emitter.particles[i].lifespan <= 0.f) {
+u32 FindFirstUnusedParticle(particle_emitter* Emitter) {
+    for (u32 i = Emitter->LastUsedParticle; i < Emitter->ParticlesCount; ++i) {
+        if (Emitter->Particles[i].Lifespan <= 0.f) {
             return i;
         }
     }
 
-    for (u32 i = 0; i < emitter.lastUsedParticle; ++i) {
-        if (emitter.particles[i].lifespan <= 0.f) {
+    for (u32 i = 0; i < Emitter->LastUsedParticle; ++i) {
+        if (Emitter->Particles[i].Lifespan <= 0.f) {
             return i;
         }
     }
@@ -173,89 +168,88 @@ vec2 sweptAABB(const vec2 point, const vec2 delta, const aabb& box, const vec2 p
 
 vec3 backgroundColor = normalizeRGB(29, 33, 45);
 
-vec2 scale = vec2(4.f);
+vec2 Scale = vec2(4.f);
 // todo: could be different value than 16.f
-const vec2 TILE_SIZE = { 16.f * scale.x, 16.f * scale.y };
+const vec2 TILE_SIZE = { 16.f * Scale.x, 16.f * Scale.y };
 
 const f32 chargeVelocity = 10.f;
 
 void processInput(game_state* GameState, game_input* Input) {
     sprite* Bob = &GameState->Bob;
     effect* Swoosh = &GameState->Swoosh;
-    vector<drawableEntity>* DrawableEntities = &GameState->DrawableEntities;
 
     if (Input->Keys[GLFW_KEY_LEFT] == GLFW_PRESS) {
         if (
-            Bob->currentAnimation != Bob->animations[2] &&
-            Bob->currentAnimation != Bob->animations[1] &&
-            Bob->currentAnimation != Bob->animations[3]
+            Bob->CurrentAnimation != Bob->Animations[2] &&
+            Bob->CurrentAnimation != Bob->Animations[1] &&
+            Bob->CurrentAnimation != Bob->Animations[3]
             ) {
-            Bob->currentAnimation = Bob->animations[2];
+            Bob->CurrentAnimation = Bob->Animations[2];
         }
-        Bob->acceleration.x = -12.f;
-        Bob->flipped |= FLIPPED_HORIZONTALLY_FLAG;
+        Bob->Acceleration.x = -12.f;
+        Bob->Flipped |= FLIPPED_HORIZONTALLY_FLAG;
     }
 
     if (Input->Keys[GLFW_KEY_RIGHT] == GLFW_PRESS) {
         if (
-            Bob->currentAnimation != Bob->animations[2] &&
-            Bob->currentAnimation != Bob->animations[1] &&
-            Bob->currentAnimation != Bob->animations[3]
+            Bob->CurrentAnimation != Bob->Animations[2] &&
+            Bob->CurrentAnimation != Bob->Animations[1] &&
+            Bob->CurrentAnimation != Bob->Animations[3]
             ) {
-            Bob->currentAnimation = Bob->animations[2];
+            Bob->CurrentAnimation = Bob->Animations[2];
         }
-        Bob->acceleration.x = 12.f;
-        Bob->flipped &= 0;
+        Bob->Acceleration.x = 12.f;
+        Bob->Flipped &= 0;
     }
 
     if (Input->Keys[GLFW_KEY_LEFT] == GLFW_RELEASE && !Input->ProcessedKeys[GLFW_KEY_LEFT]) {
         Input->ProcessedKeys[GLFW_KEY_LEFT] = true;
-        if (Bob->currentAnimation != Bob->animations[0]) {
-            Bob->currentAnimation = Bob->animations[0];
-            Bob->xAnimationOffset = 0.f;
-            Bob->flipped |= FLIPPED_HORIZONTALLY_FLAG;
+        if (Bob->CurrentAnimation != Bob->Animations[0]) {
+            Bob->CurrentAnimation = Bob->Animations[0];
+            Bob->XAnimationOffset = 0.f;
+            Bob->Flipped |= FLIPPED_HORIZONTALLY_FLAG;
         }
     }
 
     if (Input->Keys[GLFW_KEY_RIGHT] == GLFW_RELEASE && !Input->ProcessedKeys[GLFW_KEY_RIGHT]) {
         Input->ProcessedKeys[GLFW_KEY_RIGHT] = true;
-        if (Bob->currentAnimation != Bob->animations[0]) {
-            Bob->currentAnimation = Bob->animations[0];
-            Bob->xAnimationOffset = 0.f;
-            Bob->flipped &= 0;
+        if (Bob->CurrentAnimation != Bob->Animations[0]) {
+            Bob->CurrentAnimation = Bob->Animations[0];
+            Bob->XAnimationOffset = 0.f;
+            Bob->Flipped &= 0;
         }
     }
 
     if (Input->Keys[GLFW_KEY_SPACE] == GLFW_PRESS && !Input->ProcessedKeys[GLFW_KEY_SPACE]) {
         Input->ProcessedKeys[GLFW_KEY_SPACE] = true;
-        Bob->acceleration.y = -350.f;
-        Bob->velocity.y = 0.f;
+        Bob->Acceleration.y = -350.f;
+        Bob->Velocity.y = 0.f;
     }
 
     if (Input->Keys[GLFW_KEY_S] == GLFW_PRESS && !Input->ProcessedKeys[GLFW_KEY_S]) {
         Input->ProcessedKeys[GLFW_KEY_S] = true;
-        Bob->currentAnimation = Bob->animations[3];
-        Bob->xAnimationOffset = 0.f;
+        Bob->CurrentAnimation = Bob->Animations[3];
+        Bob->XAnimationOffset = 0.f;
 
-        Swoosh->shouldRender = true;
-        Swoosh->xAnimationOffset = 0.f;
-        Swoosh->flipped = Bob->flipped;
+        Swoosh->ShouldRender = true;
+        Swoosh->XAnimationOffset = 0.f;
+        Swoosh->Flipped = Bob->Flipped;
 
         // todo: make it better
-        for (u32 i = 0; i < DrawableEntities->size(); ++i) {
-            drawableEntity& entity = (*DrawableEntities)[i];
-            if (entity.type == entityType::REFLECTOR) {
-                entity.underEffect = false;
+        for (u32 DrawableEntityIndex = 0; DrawableEntityIndex < GameState->DrawableEntitiesCount; ++DrawableEntityIndex) {
+            drawable_entity* Entity = &GameState->DrawableEntities[DrawableEntityIndex];
+            if (Entity->type == entity_type::REFLECTOR) {
+                Entity->underEffect = false;
             }
         }
 
-        if (Swoosh->flipped & FLIPPED_HORIZONTALLY_FLAG) {
-            Swoosh->position = { Bob->box.position.x - 2 * TILE_SIZE.x, Bob->box.position.y };
-            Swoosh->box.position = { Bob->box.position.x - 2 * TILE_SIZE.x, Bob->box.position.y };
+        if (Swoosh->Flipped & FLIPPED_HORIZONTALLY_FLAG) {
+            Swoosh->Position = { Bob->Box.position.x - 2 * TILE_SIZE.x, Bob->Box.position.y };
+            Swoosh->Box.position = { Bob->Box.position.x - 2 * TILE_SIZE.x, Bob->Box.position.y };
         }
         else {
-            Swoosh->position = { Bob->box.position.x + TILE_SIZE.x, Bob->box.position.y };
-            Swoosh->box.position = { Bob->box.position.x + TILE_SIZE.x, Bob->box.position.y };
+            Swoosh->Position = { Bob->Box.position.x + TILE_SIZE.x, Bob->Box.position.y };
+            Swoosh->Box.position = { Bob->Box.position.x + TILE_SIZE.x, Bob->Box.position.y };
         }
     }
 }
@@ -270,14 +264,19 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
     sprite* Bob = &GameState->Bob;
     effect* Swoosh = &GameState->Swoosh;
-    vector<entity>* Entities = &GameState->Entities;
-    vector<drawableEntity>* DrawableEntities = &GameState->DrawableEntities;
-    vector<particleEmitter>* ParticleEmitters = &GameState->ParticleEmitters;
 
     platform_api* Platform = &Memory->Platform;
     renderer_api* Renderer = &Memory->Renderer;
 
+    //GameState->TestMap["purpuse"] = 42;
+
     if (!Memory->IsInitalized) {
+        InitializeMemoryArena(
+            &GameState->WorldArena, 
+            Memory->PermanentStorageSize - sizeof(game_state), 
+            (u8*)Memory->PermanentStorage + sizeof(game_state)
+        );
+
         s32 textureChannels;
         u8* textureImage = Platform->ReadImageFile("textures/industrial_tileset.png",
             &GameState->TextureWidth, &GameState->TextureHeight, &textureChannels, 0);
@@ -295,12 +294,13 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         Renderer->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         Renderer->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-        Renderer->glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, GameState->TextureWidth, GameState->TextureHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, textureImage);
+        Renderer->glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, GameState->TextureWidth, GameState->TextureHeight, 
+            0, GL_RGBA, GL_UNSIGNED_BYTE, textureImage);
 
         Platform->FreeImageFile(textureImage);
 
-        u32 vertexShader = createAndCompileShader(Memory, GL_VERTEX_SHADER, "shaders/basic.vert");
-        u32 fragmentShader = createAndCompileShader(Memory, GL_FRAGMENT_SHADER, "shaders/basic.frag");
+        u32 vertexShader = createAndCompileShader(Memory, GameState, GL_VERTEX_SHADER, "shaders/basic.vert");
+        u32 fragmentShader = createAndCompileShader(Memory, GameState, GL_FRAGMENT_SHADER, "shaders/basic.frag");
 
         u32 shaderProgram = Renderer->glCreateProgram();
         Renderer->glAttachShader(shaderProgram, vertexShader);
@@ -337,48 +337,58 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         json spritesConfig = Platform->ReadJsonFile("textures/sprites.json");
 
         // todo: std::map isn't working
-        tileset tileset = loadTileset(Platform->ReadJsonFile, "levels/tileset.json");
-        GameState->TilesetColumns = tileset.columns;
-        GameState->TilesetImageSize = tileset.imageSize;
-        GameState->TilesetMargin = tileset.margin;
-        GameState->TilesetSpacing = tileset.spacing;
-        GameState->TilesetTileSize = tileset.tileSize;
+        tileset Tileset = loadTileset(Platform->ReadJsonFile, "levels/tileset.json");
+        GameState->TilesetColumns = Tileset.columns;
+        GameState->TilesetImageSize = Tileset.imageSize;
+        GameState->TilesetMargin = Tileset.margin;
+        GameState->TilesetSpacing = Tileset.spacing;
+        GameState->TilesetTileSize = Tileset.tileSize;
 
         auto bobConfig = spritesConfig["sprites"][0];
         auto bobAnimations = bobConfig["animations"];
 
         *Bob = {};
-        Bob->position = { 5 * TILE_SIZE.x, 0 * TILE_SIZE.y };
-        Bob->box.position = { 5 * TILE_SIZE.x, 0 * TILE_SIZE.y };
-        Bob->box.size = { 13.f * scale.x, 16.f * scale.y };
-        Bob->velocity = { 0.f, 0.f };
-        Bob->acceleration = { 0.f, 10.f };
-        Bob->animations.reserve(bobAnimations.size());
+        Bob->Position = { 5 * TILE_SIZE.x, 0 * TILE_SIZE.y };
+        Bob->Box.position = { 5 * TILE_SIZE.x, 0 * TILE_SIZE.y };
+        Bob->Box.size = { 13.f * Scale.x, 16.f * Scale.y };
+        Bob->Velocity = { 0.f, 0.f };
+        Bob->Acceleration = { 0.f, 10.f };
+        Bob->AnimationsCount = (u32)bobAnimations.size();
+        Bob->Animations = PushArray<animation>(&GameState->WorldArena, Bob->AnimationsCount);
 
+        u32 BobAnimationsIndex = 0;
         for (auto animation : bobAnimations) {
-            Bob->animations.push_back({ animation["x"], animation["y"], animation["frames"], animation["delay"], animation["size"] });
+            Bob->Animations[BobAnimationsIndex++] = {
+                animation["x"], animation["y"], animation["frames"], animation["delay"], animation["size"]
+            };
         }
 
-        Bob->currentAnimation = Bob->animations[0];
-        Bob->xAnimationOffset = 0.f;
-        Bob->frameTime = 0.f;
+        Bob->CurrentAnimation = Bob->Animations[0];
+        Bob->XAnimationOffset = 0.f;
+        Bob->FrameTime = 0.f;
 
         auto effectsConfig = spritesConfig["sprites"][1];
         auto effectsAnimations = effectsConfig["animations"];
 
         *Swoosh = {};
-        Swoosh->position = { 0.f, 0.f };     // todo: think about better ways
-        Swoosh->box.position = { 0.f, 0.f };     // todo: think about better ways
-        Swoosh->box.size = { 2 * TILE_SIZE.x, TILE_SIZE.y };
-        Swoosh->shouldRender = false;
+        Swoosh->Position = { 0.f, 0.f };     // todo: think about better ways
+        Swoosh->Box.position = { 0.f, 0.f };     // todo: think about better ways
+        Swoosh->Box.size = { 2 * TILE_SIZE.x, TILE_SIZE.y };
+        Swoosh->ShouldRender = false;
 
-        for (auto animation : effectsAnimations) {
-            Swoosh->animations.push_back({ animation["x"], animation["y"], animation["frames"], animation["delay"], animation["size"] });
+        Swoosh->AnimationsCount = (u32)effectsAnimations.size();
+        Swoosh->Animations = PushArray<animation>(&GameState->WorldArena, Swoosh->AnimationsCount);
+
+        u32 SwooshAnimationIndex = 0;
+        for (auto& animation : effectsAnimations) {
+            Swoosh->Animations[SwooshAnimationIndex++] = {
+                animation["x"], animation["y"], animation["frames"], animation["delay"], animation["size"]
+            };
         }
 
-        Swoosh->currentAnimation = Swoosh->animations[0];
-        Swoosh->xAnimationOffset = 0.f;
-        Swoosh->frameTime = 0.f;
+        Swoosh->CurrentAnimation = Swoosh->Animations[0];
+        Swoosh->XAnimationOffset = 0.f;
+        Swoosh->FrameTime = 0.f;
 
         auto lampConfig = spritesConfig["sprites"][2];
         auto lampAnimations = lampConfig["animations"];
@@ -421,16 +431,23 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
             1.f, 1.f, 1.f, 1.f
         };
 
-        GameState->Level = loadMap(Platform->ReadJsonFile, "levels/level01.json", tileset, scale);
+        GameState->Level = LoadMap(&GameState->WorldArena, Platform->ReadJsonFile, "levels/level01.json", Tileset, Scale);
 
         // todo: make it efficient
-        for (auto& layer : GameState->Level.tileLayers) {
-            for (auto& tile : layer.tiles) {
-                GameState->Tiles.push_back(tile);
+        for (u32 TileLayersIndex = 0; TileLayersIndex < GameState->Level.TileLayersCount; ++TileLayersIndex) {
+            GameState->TilesCount += GameState->Level.TileLayers[TileLayersIndex].TilesCount;
+        }
+
+        GameState->Tiles = PushArray<tile>(&GameState->WorldArena, GameState->TilesCount);
+
+        u32 TotalTilesIndex = 0;
+        for (u32 TileLayersIndex = 0; TileLayersIndex < GameState->Level.TileLayersCount; ++TileLayersIndex) {
+            for (u32 TilesIndex = 0; TilesIndex < GameState->Level.TileLayers[TileLayersIndex].TilesCount; ++TilesIndex) {
+                GameState->Tiles[TotalTilesIndex++] = GameState->Level.TileLayers[TileLayersIndex].Tiles[TilesIndex];
             }
         }
 
-        u64 totalTileSizeInBytes = sizeInBytes({ GameState->Tiles });
+        u64 TotalTileSizeInBytes = GameState->TilesCount * sizeof(tile);
 
         u32 VAO;
         Renderer->glGenVertexArrays(1, &VAO);
@@ -438,10 +455,10 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
         Renderer->glGenBuffers(1, &GameState->VBOTiles);
         Renderer->glBindBuffer(GL_ARRAY_BUFFER, GameState->VBOTiles);
-        Renderer->glBufferData(GL_ARRAY_BUFFER, sizeof(vertices) + totalTileSizeInBytes, nullptr, GL_STATIC_DRAW);
+        Renderer->glBufferData(GL_ARRAY_BUFFER, sizeof(vertices) + TotalTileSizeInBytes, nullptr, GL_STATIC_DRAW);
 
         Renderer->glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
-        Renderer->glBufferSubData(GL_ARRAY_BUFFER, sizeof(vertices), totalTileSizeInBytes, GameState->Tiles.data());
+        Renderer->glBufferSubData(GL_ARRAY_BUFFER, sizeof(vertices), TotalTileSizeInBytes, GameState->Tiles);
 
         // vertices
         Renderer->glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(f32), (void*)0);
@@ -458,96 +475,111 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         Renderer->glVertexAttribDivisor(2, 1);
 
         // todo: make it efficient
-        for (auto& layer : GameState->Level.objectLayers) {
-            for (auto& entity : layer.entities) {
-                Entities->push_back(entity.second);
+        for (u32 ObjectLayersIndex = 0; ObjectLayersIndex < GameState->Level.ObjectLayersCount; ++ObjectLayersIndex) {
+            GameState->EntitiesCount += GameState->Level.ObjectLayers[ObjectLayersIndex].EntitiesCount;
+            GameState->DrawableEntitiesCount += GameState->Level.ObjectLayers[ObjectLayersIndex].DrawableEntitiesCount;
+        }
+        
+        GameState->Entities = PushArray<entity>(&GameState->WorldArena, GameState->EntitiesCount);
+
+        // + player and swoosh effect
+        GameState->DrawableEntitiesCount += 2;
+        GameState->DrawableEntities = PushArray<drawable_entity>(&GameState->WorldArena, GameState->DrawableEntitiesCount);
+
+        u32 TotalEntityIndex = 0;
+        u32 TotalDrawableEntityIndex = 0;
+        for (u32 ObjectLayersIndex = 0; ObjectLayersIndex < GameState->Level.ObjectLayersCount; ++ObjectLayersIndex) {
+            for (u32 EntityIndex = 0; EntityIndex < GameState->Level.ObjectLayers[ObjectLayersIndex].EntitiesCount; ++EntityIndex) {
+                GameState->Entities[TotalEntityIndex++] = GameState->Level.ObjectLayers[ObjectLayersIndex].Entities[EntityIndex];
             }
-            for (auto& drawableEntity : layer.drawableEntities) {
-                DrawableEntities->push_back(drawableEntity.second);
+            for (u32 DrawableEntityIndex = 0; DrawableEntityIndex < GameState->Level.ObjectLayers[ObjectLayersIndex].DrawableEntitiesCount; ++DrawableEntityIndex) {
+                GameState->DrawableEntities[TotalDrawableEntityIndex++] = GameState->Level.ObjectLayers[ObjectLayersIndex].DrawableEntities[DrawableEntityIndex];
             }
         }
 
         GameState->Player = {};
-        GameState->Player.position = Bob->position;
-        GameState->Player.box = Bob->box;
+        GameState->Player.position = Bob->Position;
+        GameState->Player.box = Bob->Box;
         GameState->Player.spriteScale = vec2(1.f);
-        GameState->Player.offset = (u32)sizeInBytes({ *DrawableEntities });
+        GameState->Player.offset = (GameState->DrawableEntitiesCount - 2) * sizeof(drawable_entity);
         GameState->Player.shouldRender = 1;
         GameState->Player.collides = true;
-        GameState->Player.type = entityType::PLAYER;
-        DrawableEntities->push_back(GameState->Player);
+        GameState->Player.type = entity_type::PLAYER;
+        GameState->DrawableEntities[GameState->DrawableEntitiesCount - 2] = GameState->Player;
 
         GameState->SwooshEffect = {};
-        GameState->SwooshEffect.position = Swoosh->position;
-        GameState->SwooshEffect.box = Swoosh->box;
+        GameState->SwooshEffect.position = Swoosh->Position;
+        GameState->SwooshEffect.box = Swoosh->Box;
         GameState->SwooshEffect.spriteScale = vec2(2.f, 1.f);
-        GameState->SwooshEffect.offset = (u32)sizeInBytes({ *DrawableEntities });
+        GameState->SwooshEffect.offset = (GameState->DrawableEntitiesCount - 1) * sizeof(drawable_entity);
         GameState->SwooshEffect.shouldRender = 0;
         GameState->SwooshEffect.collides = true;
-        GameState->SwooshEffect.type = entityType::EFFECT;
-        DrawableEntities->push_back(GameState->SwooshEffect);
+        GameState->SwooshEffect.type = entity_type::EFFECT;
+        GameState->DrawableEntities[GameState->DrawableEntitiesCount - 1] = GameState->SwooshEffect;
 
         Renderer->glGenBuffers(1, &GameState->VBOEntities);
         Renderer->glBindBuffer(GL_ARRAY_BUFFER, GameState->VBOEntities);
-        Renderer->glBufferData(GL_ARRAY_BUFFER, (u32)(sizeof(u32) + sizeof(drawableEntity)) * DrawableEntities->size(), DrawableEntities->data(), GL_STREAM_DRAW);
+        Renderer->glBufferData(GL_ARRAY_BUFFER, (u32)(sizeof(u32) + sizeof(drawable_entity)) * GameState->DrawableEntitiesCount, GameState->DrawableEntities, GL_STREAM_DRAW);
 
         // position
-        Renderer->glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, sizeof(drawableEntity), (void*)offset(drawableEntity, position));
+        Renderer->glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, sizeof(drawable_entity), (void*)offset(drawable_entity, position));
         Renderer->glEnableVertexAttribArray(3);
         Renderer->glVertexAttribDivisor(3, 1);
         // aabb
-        //glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(drawableEntity), (void*) offset(drawableEntity, box));
+        //glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(drawable_entity), (void*) offset(drawable_entity, box));
         //glEnableVertexAttribArray(4);
         //glVertexAttribDivisor(4, 1);
         // uv/rotation
-        Renderer->glVertexAttribPointer(5, 3, GL_FLOAT, GL_FALSE, sizeof(drawableEntity), (void*)offset(drawableEntity, uv));
+        Renderer->glVertexAttribPointer(5, 3, GL_FLOAT, GL_FALSE, sizeof(drawable_entity), (void*)offset(drawable_entity, uv));
         Renderer->glEnableVertexAttribArray(5);
         Renderer->glVertexAttribDivisor(5, 1);
         // flipped
-        Renderer->glVertexAttribIPointer(6, 1, GL_UNSIGNED_INT, sizeof(drawableEntity), (void*)offset(drawableEntity, flipped));
+        Renderer->glVertexAttribIPointer(6, 1, GL_UNSIGNED_INT, sizeof(drawable_entity), (void*)offset(drawable_entity, flipped));
         Renderer->glEnableVertexAttribArray(6);
         Renderer->glVertexAttribDivisor(6, 1);
         // spriteScale
-        Renderer->glVertexAttribPointer(7, 2, GL_FLOAT, GL_FALSE, sizeof(drawableEntity), (void*)offset(drawableEntity, spriteScale));
+        Renderer->glVertexAttribPointer(7, 2, GL_FLOAT, GL_FALSE, sizeof(drawable_entity), (void*)offset(drawable_entity, spriteScale));
         Renderer->glEnableVertexAttribArray(7);
         Renderer->glVertexAttribDivisor(7, 1);
         // shouldRender
-        Renderer->glVertexAttribIPointer(8, 1, GL_UNSIGNED_INT, sizeof(drawableEntity), (void*)offset(drawableEntity, shouldRender));
+        Renderer->glVertexAttribIPointer(8, 1, GL_UNSIGNED_INT, sizeof(drawable_entity), (void*)offset(drawable_entity, shouldRender));
         Renderer->glEnableVertexAttribArray(8);
         Renderer->glVertexAttribDivisor(8, 1);
 
-        particleEmitter charge = {};
-        charge.maxParticlesCount = 500;
-        charge.newParticlesCount = 5;
-        charge.dt = 0.01f;
-        charge.position = { 4.5 * TILE_SIZE.x, 6.5 * TILE_SIZE.y };
-        charge.box.position = { 4.5 * TILE_SIZE.x, 6.5 * TILE_SIZE.y };
-        charge.box.size = { 0.1f * TILE_SIZE.x, 0.1f * TILE_SIZE.x };
-        charge.velocity = { 0.f, 0.f };
-        charge.reflectorIndex = -1;
-        charge.timeLeft = 3.f;
+        GameState->ParticleEmittersIndex = 0;
+        GameState->ParticleEmittersMaxCount = 50;
+        GameState->ParticleEmitters = PushArray<particle_emitter>(&GameState->WorldArena, GameState->ParticleEmittersMaxCount);
 
-        charge.particles.reserve(charge.maxParticlesCount);
-        charge.particles.assign(charge.maxParticlesCount, particle());
+        particle_emitter Charge = {};
+        Charge.ParticlesCount = 500;
+        Charge.NewParticlesCount = 5;
+        Charge.Dt = 0.01f;
+        Charge.Position = { 4.5 * TILE_SIZE.x, 6.5 * TILE_SIZE.y };
+        Charge.Box.position = { 4.5 * TILE_SIZE.x, 6.5 * TILE_SIZE.y };
+        Charge.Box.size = { 0.1f * TILE_SIZE.x, 0.1f * TILE_SIZE.x };
+        Charge.Velocity = { 0.f, 0.f };
+        Charge.ReflectorIndex = -1;
+        Charge.TimeLeft = 3.f;
+        Charge.Particles = PushArray<particle>(&GameState->WorldArena, Charge.ParticlesCount);
 
-        ParticleEmitters->push_back(charge);
+        GameState->ParticleEmitters[GameState->ParticleEmittersIndex++] = Charge;
 
         Renderer->glGenBuffers(1, &GameState->VBOParticles);
         Renderer->glBindBuffer(GL_ARRAY_BUFFER, GameState->VBOParticles);
         // todo: manage it somehow
-        Renderer->glBufferData(GL_ARRAY_BUFFER, 50 * (charge.maxParticlesCount) * sizeof(particle),
+        Renderer->glBufferData(GL_ARRAY_BUFFER, GameState->ParticleEmittersMaxCount * (Charge.ParticlesCount) * sizeof(particle),
             nullptr, GL_STREAM_DRAW);
 
         // particle's position/size
-        Renderer->glVertexAttribPointer(9, 4, GL_FLOAT, GL_FALSE, sizeof(particle), (void*)offset(particle, position));
+        Renderer->glVertexAttribPointer(9, 4, GL_FLOAT, GL_FALSE, sizeof(particle), (void*)offset(particle, Position));
         Renderer->glEnableVertexAttribArray(9);
         Renderer->glVertexAttribDivisor(9, 1);
         // particle's uv
-        Renderer->glVertexAttribPointer(10, 2, GL_FLOAT, GL_FALSE, sizeof(particle), (void*)offset(particle, uv));
+        Renderer->glVertexAttribPointer(10, 2, GL_FLOAT, GL_FALSE, sizeof(particle), (void*)offset(particle, UV));
         Renderer->glEnableVertexAttribArray(10);
         Renderer->glVertexAttribDivisor(10, 1);
         // particle's alpha value
-        Renderer->glVertexAttribPointer(11, 1, GL_FLOAT, GL_FALSE, sizeof(particle), (void*)offset(particle, alpha));
+        Renderer->glVertexAttribPointer(11, 1, GL_FLOAT, GL_FALSE, sizeof(particle), (void*)offset(particle, Alpha));
         Renderer->glEnableVertexAttribArray(11);
         Renderer->glVertexAttribDivisor(11, 1);
 
@@ -573,73 +605,73 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
         f32 dt = 0.15f;
 
-        Bob->acceleration.x = 0.f;
+        Bob->Acceleration.x = 0.f;
         processInput(GameState, &Params->Input);
 
         // friction imitation
         // todo: take scale into account!
-        Bob->acceleration.x += -0.5f * Bob->velocity.x;
-        Bob->velocity.x += Bob->acceleration.x * dt;
+        Bob->Acceleration.x += -0.5f * Bob->Velocity.x;
+        Bob->Velocity.x += Bob->Acceleration.x * dt;
 
-        Bob->acceleration.y += -0.01f * Bob->velocity.y;
-        Bob->velocity.y += Bob->acceleration.y * dt;
+        Bob->Acceleration.y += -0.01f * Bob->Velocity.y;
+        Bob->Velocity.y += Bob->Acceleration.y * dt;
 
-        vec2 move = 0.5f * Bob->acceleration * dt * dt + Bob->velocity * dt;
+        vec2 move = 0.5f * Bob->Acceleration * dt * dt + Bob->Velocity * dt;
 
-        vec2 oldPosition = Bob->position;
+        vec2 oldPosition = Bob->Position;
         vec2 time = vec2(1.f);
 
-        for (auto& entity : *Entities) {
-            vec2 t = sweptAABB(oldPosition, move, entity.box, Bob->box.size);
+        for (u32 EntityIndex = 0; EntityIndex < GameState->EntitiesCount; ++EntityIndex) {
+            vec2 t = sweptAABB(oldPosition, move, GameState->Entities[EntityIndex].box, Bob->Box.size);
 
             if (t.x >= 0.f && t.x < time.x) time.x = t.x;
             if (t.y >= 0.f && t.y < time.y) time.y = t.y;
         }
 
-        for (u32 i = 0; i < DrawableEntities->size(); ++i) {
-            drawableEntity& entity = (*DrawableEntities)[i];
+        for (u32 DrawableEntityIndex = 0; DrawableEntityIndex < GameState->DrawableEntitiesCount; ++DrawableEntityIndex) {
+            drawable_entity* Entity = &GameState->DrawableEntities[DrawableEntityIndex];
 
-            if (entity.type == entityType::REFLECTOR || entity.type == entityType::PLATFORM) {
-                if (!entity.collides) break;
+            if (Entity->type == entity_type::REFLECTOR || Entity->type == entity_type::PLATFORM) {
+                if (!Entity->collides) break;
 
-                vec2 t = sweptAABB(oldPosition, move, entity.box, Bob->box.size);
+                vec2 t = sweptAABB(oldPosition, move, Entity->box, Bob->Box.size);
 
                 if (t.x >= 0.f && t.x < time.x) time.x = t.x;
                 if (t.y >= 0.f && t.y < time.y) time.y = t.y;
 
-                if (entity.type == entityType::REFLECTOR) {
-                    b32 swooshCollide = intersectAABB(Swoosh->box, entity.box);
-                    if (!entity.underEffect && swooshCollide) {
-                        entity.underEffect = true;
-                        entity.isRotating = true;
+                if (Entity->type == entity_type::REFLECTOR) {
+                    b32 swooshCollide = intersectAABB(Swoosh->Box, Entity->box);
+                    if (!Entity->underEffect && swooshCollide) {
+                        Entity->underEffect = true;
+                        Entity->isRotating = true;
                     }
 
-                    if (entity.isRotating) {
-                        entity.rotation += 5.f;
-                        Renderer->glBufferSubData(GL_ARRAY_BUFFER, entity.offset + offset(drawableEntity, rotation), sizeof(u32), &entity.rotation);
+                    if (Entity->isRotating) {
+                        Entity->rotation += 5.f;
+                        Renderer->glBufferSubData(GL_ARRAY_BUFFER, Entity->offset + offset(drawable_entity, rotation), sizeof(u32), &Entity->rotation);
 
-                        if (0.f < entity.rotation && entity.rotation <= 90.f) {
-                            if (entity.rotation == 90.f) {
-                                entity.isRotating = false;
+                        if (0.f < Entity->rotation && Entity->rotation <= 90.f) {
+                            if (Entity->rotation == 90.f) {
+                                Entity->isRotating = false;
                                 break;
                             }
                         }
-                        if (90.f < entity.rotation && entity.rotation <= 180.f) {
-                            if (entity.rotation == 180.f) {
-                                entity.isRotating = false;
+                        if (90.f < Entity->rotation && Entity->rotation <= 180.f) {
+                            if (Entity->rotation == 180.f) {
+                                Entity->isRotating = false;
                                 break;
                             }
                         }
-                        if (180.f < entity.rotation && entity.rotation <= 270.f) {
-                            if (entity.rotation == 270.f) {
-                                entity.isRotating = false;
+                        if (180.f < Entity->rotation && Entity->rotation <= 270.f) {
+                            if (Entity->rotation == 270.f) {
+                                Entity->isRotating = false;
                                 break;
                             }
                         }
-                        if (270.f < entity.rotation && entity.rotation <= 360.f) {
-                            if (entity.rotation == 360.f) {
-                                entity.isRotating = false;
-                                entity.rotation = 0.f;
+                        if (270.f < Entity->rotation && Entity->rotation <= 360.f) {
+                            if (Entity->rotation == 360.f) {
+                                Entity->isRotating = false;
+                                Entity->rotation = 0.f;
                                 break;
                             }
                         }
@@ -649,63 +681,63 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         }
 
         if (time.x < 1.f) {
-            Bob->velocity.x = 0.f;
+            Bob->Velocity.x = 0.f;
         }
         if (time.y < 1.f) {
-            Bob->velocity.y = 0.f;
+            Bob->Velocity.y = 0.f;
 
-            if (time.y > 0.f && move.y > 0.f && Bob->currentAnimation != Bob->animations[1]) {
-                Bob->currentAnimation = Bob->animations[1];
-                Bob->xAnimationOffset = 0.f;
+            if (time.y > 0.f && move.y > 0.f && Bob->CurrentAnimation != Bob->Animations[1]) {
+                Bob->CurrentAnimation = Bob->Animations[1];
+                Bob->XAnimationOffset = 0.f;
             }
         }
         if (time.y == 1.f) {
-            if (Bob->velocity.y > 0.f) {
-                if (Bob->currentAnimation != Bob->animations[3]) {
-                    Bob->currentAnimation = Bob->animations[5];
-                    Bob->xAnimationOffset = 0.f;
+            if (Bob->Velocity.y > 0.f) {
+                if (Bob->CurrentAnimation != Bob->Animations[3]) {
+                    Bob->CurrentAnimation = Bob->Animations[5];
+                    Bob->XAnimationOffset = 0.f;
                 }
             }
             else {
-                if (Bob->currentAnimation != Bob->animations[3]) {
-                    Bob->currentAnimation = Bob->animations[4];
-                    Bob->xAnimationOffset = 0.f;
+                if (Bob->CurrentAnimation != Bob->Animations[3]) {
+                    Bob->CurrentAnimation = Bob->Animations[4];
+                    Bob->XAnimationOffset = 0.f;
                 }
             }
         }
 
         vec2 updatedMove = move * time;
 
-        Bob->position.x = oldPosition.x + updatedMove.x;
-        Bob->position.y = oldPosition.y + updatedMove.y;
+        Bob->Position.x = oldPosition.x + updatedMove.x;
+        Bob->Position.y = oldPosition.y + updatedMove.y;
 
-        Bob->position.x = clamp(Bob->position.x, 0.f, (f32)TILE_SIZE.x * GameState->Level.width - TILE_SIZE.x);
-        Bob->position.y = clamp(Bob->position.y, 0.f, (f32)TILE_SIZE.y * GameState->Level.height - TILE_SIZE.y);
+        Bob->Position.x = clamp(Bob->Position.x, 0.f, (f32)TILE_SIZE.x * GameState->Level.Width - TILE_SIZE.x);
+        Bob->Position.y = clamp(Bob->Position.y, 0.f, (f32)TILE_SIZE.y * GameState->Level.Height - TILE_SIZE.y);
 
-        Bob->box.position = Bob->position;
+        Bob->Box.position = Bob->Position;
 
-        Bob->acceleration.y = 10.f;
+        Bob->Acceleration.y = 10.f;
 
         vec2 idleArea = { 2 * TILE_SIZE.x, 1 * TILE_SIZE.y };
 
         if (updatedMove.x > 0.f) {
-            if (Bob->position.x + TILE_SIZE.x > GameState->Camera.x + ScreenWidth / 2 + idleArea.x) {
+            if (Bob->Position.x + TILE_SIZE.x > GameState->Camera.x + ScreenWidth / 2 + idleArea.x) {
                 GameState->Camera.x += updatedMove.x;
             }
         }
         else if (updatedMove.x < 0.f) {
-            if (Bob->position.x < GameState->Camera.x + ScreenWidth / 2 - idleArea.x) {
+            if (Bob->Position.x < GameState->Camera.x + ScreenWidth / 2 - idleArea.x) {
                 GameState->Camera.x += updatedMove.x;
             }
         }
 
         if (updatedMove.y > 0.f) {
-            if (Bob->position.y + TILE_SIZE.y > GameState->Camera.y + ScreenHeight / 2 + idleArea.y) {
+            if (Bob->Position.y + TILE_SIZE.y > GameState->Camera.y + ScreenHeight / 2 + idleArea.y) {
                 GameState->Camera.y += updatedMove.y;
             }
         }
         else if (updatedMove.y < 0.f) {
-            if (Bob->position.y < GameState->Camera.y + ScreenHeight / 2 - idleArea.y) {
+            if (Bob->Position.y < GameState->Camera.y + ScreenHeight / 2 - idleArea.y) {
                 GameState->Camera.y += updatedMove.y;
             }
         }
@@ -713,38 +745,36 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         GameState->Camera.x = GameState->Camera.x > 0.f ? GameState->Camera.x : 0.f;
         GameState->Camera.y = GameState->Camera.y > 0.f ? GameState->Camera.y : 0.f;
 
-        if (TILE_SIZE.x * GameState->Level.width - ScreenWidth >= 0) {
-            GameState->Camera.x = clamp(GameState->Camera.x, 0.f, (f32)TILE_SIZE.x * GameState->Level.width - ScreenWidth);
+        if (TILE_SIZE.x * GameState->Level.Width - ScreenWidth >= 0) {
+            GameState->Camera.x = clamp(GameState->Camera.x, 0.f, (f32)TILE_SIZE.x * GameState->Level.Width - ScreenWidth);
         }
-        if (TILE_SIZE.y * GameState->Level.height - ScreenHeight >= 0) {
-            GameState->Camera.y = clamp(GameState->Camera.y, 0.f, (f32)TILE_SIZE.y * GameState->Level.height - ScreenHeight);
+        if (TILE_SIZE.y * GameState->Level.Height - ScreenHeight >= 0) {
+            GameState->Camera.y = clamp(GameState->Camera.y, 0.f, (f32)TILE_SIZE.y * GameState->Level.Height - ScreenHeight);
         }
 
         Renderer->glBindBuffer(GL_ARRAY_BUFFER, GameState->VBOParticles);
 
-        u32 chargesCount = (u32)ParticleEmitters->size();
+        for (u32 i = 0; i < GameState->ParticleEmittersIndex; ++i) {
+            particle_emitter* Charge = &GameState->ParticleEmitters[i];
 
-        for (u32 i = 0; i < chargesCount; ++i) {
-            particleEmitter& charge = (*ParticleEmitters)[i];
-
-            vec2 oldChargePosition = charge.box.position;
-            vec2 chargeMove = charge.velocity * dt;
+            vec2 oldChargePosition = Charge->Box.position;
+            vec2 chargeMove = Charge->Velocity * dt;
             vec2 chargeTime = vec2(1.f);
 
-            for (u32 j = 0; j < DrawableEntities->size(); ++j) {
-                drawableEntity& entity = (*DrawableEntities)[j];
+            for (u32 j = 0; j < GameState->DrawableEntitiesCount; ++j) {
+                drawable_entity* Entity = &GameState->DrawableEntities[j];
 
-                if (entity.type == entityType::REFLECTOR) {
-                    aabb reflectorBox = entity.box;
+                if (Entity->type == entity_type::REFLECTOR) {
+                    aabb reflectorBox = Entity->box;
 
-                    vec2 t = sweptAABB(oldChargePosition, chargeMove, reflectorBox, charge.box.size);
+                    vec2 t = sweptAABB(oldChargePosition, chargeMove, reflectorBox, Charge->Box.size);
 
                     // if not colliding
                     if (!((0.f <= t.x && t.x < 1.f) || (0.f <= t.y && t.y < 1.f))) {
-                        if (!intersectAABB(charge.box, reflectorBox)) {
-                            if (charge.reflectorIndex == (s32)j) {
-                                charge.stopProcessingCollision = false;
-                                charge.reflectorIndex = -1;
+                        if (!intersectAABB(Charge->Box, reflectorBox)) {
+                            if (Charge->ReflectorIndex == (s32)j) {
+                                Charge->StopProcessingCollision = false;
+                                Charge->ReflectorIndex = -1;
                             }
                             continue;
                         }
@@ -755,117 +785,117 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                     // dimiss charge if it's coming from the wrong side
                     // proceed with new collision rule otherwise.
 
-                    if (charge.stopProcessingCollision && charge.reflectorIndex == (s32)j) continue;
+                    if (Charge->StopProcessingCollision && Charge->ReflectorIndex == (s32)j) continue;
 
                     aabb testBox = {};
 
                     if (chargeMove.x > 0.f) {
-                        if (entity.rotation == 180.f || entity.rotation == 270.f) {
-                            testBox.position.x = reflectorBox.position.x + reflectorBox.size.x / 2.f + charge.box.size.x / 2.f;
+                        if (Entity->rotation == 180.f || Entity->rotation == 270.f) {
+                            testBox.position.x = reflectorBox.position.x + reflectorBox.size.x / 2.f + Charge->Box.size.x / 2.f;
                             testBox.position.y = reflectorBox.position.y;
-                            testBox.size.x = reflectorBox.size.x / 2.f - charge.box.size.x / 2.f;
+                            testBox.size.x = reflectorBox.size.x / 2.f - Charge->Box.size.x / 2.f;
                             testBox.size.y = reflectorBox.size.y;
 
-                            vec2 t = sweptAABB(oldChargePosition, chargeMove, testBox, charge.box.size);
+                            vec2 t = sweptAABB(oldChargePosition, chargeMove, testBox, Charge->Box.size);
 
                             if (0.f <= t.x && t.x < 1.f) {
                                 chargeTime.x = t.x;
 
-                                charge.velocity.x = 0.f;
-                                charge.velocity.y = entity.rotation == 180.f ? chargeVelocity : -chargeVelocity;
-                                charge.stopProcessingCollision = true;
-                                charge.reflectorIndex = (s32)j;
+                                Charge->Velocity.x = 0.f;
+                                Charge->Velocity.y = Entity->rotation == 180.f ? chargeVelocity : -chargeVelocity;
+                                Charge->StopProcessingCollision = true;
+                                Charge->ReflectorIndex = (s32)j;
                             }
                         }
                         else {
                             // collided with outer border: stop processing
                             chargeTime = t;
-                            charge.isFading = true;
+                            Charge->IsFading = true;
                         }
                     }
                     else if (chargeMove.x < 0.f) {
-                        if (entity.rotation == 0.f || entity.rotation == 90.f) {
+                        if (Entity->rotation == 0.f || Entity->rotation == 90.f) {
                             testBox.position.x = reflectorBox.position.x;
                             testBox.position.y = reflectorBox.position.y;
-                            testBox.size.x = reflectorBox.size.x / 2.f - charge.box.size.x / 2.f;
+                            testBox.size.x = reflectorBox.size.x / 2.f - Charge->Box.size.x / 2.f;
                             testBox.size.y = reflectorBox.size.y;
 
-                            vec2 t = sweptAABB(oldChargePosition, chargeMove, testBox, charge.box.size);
+                            vec2 t = sweptAABB(oldChargePosition, chargeMove, testBox, Charge->Box.size);
 
                             if (0.f <= t.x && t.x < 1.f) {
                                 chargeTime.x = t.x;
 
-                                charge.velocity.x = 0.f;
-                                charge.velocity.y = entity.rotation == 0.f ? -chargeVelocity : chargeVelocity;
-                                charge.stopProcessingCollision = true;
-                                charge.reflectorIndex = (s32)j;
+                                Charge->Velocity.x = 0.f;
+                                Charge->Velocity.y = Entity->rotation == 0.f ? -chargeVelocity : chargeVelocity;
+                                Charge->StopProcessingCollision = true;
+                                Charge->ReflectorIndex = (s32)j;
                             }
                         }
                         else {
                             chargeTime = t;
-                            charge.isFading = true;
+                            Charge->IsFading = true;
                         }
                     }
                     else if (chargeMove.y > 0.f) {
-                        if (entity.rotation == 0.f || entity.rotation == 270.f) {
+                        if (Entity->rotation == 0.f || Entity->rotation == 270.f) {
                             testBox.position.x = reflectorBox.position.x;
-                            testBox.position.y = reflectorBox.position.y + reflectorBox.size.y / 2.f + charge.box.size.y / 2.f;
+                            testBox.position.y = reflectorBox.position.y + reflectorBox.size.y / 2.f + Charge->Box.size.y / 2.f;
                             testBox.size.x = reflectorBox.size.x;
-                            testBox.size.y = reflectorBox.size.y / 2.f - charge.box.size.y / 2.f;
+                            testBox.size.y = reflectorBox.size.y / 2.f - Charge->Box.size.y / 2.f;
 
-                            vec2 t = sweptAABB(oldChargePosition, chargeMove, testBox, charge.box.size);
+                            vec2 t = sweptAABB(oldChargePosition, chargeMove, testBox, Charge->Box.size);
 
                             if (0.f <= t.y && t.y < 1.f) {
                                 chargeTime.y = t.y;
 
-                                charge.velocity.x = entity.rotation == 0.f ? chargeVelocity : -chargeVelocity;
-                                charge.velocity.y = 0.f;
-                                charge.stopProcessingCollision = true;
-                                charge.reflectorIndex = (s32)j;
+                                Charge->Velocity.x = Entity->rotation == 0.f ? chargeVelocity : -chargeVelocity;
+                                Charge->Velocity.y = 0.f;
+                                Charge->StopProcessingCollision = true;
+                                Charge->ReflectorIndex = (s32)j;
                             }
                         }
                         else {
                             chargeTime = t;
-                            charge.isFading = true;
+                            Charge->IsFading = true;
                         }
                     }
                     else if (chargeMove.y < 0.f) {
-                        if (entity.rotation == 90.f || entity.rotation == 180.f) {
+                        if (Entity->rotation == 90.f || Entity->rotation == 180.f) {
                             testBox.position.x = reflectorBox.position.x;
                             testBox.position.y = reflectorBox.position.y;
                             testBox.size.x = reflectorBox.size.x;
-                            testBox.size.y = reflectorBox.size.y / 2.f - charge.box.size.y / 2.f;
+                            testBox.size.y = reflectorBox.size.y / 2.f - Charge->Box.size.y / 2.f;
 
-                            vec2 t = sweptAABB(oldChargePosition, chargeMove, testBox, charge.box.size);
+                            vec2 t = sweptAABB(oldChargePosition, chargeMove, testBox, Charge->Box.size);
 
                             if (0.f <= t.y && t.y < 1.f) {
                                 chargeTime.y = t.y;
 
-                                charge.velocity.x = entity.rotation == 90.f ? chargeVelocity : -chargeVelocity;
-                                charge.velocity.y = 0.f;
-                                charge.stopProcessingCollision = true;
-                                charge.reflectorIndex = (s32)j;
+                                Charge->Velocity.x = Entity->rotation == 90.f ? chargeVelocity : -chargeVelocity;
+                                Charge->Velocity.y = 0.f;
+                                Charge->StopProcessingCollision = true;
+                                Charge->ReflectorIndex = (s32)j;
                             }
                         }
                         else {
                             chargeTime = t;
-                            charge.isFading = true;
+                            Charge->IsFading = true;
                         }
                     }
                 }
 
-                if (entity.id == 52) {
-                    vec2 t = sweptAABB(oldChargePosition, chargeMove, entity.box, charge.box.size);
+                if (Entity->id == 52) {
+                    vec2 t = sweptAABB(oldChargePosition, chargeMove, Entity->box, Charge->Box.size);
 
                     if ((0.f <= t.x && t.x < 1.f) || (0.f <= t.y && t.y < 1.f)) {
-                        entity.currentAnimation = &GameState->TurnOnAnimation;
+                        Entity->currentAnimation = &GameState->TurnOnAnimation;
                         chargeTime = t;
-                        charge.isFading = true;
-                        charge.timeLeft = 0.f;
+                        Charge->IsFading = true;
+                        Charge->TimeLeft = 0.f;
 
-                        drawableEntity* platform1 = getEntityById(GameState->DrawableEntities, 57);
-                        drawableEntity* platform2 = getEntityById(GameState->DrawableEntities, 60);
-                        drawableEntity* platform3 = getEntityById(GameState->DrawableEntities, 61);
+                        drawable_entity* platform1 = GetEntityById(GameState, 57);
+                        drawable_entity* platform2 = GetEntityById(GameState, 60);
+                        drawable_entity* platform3 = GetEntityById(GameState, 61);
 
                         // todo: i need smth like setTimeout here
                         platform1->currentAnimation = &GameState->PlatformOnAnimation;
@@ -879,87 +909,91 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
             }
 
             chargeMove *= chargeTime;
-            charge.box.position += chargeMove;
-            charge.position += chargeMove;
+            Charge->Box.position += chargeMove;
+            Charge->Position += chargeMove;
 
-            if (charge.box.position.x <= 0.f || charge.box.position.x >= (f32)TILE_SIZE.x * GameState->Level.width) {
-                charge.velocity.x = -charge.velocity.x;
+            if (Charge->Box.position.x <= 0.f || Charge->Box.position.x >= (f32)TILE_SIZE.x * GameState->Level.Width) {
+                Charge->Velocity.x = -Charge->Velocity.x;
             }
-            if (charge.box.position.y <= 0.f || charge.box.position.y >= (f32)TILE_SIZE.y * GameState->Level.height) {
-                charge.velocity.y = -charge.velocity.y;
+            if (Charge->Box.position.y <= 0.f || Charge->Box.position.y >= (f32)TILE_SIZE.y * GameState->Level.Height) {
+                Charge->Velocity.y = -Charge->Velocity.y;
             }
 
-            b32 chargeCollide = intersectAABB(Swoosh->box, (*ParticleEmitters)[0].box);
-            if (chargeCollide && Swoosh->shouldRender && GameState->ChargeSpawnCooldown > 1.f) {
+            b32 chargeCollide = intersectAABB(Swoosh->Box, GameState->ParticleEmitters[0].Box);
+            if (chargeCollide && Swoosh->ShouldRender && GameState->ChargeSpawnCooldown > 1.f) {
                 GameState->ChargeSpawnCooldown = 0.f;
 
-                particleEmitter newCharge = (*ParticleEmitters)[0];        // copy
-                newCharge.velocity.x = Bob->flipped ? -chargeVelocity : chargeVelocity;
+                particle_emitter NewCharge = GameState->ParticleEmitters[0];        // copy
+                NewCharge.Particles = PushArray<particle>(&GameState->WorldArena, NewCharge.ParticlesCount);
+                NewCharge.Velocity.x = Bob->Flipped ? -chargeVelocity : chargeVelocity;
 
-                ParticleEmitters->push_back(newCharge);
+                GameState->ParticleEmitters[GameState->ParticleEmittersIndex++] = NewCharge;
             }
         }
 
-        for (u32 i = 0; i < ParticleEmitters->size(); ++i) {
-            if ((*ParticleEmitters)[i].isFading) {
-                (*ParticleEmitters)[i].timeLeft -= Params->Delta;
+        for (u32 ParticleEmitterIndex = 0; ParticleEmitterIndex < GameState->ParticleEmittersIndex; ++ParticleEmitterIndex) {
+            particle_emitter* ParticleEmitter = &GameState->ParticleEmitters[ParticleEmitterIndex];
+
+            if (ParticleEmitter->IsFading) {
+                ParticleEmitter->TimeLeft -= Params->Delta;
             }
 
-            if ((*ParticleEmitters)[i].timeLeft <= 0.f) {
+            if (ParticleEmitter->TimeLeft <= 0.f) {
                 // todo: read access violation
-                //ParticleEmitters->erase(ParticleEmitters->begin() + i);
+                //particle_emitters->erase(particle_emitters->begin() + i);
+                --GameState->ParticleEmittersIndex;
             }
         }
 
         u64 particlesSize = 0;
         // todo: use transform feedback instead?
-        for (u32 i = 0; i < ParticleEmitters->size(); ++i) {
-            particleEmitter& emitter = (*ParticleEmitters)[i];
+        for (u32 ParticleEmitterIndex = 0; ParticleEmitterIndex < GameState->ParticleEmittersIndex; ++ParticleEmitterIndex) {
+            particle_emitter* ParticleEmitter = &GameState->ParticleEmitters[ParticleEmitterIndex];
 
-            if (emitter.timeLeft <= 0.f) {
-                particlesSize += sizeInBytes({ emitter.particles });
+            if (ParticleEmitter->TimeLeft <= 0.f) {
+                particlesSize += ParticleEmitter->ParticlesCount * sizeof(particle);
                 continue;
             };
 
-            for (u32 j = 0; j < emitter.newParticlesCount; ++j) {
-                u32 unusedParticleIndex = findFirstUnusedParticle(emitter);
-                emitter.lastUsedParticle = unusedParticleIndex;
+            for (u32 j = 0; j < ParticleEmitter->NewParticlesCount; ++j) {
+                u32 unusedParticleIndex = FindFirstUnusedParticle(ParticleEmitter);
+                ParticleEmitter->LastUsedParticle = unusedParticleIndex;
 
-                particle& particle = emitter.particles[unusedParticleIndex];
+                particle* Particle = &ParticleEmitter->Particles[unusedParticleIndex];
 
                 // respawing particle
-                f32 randomX = randomInRange(-1.f * scale.x, 1.f * scale.x);
-                f32 randomY = randomInRange(-1.f * scale.y, 1.f * scale.y);
+                f32 randomX = randomInRange(-1.f * Scale.x, 1.f * Scale.x);
+                f32 randomY = randomInRange(-1.f * Scale.y, 1.f * Scale.y);
 
-                particle.lifespan = 1.f;
-                particle.position.x = emitter.position.x + randomX;
-                particle.position.y = emitter.position.y + randomY;
-                particle.size = { 0.2f * TILE_SIZE.x, 0.2f * TILE_SIZE.y };
-                particle.velocity = { 0.f, 0.f };
-                particle.acceleration = { randomX * 10.f, 10.f };
-                particle.uv = vec2((13 * (GameState->TilesetTileSize.y + GameState->TilesetSpacing) + GameState->TilesetMargin) / (f32)GameState->TextureHeight,
+                Particle->Lifespan = 1.f;
+                Particle->Position.x = ParticleEmitter->Position.x + randomX;
+                Particle->Position.y = ParticleEmitter->Position.y + randomY;
+                Particle->Size = { 0.2f * TILE_SIZE.x, 0.2f * TILE_SIZE.y };
+                Particle->Velocity = { 0.f, 0.f };
+                Particle->Acceleration = { randomX * 10.f, 10.f };
+                Particle->UV = vec2((13 * (GameState->TilesetTileSize.y + GameState->TilesetSpacing) + GameState->TilesetMargin) / (f32)GameState->TextureHeight,
                     (16 * (GameState->TilesetTileSize.y + GameState->TilesetSpacing) + GameState->TilesetMargin) / (f32)GameState->TextureHeight);
-                particle.alpha = 1.f;
+                Particle->Alpha = 1.f;
             }
 
-            for (u32 j = 0; j < emitter.maxParticlesCount; ++j) {
-                particle& p = emitter.particles[j];
-                f32 dt = emitter.dt;
+            for (u32 j = 0; j < ParticleEmitter->ParticlesCount; ++j) {
+                particle* P = &ParticleEmitter->Particles[j];
+                f32 dt = ParticleEmitter->Dt;
 
-                if (p.lifespan > 0.f) {
-                    p.lifespan -= (f32)dt;
-                    p.velocity = p.acceleration * dt;
-                    p.position.x += randomInRange(-1.f, 1.f);
-                    p.position.y += randomInRange(-1.f, 1.f);
-                    p.alpha -= (f32)dt * 1.f;
-                    p.size -= (f32)dt * 1.f;
+                if (P->Lifespan > 0.f) {
+                    P->Lifespan -= (f32)dt;
+                    P->Velocity = P->Acceleration * dt;
+                    P->Position.x += randomInRange(-1.f, 1.f);
+                    P->Position.y += randomInRange(-1.f, 1.f);
+                    P->Alpha -= (f32)dt * 1.f;
+                    P->Size -= (f32)dt * 1.f;
                 }
             }
 
-            Renderer->glBufferSubData(GL_ARRAY_BUFFER, particlesSize, sizeInBytes({ emitter.particles }),
-                emitter.particles.data());
+            Renderer->glBufferSubData(GL_ARRAY_BUFFER, particlesSize, ParticleEmitter->ParticlesCount * sizeof(particle),
+                ParticleEmitter->Particles);
 
-            particlesSize += sizeInBytes({ emitter.particles });
+            particlesSize += ParticleEmitter->ParticlesCount * sizeof(particle);
         }
 
         GameState->Lag -= GameState->UpdateRate;
@@ -981,108 +1015,108 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     model = glm::scale(model, vec3(TILE_SIZE, 1.f));
     setShaderUniform(Memory, GameState->ModelUniformLocation, model);
 
-    Renderer->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, (u32)GameState->Tiles.size());
+    Renderer->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, GameState->TilesCount);
 
     //--- bob ---
-    f32 bobXOffset = (f32)(Bob->currentAnimation.x * (GameState->TilesetTileSize.x + GameState->TilesetSpacing) + GameState->TilesetMargin) / GameState->TextureWidth;
-    f32 bobYOffset = (f32)(Bob->currentAnimation.y * (GameState->TilesetTileSize.y + GameState->TilesetSpacing) + GameState->TilesetMargin) / GameState->TextureHeight;
+    f32 bobXOffset = (f32)(Bob->CurrentAnimation.x * (GameState->TilesetTileSize.x + GameState->TilesetSpacing) + GameState->TilesetMargin) / GameState->TextureWidth;
+    f32 bobYOffset = (f32)(Bob->CurrentAnimation.y * (GameState->TilesetTileSize.y + GameState->TilesetSpacing) + GameState->TilesetMargin) / GameState->TextureHeight;
 
-    if (Bob->frameTime >= Bob->currentAnimation.delay) {
-        Bob->xAnimationOffset += (GameState->SpriteWidth + (f32)GameState->TilesetSpacing / GameState->TextureWidth) * Bob->currentAnimation.size;
-        if (Bob->xAnimationOffset >= ((Bob->currentAnimation.frames * GameState->TilesetTileSize.x * Bob->currentAnimation.size) / (f32)GameState->TextureWidth)) {
-            Bob->xAnimationOffset = 0.f;
-            if (Bob->currentAnimation == Bob->animations[1] || Bob->currentAnimation == Bob->animations[3]) {
-                Bob->currentAnimation = Bob->animations[0];
+    if (Bob->FrameTime >= Bob->CurrentAnimation.delay) {
+        Bob->XAnimationOffset += (GameState->SpriteWidth + (f32)GameState->TilesetSpacing / GameState->TextureWidth) * Bob->CurrentAnimation.size;
+        if (Bob->XAnimationOffset >= ((Bob->CurrentAnimation.frames * GameState->TilesetTileSize.x * Bob->CurrentAnimation.size) / (f32)GameState->TextureWidth)) {
+            Bob->XAnimationOffset = 0.f;
+            if (Bob->CurrentAnimation == Bob->Animations[1] || Bob->CurrentAnimation == Bob->Animations[3]) {
+                Bob->CurrentAnimation = Bob->Animations[0];
             }
         }
 
-        Bob->frameTime = 0.0f;
+        Bob->FrameTime = 0.0f;
     }
-    Bob->frameTime += Params->Delta;
+    Bob->FrameTime += Params->Delta;
 
     model = mat4(1.0f);
     model = glm::scale(model, vec3(TILE_SIZE, 1.f));
     setShaderUniform(Memory, GameState->ModelUniformLocation, model);
 
-    f32 effectXOffset = (f32)(Swoosh->currentAnimation.x * (GameState->TilesetTileSize.x + GameState->TilesetSpacing) + GameState->TilesetMargin) / GameState->TextureWidth;
-    f32 effectYOffset = (f32)(Swoosh->currentAnimation.y * (GameState->TilesetTileSize.y + GameState->TilesetSpacing) + GameState->TilesetMargin) / GameState->TextureHeight;
+    f32 effectXOffset = (f32)(Swoosh->CurrentAnimation.x * (GameState->TilesetTileSize.x + GameState->TilesetSpacing) + GameState->TilesetMargin) / GameState->TextureWidth;
+    f32 effectYOffset = (f32)(Swoosh->CurrentAnimation.y * (GameState->TilesetTileSize.y + GameState->TilesetSpacing) + GameState->TilesetMargin) / GameState->TextureHeight;
 
-    if (Swoosh->frameTime >= Swoosh->currentAnimation.delay) {
-        Swoosh->xAnimationOffset += (GameState->SpriteWidth + (f32)GameState->TilesetSpacing / GameState->TextureWidth) * Swoosh->currentAnimation.size;
-        if (Swoosh->xAnimationOffset >= ((Swoosh->currentAnimation.frames * GameState->TilesetTileSize.x * Swoosh->currentAnimation.size) / (f32)GameState->TextureWidth)) {
-            Swoosh->xAnimationOffset = 0.f;
-            Swoosh->shouldRender = false;
+    if (Swoosh->FrameTime >= Swoosh->CurrentAnimation.delay) {
+        Swoosh->XAnimationOffset += (GameState->SpriteWidth + (f32)GameState->TilesetSpacing / GameState->TextureWidth) * Swoosh->CurrentAnimation.size;
+        if (Swoosh->XAnimationOffset >= ((Swoosh->CurrentAnimation.frames * GameState->TilesetTileSize.x * Swoosh->CurrentAnimation.size) / (f32)GameState->TextureWidth)) {
+            Swoosh->XAnimationOffset = 0.f;
+            Swoosh->ShouldRender = false;
         }
 
-        Swoosh->frameTime = 0.0f;
+        Swoosh->FrameTime = 0.0f;
     }
 
-    if (Swoosh->shouldRender) {
-        Swoosh->frameTime += Params->Delta;
+    if (Swoosh->ShouldRender) {
+        Swoosh->FrameTime += Params->Delta;
     }
 
     Renderer->glBindBuffer(GL_ARRAY_BUFFER, GameState->VBOEntities);
     // handling animations on all entities
-    for (u32 i = 0; i < DrawableEntities->size(); ++i) {
-        auto& entity = (*DrawableEntities)[i];
+    for (u32 DrawableEntityIndex = 0; DrawableEntityIndex < GameState->DrawableEntitiesCount; ++DrawableEntityIndex) {
+        drawable_entity* Entity = &GameState->DrawableEntities[DrawableEntityIndex];
 
-        if (entity.currentAnimation) {
-            if (entity.startAnimationDelayTimer < entity.startAnimationDelay) {
-                entity.startAnimationDelayTimer += Params->Delta;
+        if (Entity->currentAnimation) {
+            if (Entity->startAnimationDelayTimer < Entity->startAnimationDelay) {
+                Entity->startAnimationDelayTimer += Params->Delta;
                 break;
             }
 
-            f32 entityXOffset = (f32)(entity.currentAnimation->x * (GameState->TilesetTileSize.x + GameState->TilesetSpacing) + GameState->TilesetMargin) / GameState->TextureWidth;
-            f32 entityYOffset = (f32)(entity.currentAnimation->y * (GameState->TilesetTileSize.y + GameState->TilesetSpacing) + GameState->TilesetMargin) / GameState->TextureHeight;
+            f32 entityXOffset = (f32)(Entity->currentAnimation->x * (GameState->TilesetTileSize.x + GameState->TilesetSpacing) + GameState->TilesetMargin) / GameState->TextureWidth;
+            f32 entityYOffset = (f32)(Entity->currentAnimation->y * (GameState->TilesetTileSize.y + GameState->TilesetSpacing) + GameState->TilesetMargin) / GameState->TextureHeight;
 
-            if (entity.frameTime >= entity.currentAnimation->delay) {
-                if (entity.currentAnimation->direction == direction::RIGHT) {
-                    entity.xAnimationOffset += (GameState->SpriteWidth + (f32)GameState->TilesetSpacing / GameState->TextureWidth) * entity.currentAnimation->size;
+            if (Entity->frameTime >= Entity->currentAnimation->delay) {
+                if (Entity->currentAnimation->direction == direction::RIGHT) {
+                    Entity->xAnimationOffset += (GameState->SpriteWidth + (f32)GameState->TilesetSpacing / GameState->TextureWidth) * Entity->currentAnimation->size;
                 }
-                else if (entity.currentAnimation->direction == direction::LEFT) {
-                    entity.xAnimationOffset -= (GameState->SpriteWidth + (f32)GameState->TilesetSpacing / GameState->TextureWidth) * entity.currentAnimation->size;
-                }
-
-                entity.uv = vec2(entityXOffset + entity.xAnimationOffset, entityYOffset);
-                Renderer->glBufferSubData(GL_ARRAY_BUFFER, entity.offset + offset(drawableEntity, uv), sizeof(vec2), &entity.uv);
-
-                if (abs(entity.xAnimationOffset) >= ((entity.currentAnimation->frames * GameState->TilesetTileSize.x * entity.currentAnimation->size) / (f32)GameState->TextureWidth)) {
-                    entity.xAnimationOffset = 0.f;
-
-                    entity.startAnimationDelayTimer = 0.f;
-                    entity.startAnimationDelay = 0.f;
-                    entity.currentAnimation = nullptr;
+                else if (Entity->currentAnimation->direction == direction::LEFT) {
+                    Entity->xAnimationOffset -= (GameState->SpriteWidth + (f32)GameState->TilesetSpacing / GameState->TextureWidth) * Entity->currentAnimation->size;
                 }
 
-                entity.frameTime = 0.0f;
+                Entity->uv = vec2(entityXOffset + Entity->xAnimationOffset, entityYOffset);
+                Renderer->glBufferSubData(GL_ARRAY_BUFFER, Entity->offset + offset(drawable_entity, uv), sizeof(vec2), &Entity->uv);
+
+                if (abs(Entity->xAnimationOffset) >= ((Entity->currentAnimation->frames * GameState->TilesetTileSize.x * Entity->currentAnimation->size) / (f32)GameState->TextureWidth)) {
+                    Entity->xAnimationOffset = 0.f;
+
+                    Entity->startAnimationDelayTimer = 0.f;
+                    Entity->startAnimationDelay = 0.f;
+                    Entity->currentAnimation = nullptr;
+                }
+
+                Entity->frameTime = 0.0f;
             }
-            entity.frameTime += Params->Delta;
+            Entity->frameTime += Params->Delta;
         }
     }
 
     //--- drawing entities ---
     setShaderUniform(Memory, GameState->TypeUniformLocation, 3);
 
-    GameState->Player.uv = vec2(bobXOffset + Bob->xAnimationOffset, bobYOffset);
-    GameState->Player.position = Bob->position;
-    GameState->Player.box.position = Bob->box.position;
-    GameState->Player.flipped = Bob->flipped;
+    GameState->Player.uv = vec2(bobXOffset + Bob->XAnimationOffset, bobYOffset);
+    GameState->Player.position = Bob->Position;
+    GameState->Player.box.position = Bob->Box.position;
+    GameState->Player.flipped = Bob->Flipped;
 
-    GameState->SwooshEffect.uv = vec2(effectXOffset + Swoosh->xAnimationOffset, effectYOffset);
-    GameState->SwooshEffect.position = Swoosh->position;
-    GameState->SwooshEffect.box.position = Swoosh->box.position;
-    GameState->SwooshEffect.flipped = Bob->flipped;
-    GameState->SwooshEffect.shouldRender = Swoosh->shouldRender ? 1 : 0;
+    GameState->SwooshEffect.uv = vec2(effectXOffset + Swoosh->XAnimationOffset, effectYOffset);
+    GameState->SwooshEffect.position = Swoosh->Position;
+    GameState->SwooshEffect.box.position = Swoosh->Box.position;
+    GameState->SwooshEffect.flipped = Bob->Flipped;
+    GameState->SwooshEffect.shouldRender = Swoosh->ShouldRender ? 1 : 0;
 
-    Renderer->glBufferSubData(GL_ARRAY_BUFFER, GameState->Player.offset + offset(drawableEntity, position), 2 * sizeof(f32), &GameState->Player.position);
-    Renderer->glBufferSubData(GL_ARRAY_BUFFER, GameState->SwooshEffect.offset + offset(drawableEntity, position), 2 * sizeof(f32), &GameState->SwooshEffect.position);
-    Renderer->glBufferSubData(GL_ARRAY_BUFFER, GameState->Player.offset + offset(drawableEntity, uv), 2 * sizeof(f32), &GameState->Player.uv);
-    Renderer->glBufferSubData(GL_ARRAY_BUFFER, GameState->SwooshEffect.offset + offset(drawableEntity, uv), 2 * sizeof(f32), &GameState->SwooshEffect.uv);
-    Renderer->glBufferSubData(GL_ARRAY_BUFFER, GameState->Player.offset + offset(drawableEntity, flipped), sizeof(u32), &GameState->Player.flipped);
-    Renderer->glBufferSubData(GL_ARRAY_BUFFER, GameState->SwooshEffect.offset + offset(drawableEntity, flipped), sizeof(u32), &GameState->SwooshEffect.flipped);
-    Renderer->glBufferSubData(GL_ARRAY_BUFFER, GameState->SwooshEffect.offset + offset(drawableEntity, shouldRender), sizeof(u32), &GameState->SwooshEffect.shouldRender);
+    Renderer->glBufferSubData(GL_ARRAY_BUFFER, GameState->Player.offset + offset(drawable_entity, position), 2 * sizeof(f32), &GameState->Player.position);
+    Renderer->glBufferSubData(GL_ARRAY_BUFFER, GameState->SwooshEffect.offset + offset(drawable_entity, position), 2 * sizeof(f32), &GameState->SwooshEffect.position);
+    Renderer->glBufferSubData(GL_ARRAY_BUFFER, GameState->Player.offset + offset(drawable_entity, uv), 2 * sizeof(f32), &GameState->Player.uv);
+    Renderer->glBufferSubData(GL_ARRAY_BUFFER, GameState->SwooshEffect.offset + offset(drawable_entity, uv), 2 * sizeof(f32), &GameState->SwooshEffect.uv);
+    Renderer->glBufferSubData(GL_ARRAY_BUFFER, GameState->Player.offset + offset(drawable_entity, flipped), sizeof(u32), &GameState->Player.flipped);
+    Renderer->glBufferSubData(GL_ARRAY_BUFFER, GameState->SwooshEffect.offset + offset(drawable_entity, flipped), sizeof(u32), &GameState->SwooshEffect.flipped);
+    Renderer->glBufferSubData(GL_ARRAY_BUFFER, GameState->SwooshEffect.offset + offset(drawable_entity, shouldRender), sizeof(u32), &GameState->SwooshEffect.shouldRender);
 
-    Renderer->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, (s32)DrawableEntities->size());
+    Renderer->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, (s32)GameState->DrawableEntitiesCount);
 
     //--- drawing particles ---
     Renderer->glBindBuffer(GL_ARRAY_BUFFER, GameState->VBOParticles);
@@ -1092,8 +1126,8 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
     // todo: offsets when delete in the middle?
     s32 totalParticlesCount = 0;
-    for (u32 i = 0; i < ParticleEmitters->size(); ++i) {
-        totalParticlesCount += (s32)(*ParticleEmitters)[i].particles.size();
+    for (u32 ParticleEmitterIndex = 0; ParticleEmitterIndex < GameState->ParticleEmittersIndex; ++ParticleEmitterIndex) {
+        totalParticlesCount += GameState->ParticleEmitters[ParticleEmitterIndex].ParticlesCount;
     }
 
     // todo: draw only the ones which lifespan is greater than zero

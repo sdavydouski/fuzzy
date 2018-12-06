@@ -2,22 +2,22 @@
 
 #include "fuzzy_types.h"
 
-constexpr inline u64 Kilobytes(u64 bytes) {
+constexpr u64 Kilobytes(u64 bytes) {
     u64 Result = bytes * 1024;
     return Result;
 }
 
-constexpr inline u64 Megabytes(u64 bytes) {
+constexpr u64 Megabytes(u64 bytes) {
     u64 Result = Kilobytes(bytes) * 1024;
     return Result;
 }
 
-constexpr inline u64 Gigabytes(u64 bytes) {
+constexpr u64 Gigabytes(u64 bytes) {
     u64 Result = Megabytes(bytes) * 1024;
     return Result;
 }
 
-constexpr inline u64 Terabytes(u64 bytes) {
+constexpr u64 Terabytes(u64 bytes) {
     u64 Result = Gigabytes(bytes) * 1024;
     return Result;
 }

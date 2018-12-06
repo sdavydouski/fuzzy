@@ -37,7 +37,9 @@ struct rawObject {
 };
 
 struct rawObjectLayer {
+    u32 ObjectsCount;
     vector<rawObject> objects;
+
     u32 x;
     u32 y;
     string name;
@@ -89,8 +91,8 @@ void from_json(const json& j, rawObjectLayer& layer) {
     layer.visible = j.at("visible").get<b32>();
 }
 
-tileLayer parseTileLayer(const rawTileLayer& layer, const tileset& tileset, vec2 scale);
-objectLayer parseObjectLayer(const rawObjectLayer& layer, const tileset& tileset, vec2 scale);
+tile_layer ParseTileLayer(memory_arena* Arena, const rawTileLayer& layer, const tileset& tileset, vec2 scale);
+object_layer ParseObjectLayer(memory_arena* Arena, const rawObjectLayer& layer, const tileset& tileset, vec2 scale);
 
 tileset loadTileset(platform_read_json_file* ReadJsonFile, const string& path) {
     tileset tileset = {};
@@ -117,7 +119,7 @@ tileset loadTileset(platform_read_json_file* ReadJsonFile, const string& path) {
         //}
 
         if (value.find("objectgroup") != value.end()) {
-            tileSpec spec = {};
+            tile_spec spec = {};
             u32 gid = (u32)std::stoi(it.key()) + 1;
 
             spec.box.position = {
@@ -136,32 +138,67 @@ tileset loadTileset(platform_read_json_file* ReadJsonFile, const string& path) {
     return tileset;
 }
 
-tiledMap loadMap(platform_read_json_file* ReadJsonFile, const string& path, const tileset& tileset, const vec2 scale) {
-    tiledMap map = {};
+tiled_map LoadMap(
+    memory_arena* Arena, 
+    platform_read_json_file* ReadJsonFile, 
+    const string& Path, 
+    const tileset& Tileset, 
+    const vec2 Scale
+) {
+    tiled_map Map = {};
 
-    json mapInfo = ReadJsonFile(path);
+    json MapInfo = ReadJsonFile(Path);
 
-    map.width = mapInfo["width"];
-    map.height = mapInfo["height"];
+    Map.Width = MapInfo["width"];
+    Map.Height = MapInfo["height"];
 
-    auto layers = mapInfo["layers"];
-    for (const auto& layer : layers) {
-        string type = layer["type"];
+    auto Layers = MapInfo["layers"];
+    for (const auto& Layer : Layers) {
+        string Type = Layer["type"];
 
-        if (type == "tilelayer") {
-            map.tileLayers.push_back(parseTileLayer(layer, tileset, scale));
+        if (Type == "tilelayer") {
+            ++Map.TileLayersCount;
         }
-        else if (type == "objectgroup") {
-            map.objectLayers.push_back(parseObjectLayer(layer, tileset, scale));
+        else if (Type == "objectgroup") {
+            ++Map.ObjectLayersCount;
         }
     }
 
-    return map;
+    Map.TileLayers = PushArray<tile_layer>(Arena, Map.TileLayersCount);
+    Map.ObjectLayers = PushArray<object_layer>(Arena, Map.ObjectLayersCount);
+
+    u32 TileLayersIndex = 0;
+    u32 ObjectLayersIndex = 0;
+    for (const auto& Layer : Layers) {
+        string Type = Layer["type"];
+
+        if (Type == "tilelayer") {
+            Map.TileLayers[TileLayersIndex++] = ParseTileLayer(Arena, Layer, Tileset, Scale);
+        }
+        else if (Type == "objectgroup") {
+            Map.ObjectLayers[ObjectLayersIndex++] = ParseObjectLayer(Arena, Layer, Tileset, Scale);
+        }
+    }
+
+    return Map;
 }
 
-tileLayer parseTileLayer(const rawTileLayer& layer, const tileset& tileset, vec2 scale) {
-    tileLayer tileLayer = {};
+tile_layer ParseTileLayer(memory_arena* Arena, const rawTileLayer& layer, const tileset& tileset, vec2 scale) {
+    tile_layer TileLayer = {};
 
+    for (u32 y = 0; y < layer.height; ++y) {
+        for (u32 x = 0; x < layer.width; ++x) {
+            u32 gid = layer.data[x + y * layer.width];
+
+            if (gid > 0) {
+                ++TileLayer.TilesCount;
+            }
+        }
+    }
+
+    TileLayer.Tiles = PushArray<tile>(Arena, TileLayer.TilesCount);
+
+    u32 TilesIndex = 0;
     for (u32 y = 0; y < layer.height; ++y) {
         for (u32 x = 0; x < layer.width; ++x) {
             u32 gid = layer.data[x + y * layer.width];
@@ -182,37 +219,53 @@ tileLayer parseTileLayer(const rawTileLayer& layer, const tileset& tileset, vec2
                 tile.uv = { (uvX * (tileset.tileSize.x + tileset.spacing) + tileset.margin) / tileset.imageSize.x,
                            (uvY * (tileset.tileSize.y + tileset.spacing) + tileset.margin) / tileset.imageSize.y };
 
-                tileLayer.tiles.push_back(tile);
+                TileLayer.Tiles[TilesIndex++] = tile;
             }
         }
     }
 
-    return tileLayer;
+    return TileLayer;
 }
 
-objectLayer parseObjectLayer(const rawObjectLayer& layer, const tileset& tileset, vec2 scale) {
-    objectLayer objectLayer = {};
+object_layer ParseObjectLayer(memory_arena* Arena, const rawObjectLayer& Layer, const tileset& Tileset, vec2 Scale) {
+    object_layer ObjectLayer = {};
 
-    u32 index = 0;
-    for (u32 i = 0; i < layer.objects.size(); i++) {
-        auto& object = layer.objects[i];
+    for (u32 i = 0; i < Layer.objects.size(); i++) {
+        auto& object = Layer.objects[i];
 
         if (object.gid != 0) {
-            drawableEntity entity = {};
+            ++ObjectLayer.DrawableEntitiesCount;
+        }
+        else {
+            ++ObjectLayer.EntitiesCount;
+        }
+    }
+
+    ObjectLayer.Entities = PushArray<entity>(Arena, ObjectLayer.EntitiesCount);
+    ObjectLayer.DrawableEntities = PushArray<drawable_entity>(Arena, ObjectLayer.DrawableEntitiesCount);
+
+    u32 EntityIndex = 0;
+    u32 DrawableEntityIndex = 0;
+    u32 index = 0;
+    for (u32 i = 0; i < Layer.objects.size(); i++) {
+        auto& object = Layer.objects[i];
+
+        if (object.gid != 0) {
+            drawable_entity entity = {};
 
             entity.id = object.id;
 
             if (object.type == "reflector") {
-                entity.type = entityType::REFLECTOR;
+                entity.type = entity_type::REFLECTOR;
             }
             else if (object.type == "lamp") {
-                entity.type = entityType::LAMP;
+                entity.type = entity_type::LAMP;
             }
             else if (object.type == "platform") {
-                entity.type = entityType::PLATFORM;
+                entity.type = entity_type::PLATFORM;
             }
             else {
-                entity.type = entityType::UNKNOWN;
+                entity.type = entity_type::UNKNOWN;
             }
             entity.rotation = object.rotation;
             // todo: handle negative angles?
@@ -224,16 +277,16 @@ objectLayer parseObjectLayer(const rawObjectLayer& layer, const tileset& tileset
             // tile objects have their position at bottom-left
             // see: https://github.com/bjorn/tiled/issues/91
             if (entity.rotation == 0.f) {
-                entity.position = { (f32)object.x * scale.x, ((f32)object.y - tileset.tileSize.y) * scale.y };
+                entity.position = { (f32)object.x * Scale.x, ((f32)object.y - Tileset.tileSize.y) * Scale.y };
             }
             else if (entity.rotation == 90.f) {
-                entity.position = { (f32)object.x * scale.x, (f32)object.y * scale.y };
+                entity.position = { (f32)object.x * Scale.x, (f32)object.y * Scale.y };
             }
             else if (entity.rotation == 180.f) {
-                entity.position = { ((f32)object.x - tileset.tileSize.x) * scale.x, (f32)object.y * scale.y };
+                entity.position = { ((f32)object.x - Tileset.tileSize.x) * Scale.x, (f32)object.y * Scale.y };
             }
             else if (entity.rotation == 270.f) {
-                entity.position = { ((f32)object.x - tileset.tileSize.x) * scale.x, ((f32)object.y - tileset.tileSize.y) * scale.y };
+                entity.position = { ((f32)object.x - Tileset.tileSize.x) * Scale.x, ((f32)object.y - Tileset.tileSize.y) * Scale.y };
             }
 
             u32 gid = object.gid;
@@ -242,44 +295,44 @@ objectLayer parseObjectLayer(const rawObjectLayer& layer, const tileset& tileset
 
             gid &= ~(FLIPPED_HORIZONTALLY_FLAG | FLIPPED_VERTICALLY_FLAG | FLIPPED_DIAGONALLY_FLAG);
 
-            s32 uvX = (gid - 1) % tileset.columns;
-            s32 uvY = (gid - 1) / tileset.columns;
+            s32 uvX = (gid - 1) % Tileset.columns;
+            s32 uvY = (gid - 1) / Tileset.columns;
 
-            entity.uv = { (uvX * (tileset.tileSize.x + tileset.spacing) + tileset.margin) / (f32)tileset.imageSize.x,
-                         (uvY * (tileset.tileSize.y + tileset.spacing) + tileset.margin) / (f32)tileset.imageSize.y };
+            entity.uv = { (uvX * (Tileset.tileSize.x + Tileset.spacing) + Tileset.margin) / (f32)Tileset.imageSize.x,
+                         (uvY * (Tileset.tileSize.y + Tileset.spacing) + Tileset.margin) / (f32)Tileset.imageSize.y };
 
 
-            entity.offset = index * sizeof(drawableEntity);
+            entity.offset = index * sizeof(drawable_entity);
             entity.spriteScale = vec2(1.f);
             entity.shouldRender = 1;
             entity.collides = true;
             entity.underEffect = false;
 
-            if (tileset.tiles.find(gid) != tileset.tiles.end()) {
-                tileSpec spec = tileset.tiles.at(gid);
+            if (Tileset.tiles.find(gid) != Tileset.tiles.end()) {
+                tile_spec spec = Tileset.tiles.at(gid);
 
-                entity.box.position = entity.position + spec.box.position * scale;
-                entity.box.size = spec.box.size * scale;
+                entity.box.position = entity.position + spec.box.position * Scale;
+                entity.box.size = spec.box.size * Scale;
             }
             else {
                 entity.box.position = entity.position;
-                entity.box.size = { (f32)object.width * scale.x, (f32)object.height * scale.y };
+                entity.box.size = { (f32)object.width * Scale.x, (f32)object.height * Scale.y };
             }
 
             ++index;
 
-            objectLayer.drawableEntities.emplace(object.id, entity);
+            ObjectLayer.DrawableEntities[DrawableEntityIndex++] = entity;
         }
         else {
             entity entity = {};
             entity.id = object.id;
-            entity.position = { (f32)object.x * scale.x, (f32)object.y * scale.y };
-            entity.box.position = { (f32)object.x * scale.x, (f32)object.y * scale.y };
-            entity.box.size = { (f32)object.width * scale.x, (f32)object.height * scale.y };
+            entity.position = { (f32)object.x * Scale.x, (f32)object.y * Scale.y };
+            entity.box.position = { (f32)object.x * Scale.x, (f32)object.y * Scale.y };
+            entity.box.size = { (f32)object.width * Scale.x, (f32)object.height * Scale.y };
 
-            objectLayer.entities.emplace(object.id, entity);
+            ObjectLayer.Entities[EntityIndex++] = entity;
         }
     }
 
-    return objectLayer;
+    return ObjectLayer;
 }

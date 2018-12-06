@@ -24,7 +24,7 @@
 game_params GameParams = {};
 
 // todo: should probably move these out...
-s32 StringLength(const char* String) {
+inline s32 StringLength(const char* String) {
     s32 Length = 0;
 
     while (*String++) {
@@ -34,7 +34,7 @@ s32 StringLength(const char* String) {
     return Length;
 }
 
-void ConcatenateStrings(const char* SourceA, const char* SourceB, char* Dest) {
+inline void ConcatenateStrings(const char* SourceA, const char* SourceB, char* Dest) {
     s32 SourceALength = StringLength(SourceA);
     for (s32 Index = 0; Index < SourceALength; ++Index) {
         *Dest++ = *SourceA++;

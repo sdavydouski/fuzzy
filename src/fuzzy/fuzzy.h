@@ -42,7 +42,7 @@ struct entity {
     u32 id;
 };
 
-enum class entityType {
+enum class entity_type {
     PLAYER,
     EFFECT,
     REFLECTOR,
@@ -53,7 +53,7 @@ enum class entityType {
 
 //todo: store in VBO only the ones that are actually used in shaders
 //todo: rework concept of drawable entities (allow creation and removal)
-struct drawableEntity {
+struct drawable_entity {
     u32 id;
     vec2 position;
     aabb box;
@@ -69,7 +69,7 @@ struct drawableEntity {
     b32 collides;
     b32 underEffect;
     b32 isRotating;
-    entityType type;
+    entity_type type;
 
     b32 isColliding;
 
@@ -88,25 +88,32 @@ struct tile {
     u32 flipped;
 };
 
-struct tileLayer {
-    vector<tile> tiles;
+struct tile_layer {
+    u32 TilesCount;
+    tile* Tiles;
 };
 
-struct objectLayer {
-    map<u32, entity> entities;
-    map<u32, drawableEntity> drawableEntities;
+struct object_layer {
+    u32 EntitiesCount;
+    entity* Entities;
+
+    u32 DrawableEntitiesCount;
+    drawable_entity* DrawableEntities;
 };
 
-struct tiledMap {
-    u32 width;
-    u32 height;
+struct tiled_map {
+    u32 Width;
+    u32 Height;
 
-    vector<tileLayer> tileLayers;
-    vector<objectLayer> objectLayers;
+    u32 TileLayersCount;
+    tile_layer* TileLayers;
+
+    u32 ObjectLayersCount;
+    object_layer* ObjectLayers;
 };
 
-struct tileSpec {
-    entityType type;
+struct tile_spec {
+    entity_type type;
     aabb box;
 };
 
@@ -116,59 +123,66 @@ struct tileset {
     u32 spacing;
     vec2 tileSize;
     vec2 imageSize;
-    map<u32, tileSpec> tiles;
+    map<u32, tile_spec> tiles;
 };
 
 struct sprite {
-    vector<animation> animations;
-    animation currentAnimation;
-    f32 xAnimationOffset;
-    f32 frameTime;
-    u32 flipped;
+    u32 AnimationsCount;
+    animation* Animations;
 
-    vec2 position;
-    aabb box;
-    vec2 velocity;
-    vec2 acceleration;
+    animation CurrentAnimation;
+
+    f32 XAnimationOffset;
+    f32 FrameTime;
+    u32 Flipped;
+
+    vec2 Position;
+    aabb Box;
+    vec2 Velocity;
+    vec2 Acceleration;
 };
 
 struct effect {
-    vector<animation> animations;
-    animation currentAnimation;
-    f32 xAnimationOffset;
-    f32 frameTime;
-    u32 flipped;
+    u32 AnimationsCount;
+    animation* Animations;
 
-    vec2 position;
-    aabb box;
+    animation CurrentAnimation;
+    f32 XAnimationOffset;
+    f32 FrameTime;
+    u32 Flipped;
 
-    b32 shouldRender;
+    vec2 Position;
+    aabb Box;
+
+    b32 ShouldRender;
 };
 
 struct particle {
-    vec2 position;
-    vec2 size;
-    vec2 velocity;
-    vec2 acceleration;
-    vec2 uv;
-    f32 lifespan;
-    f32 alpha;
+    vec2 Position;
+    vec2 Size;
+    vec2 Velocity;
+    vec2 Acceleration;
+    vec2 UV;
+    f32 Lifespan;
+    f32 Alpha;
 };
 
-struct particleEmitter {
-    u32 maxParticlesCount;
-    u32 lastUsedParticle;
-    u32 newParticlesCount;
-    f32 dt;
-    vector<particle> particles;
-    vec2 position;
-    aabb box;
-    vec2 velocity;
+struct particle_emitter {
+    u32 LastUsedParticle;
+    u32 NewParticlesCount;
+    f32 Dt;
 
-    b32 stopProcessingCollision;
-    s32 reflectorIndex;
-    b32 isFading;
-    f32 timeLeft;
+    u32 ParticlesCount;
+    particle* Particles;
+    
+    vec2 Position;
+    aabb Box;
+    vec2 Velocity;
+
+    b32 StopProcessingCollision;
+    s32 ReflectorIndex;
+    b32 IsFading;
+    f32 TimeLeft;
 };
 
 struct game_state {
@@ -176,16 +190,25 @@ struct game_state {
 
     sprite Bob;
     effect Swoosh;
-    vector<entity> Entities;
-    vector<drawableEntity> DrawableEntities;
-    vector<particleEmitter> ParticleEmitters;
-    vector<tile> Tiles;
+    
+    u32 EntitiesCount;
+    entity* Entities;
+    
+    u32 DrawableEntitiesCount;
+    drawable_entity* DrawableEntities;
+
+    u32 ParticleEmittersIndex;
+    u32 ParticleEmittersMaxCount;
+    particle_emitter* ParticleEmitters;
+
+    u32 TilesCount;
+    tile* Tiles;
 
     // top-left corner
     vec2 Camera;
 
-    drawableEntity Player;
-    drawableEntity SwooshEffect;
+    drawable_entity Player;
+    drawable_entity SwooshEffect;
 
     s32 TextureWidth;
     s32 TextureHeight;
@@ -193,7 +216,7 @@ struct game_state {
     f32 SpriteWidth;
     f32 SpriteHeight;
 
-    tiledMap Level;
+    tiled_map Level;
     // todo: replace with tileset
     u32 TilesetColumns;
     u32 TilesetMargin;

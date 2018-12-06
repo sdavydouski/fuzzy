@@ -1,8 +1,8 @@
 @echo off
 
-set include_paths=-I..\..\..\libs\glew-2.1.0\include\ -I..\..\..\externals\stb\ -I..\..\..\externals\glm\ -I..\..\..\externals\json\include\ -I..\..\..\externals\glfw\include\
+set include_paths=-I..\..\..\generated\glad\include\ -I..\..\..\externals\stb\ -I..\..\..\externals\glm\ -I..\..\..\externals\json\include\ -I..\..\..\externals\glfw\include\
 set compiler_flags=%include_paths% -MDd -nologo -Od -W3 -Zi -EHsc
-set linker_flags= -incremental:no -pdb:%random%_fuzzy.pdb opengl32.lib glew32.lib -libpath:..\..\..\libs\glew-2.1.0\lib\Release\x64\
+set linker_flags= -incremental:no -pdb:%random%_fuzzy.pdb opengl32.lib
 set build_dir=".\build\Debug\x64"
 set lock_file_name="lock.tmp"
 
