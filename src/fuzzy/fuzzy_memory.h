@@ -44,6 +44,12 @@ inline void* PushSize(memory_arena* Arena, memory_index Size) {
     return Result;
 }
 
+inline void PopSize(memory_arena* Arena, memory_index Size) {
+    assert((Arena->Used - Size) >= 0);
+
+    Arena->Used -= Size;
+}
+
 template<typename T>
 inline T* PushStruct(memory_arena* Arena) {
     T* Result = (T*)PushSize(Arena, sizeof(T));
@@ -51,7 +57,17 @@ inline T* PushStruct(memory_arena* Arena) {
 }
 
 template<typename T>
+inline void PopStruct(memory_arena* Arena) {
+    PopSize(Arena, sizeof(T));
+}
+
+template<typename T>
 inline T* PushArray(memory_arena* Arena, u32 Count) {
     T* Result = (T*)PushSize(Arena, Count * sizeof(T));
     return Result;
+}
+
+template<typename T>
+inline void PopArray(memory_arena* Arena, u32 Count) {
+    PopSize(Arena, Count * sizeof(T));
 }

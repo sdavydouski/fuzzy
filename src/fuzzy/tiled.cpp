@@ -11,6 +11,8 @@ const u32 FLIPPED_HORIZONTALLY_FLAG = 0x80000000;
 const u32 FLIPPED_VERTICALLY_FLAG = 0x40000000;
 const u32 FLIPPED_DIAGONALLY_FLAG = 0x20000000;
 
+// todo: probably should replace json library; get rid of std::vector
+
 struct rawTileLayer {
     vector<u32> data;
     u32 x;
@@ -91,22 +93,177 @@ void from_json(const json& j, rawObjectLayer& layer) {
     layer.visible = j.at("visible").get<b32>();
 }
 
-tile_layer ParseTileLayer(memory_arena* Arena, const rawTileLayer& layer, const tileset& tileset, vec2 scale);
-object_layer ParseObjectLayer(memory_arena* Arena, const rawObjectLayer& layer, const tileset& tileset, vec2 scale);
+tile_layer ParseTileLayer(memory_arena* Arena, const rawTileLayer& Layer, const tileset& Tileset, vec2 Scale) {
+    tile_layer TileLayer = {};
 
-tileset loadTileset(platform_read_json_file* ReadJsonFile, const string& path) {
-    tileset tileset = {};
+    for (u32 y = 0; y < Layer.height; ++y) {
+        for (u32 x = 0; x < Layer.width; ++x) {
+            u32 gid = Layer.data[x + y * Layer.width];
 
-    json tilesetInfo = ReadJsonFile(path);
+            if (gid > 0) {
+                ++TileLayer.TilesCount;
+            }
+        }
+    }
 
-    tileset.columns = tilesetInfo["columns"];
-    tileset.margin = tilesetInfo["margin"];
-    tileset.spacing = tilesetInfo["spacing"];
-    tileset.tileSize = { tilesetInfo["tilewidth"], tilesetInfo["tileheight"] };
-    tileset.imageSize = { tilesetInfo["imagewidth"], tilesetInfo["imageheight"] };
+    TileLayer.Tiles = PushArray<tile>(Arena, TileLayer.TilesCount);
 
-    for (auto& it = tilesetInfo["tiles"].begin(); it != tilesetInfo["tiles"].end(); ++it) {
-        auto& value = it.value();
+    u32 TilesIndex = 0;
+    for (u32 y = 0; y < Layer.height; ++y) {
+        for (u32 x = 0; x < Layer.width; ++x) {
+            u32 Gid = Layer.data[x + y * Layer.width];
+
+            if (Gid > 0) {
+                tile Tile = {};
+
+                Tile.Position = { x * Tileset.TileSize.x * Scale.x, y * Tileset.TileSize.y * Scale.y };
+                // take three most significant bits
+                Tile.Flipped = Gid & (7 << 29);
+
+                // Clear the flags
+                Gid &= ~(FLIPPED_HORIZONTALLY_FLAG | FLIPPED_VERTICALLY_FLAG | FLIPPED_DIAGONALLY_FLAG);
+
+                s32 uvX = (Gid - 1) % Tileset.Columns;
+                s32 uvY = (Gid - 1) / Tileset.Columns;
+
+                Tile.UV = { (uvX * (Tileset.TileSize.x + Tileset.Spacing) + Tileset.Margin) / Tileset.ImageSize.x,
+                            (uvY * (Tileset.TileSize.y + Tileset.Spacing) + Tileset.Margin) / Tileset.ImageSize.y };
+
+                TileLayer.Tiles[TilesIndex++] = Tile;
+            }
+        }
+    }
+
+    return TileLayer;
+}
+
+object_layer ParseObjectLayer(memory_arena* Arena, const rawObjectLayer& Layer, tileset& Tileset, vec2 Scale) {
+    object_layer ObjectLayer = {};
+
+    for (u32 i = 0; i < Layer.objects.size(); i++) {
+        auto& object = Layer.objects[i];
+
+        if (object.gid != 0) {
+            ++ObjectLayer.DrawableEntitiesCount;
+        }
+        else {
+            ++ObjectLayer.EntitiesCount;
+        }
+    }
+
+    ObjectLayer.Entities = PushArray<entity>(Arena, ObjectLayer.EntitiesCount);
+    ObjectLayer.DrawableEntities = PushArray<drawable_entity>(Arena, ObjectLayer.DrawableEntitiesCount);
+
+    u32 EntityIndex = 0;
+    u32 DrawableEntityIndex = 0;
+    u32 Index = 0;
+    for (u32 i = 0; i < Layer.objects.size(); i++) {
+        auto& object = Layer.objects[i];
+
+        if (object.gid != 0) {
+            drawable_entity Entity = {};
+
+            Entity.Id = object.id;
+
+            if (object.type == "reflector") {
+                Entity.Type = entity_type::REFLECTOR;
+            }
+            else if (object.type == "lamp") {
+                Entity.Type = entity_type::LAMP;
+            }
+            else if (object.type == "platform") {
+                Entity.Type = entity_type::PLATFORM;
+            }
+            else {
+                Entity.Type = entity_type::UNKNOWN;
+            }
+            Entity.Rotation = object.rotation;
+            // todo: handle negative angles?
+            if (Entity.Rotation == -90.f) {
+                Entity.Rotation = 270.f;
+            }
+
+            // adjusting position
+            // tile objects have their position at bottom-left
+            // see: https://github.com/bjorn/tiled/issues/91
+            if (Entity.Rotation == 0.f) {
+                Entity.Position = { (f32)object.x * Scale.x, ((f32)object.y - Tileset.TileSize.y) * Scale.y };
+            }
+            else if (Entity.Rotation == 90.f) {
+                Entity.Position = { (f32)object.x * Scale.x, (f32)object.y * Scale.y };
+            }
+            else if (Entity.Rotation == 180.f) {
+                Entity.Position = { ((f32)object.x - Tileset.TileSize.x) * Scale.x, (f32)object.y * Scale.y };
+            }
+            else if (Entity.Rotation == 270.f) {
+                Entity.Position = { ((f32)object.x - Tileset.TileSize.x) * Scale.x, ((f32)object.y - Tileset.TileSize.y) * Scale.y };
+            }
+
+            u32 gid = object.gid;
+
+            Entity.Flipped = gid & (7 << 29);       // take three most significant bits
+
+            gid &= ~(FLIPPED_HORIZONTALLY_FLAG | FLIPPED_VERTICALLY_FLAG | FLIPPED_DIAGONALLY_FLAG);
+
+            s32 uvX = (gid - 1) % Tileset.Columns;
+            s32 uvY = (gid - 1) / Tileset.Columns;
+
+            Entity.UV = { (uvX * (Tileset.TileSize.x + Tileset.Spacing) + Tileset.Margin) / (f32)Tileset.ImageSize.x,
+                         (uvY * (Tileset.TileSize.y + Tileset.Spacing) + Tileset.Margin) / (f32)Tileset.ImageSize.y };
+
+
+            Entity.Offset = Index * sizeof(drawable_entity);
+            Entity.SpriteScale = vec2(1.f);
+            Entity.ShouldRender = 1;
+            Entity.Collides = true;
+            Entity.UnderEffect = false;
+
+            tile_spec* Spec = GetOrCreateTileSpec(&Tileset, gid, 0);
+            
+            if (Spec) {
+                // todo: why do i need this???
+                Entity.Box.Position = Entity.Position + Spec->Box.Position * Scale;
+                Entity.Box.Size = Spec->Box.Size * Scale;
+            }
+            else {
+                Entity.Box.Position = Entity.Position;
+                Entity.Box.Size = { (f32)object.width * Scale.x, (f32)object.height * Scale.y };
+            }
+
+            ++Index;
+
+            ObjectLayer.DrawableEntities[DrawableEntityIndex++] = Entity;
+        }
+        else {
+            entity Entity = {};
+            Entity.Id = object.id;
+            Entity.Position = { (f32)object.x * Scale.x, (f32)object.y * Scale.y };
+            Entity.Box.Position = { (f32)object.x * Scale.x, (f32)object.y * Scale.y };
+            Entity.Box.Size = { (f32)object.width * Scale.x, (f32)object.height * Scale.y };
+
+            ObjectLayer.Entities[EntityIndex++] = Entity;
+        }
+    }
+
+    return ObjectLayer;
+}
+
+tileset LoadTileset(platform_read_json_file* ReadJsonFile, const string& Path, memory_arena* Arena) {
+    tileset Tileset = {};
+    // todo: think about size
+    Tileset.TileSpecsCount = 10;
+    Tileset.TilesHashTable = PushArray<tile_spec>(Arena, Tileset.TileSpecsCount);
+
+    json TilesetInfo = ReadJsonFile(Path);
+
+    Tileset.Columns = TilesetInfo["columns"];
+    Tileset.Margin = TilesetInfo["margin"];
+    Tileset.Spacing = TilesetInfo["spacing"];
+    Tileset.TileSize = { TilesetInfo["tilewidth"], TilesetInfo["tileheight"] };
+    Tileset.ImageSize = { TilesetInfo["imagewidth"], TilesetInfo["imageheight"] };
+
+    for (auto& It = TilesetInfo["tiles"].begin(); It != TilesetInfo["tiles"].end(); ++It) {
+        auto& Value = It.value();
 
         // todo: 
         //if (value.find("type") != value.end()) {
@@ -118,32 +275,32 @@ tileset loadTileset(platform_read_json_file* ReadJsonFile, const string& path) {
         //    tileset.tiles.emplace(gid, spec);
         //}
 
-        if (value.find("objectgroup") != value.end()) {
-            tile_spec spec = {};
-            u32 gid = (u32)std::stoi(it.key()) + 1;
+        // todo: wtf is this???
+        if (Value.find("objectgroup") != Value.end()) {
+            u32 Gid = (u32)std::stoi(It.key()) + 1;
 
-            spec.box.position = {
-                value["objectgroup"]["objects"][0]["x"],
-                value["objectgroup"]["objects"][0]["y"]
-            };
-            spec.box.size = {
-                value["objectgroup"]["objects"][0]["width"],
-                value["objectgroup"]["objects"][0]["height"]
-            };
+            tile_spec* Spec = GetOrCreateTileSpec(&Tileset, Gid, Arena);
 
-            tileset.tiles.emplace(gid, spec);
+            Spec->Box.Position = {
+                Value["objectgroup"]["objects"][0]["x"],
+                Value["objectgroup"]["objects"][0]["y"]
+            };
+            Spec->Box.Size = {
+                Value["objectgroup"]["objects"][0]["width"],
+                Value["objectgroup"]["objects"][0]["height"]
+            };
         }
     }
 
-    return tileset;
+    return Tileset;
 }
 
 tiled_map LoadMap(
     memory_arena* Arena, 
     platform_read_json_file* ReadJsonFile, 
     const string& Path, 
-    const tileset& Tileset, 
-    const vec2 Scale
+    tileset& Tileset, 
+    vec2 Scale
 ) {
     tiled_map Map = {};
 
@@ -181,158 +338,4 @@ tiled_map LoadMap(
     }
 
     return Map;
-}
-
-tile_layer ParseTileLayer(memory_arena* Arena, const rawTileLayer& layer, const tileset& tileset, vec2 scale) {
-    tile_layer TileLayer = {};
-
-    for (u32 y = 0; y < layer.height; ++y) {
-        for (u32 x = 0; x < layer.width; ++x) {
-            u32 gid = layer.data[x + y * layer.width];
-
-            if (gid > 0) {
-                ++TileLayer.TilesCount;
-            }
-        }
-    }
-
-    TileLayer.Tiles = PushArray<tile>(Arena, TileLayer.TilesCount);
-
-    u32 TilesIndex = 0;
-    for (u32 y = 0; y < layer.height; ++y) {
-        for (u32 x = 0; x < layer.width; ++x) {
-            u32 gid = layer.data[x + y * layer.width];
-
-            if (gid > 0) {
-                tile tile = {};
-
-                tile.position = { x * tileset.tileSize.x * scale.x, y * tileset.tileSize.y * scale.y };
-                // take three most significant bits
-                tile.flipped = gid & (7 << 29);
-
-                // Clear the flags
-                gid &= ~(FLIPPED_HORIZONTALLY_FLAG | FLIPPED_VERTICALLY_FLAG | FLIPPED_DIAGONALLY_FLAG);
-
-                s32 uvX = (gid - 1) % tileset.columns;
-                s32 uvY = (gid - 1) / tileset.columns;
-
-                tile.uv = { (uvX * (tileset.tileSize.x + tileset.spacing) + tileset.margin) / tileset.imageSize.x,
-                           (uvY * (tileset.tileSize.y + tileset.spacing) + tileset.margin) / tileset.imageSize.y };
-
-                TileLayer.Tiles[TilesIndex++] = tile;
-            }
-        }
-    }
-
-    return TileLayer;
-}
-
-object_layer ParseObjectLayer(memory_arena* Arena, const rawObjectLayer& Layer, const tileset& Tileset, vec2 Scale) {
-    object_layer ObjectLayer = {};
-
-    for (u32 i = 0; i < Layer.objects.size(); i++) {
-        auto& object = Layer.objects[i];
-
-        if (object.gid != 0) {
-            ++ObjectLayer.DrawableEntitiesCount;
-        }
-        else {
-            ++ObjectLayer.EntitiesCount;
-        }
-    }
-
-    ObjectLayer.Entities = PushArray<entity>(Arena, ObjectLayer.EntitiesCount);
-    ObjectLayer.DrawableEntities = PushArray<drawable_entity>(Arena, ObjectLayer.DrawableEntitiesCount);
-
-    u32 EntityIndex = 0;
-    u32 DrawableEntityIndex = 0;
-    u32 index = 0;
-    for (u32 i = 0; i < Layer.objects.size(); i++) {
-        auto& object = Layer.objects[i];
-
-        if (object.gid != 0) {
-            drawable_entity entity = {};
-
-            entity.id = object.id;
-
-            if (object.type == "reflector") {
-                entity.type = entity_type::REFLECTOR;
-            }
-            else if (object.type == "lamp") {
-                entity.type = entity_type::LAMP;
-            }
-            else if (object.type == "platform") {
-                entity.type = entity_type::PLATFORM;
-            }
-            else {
-                entity.type = entity_type::UNKNOWN;
-            }
-            entity.rotation = object.rotation;
-            // todo: handle negative angles?
-            if (entity.rotation == -90.f) {
-                entity.rotation = 270.f;
-            }
-
-            // adjusting position
-            // tile objects have their position at bottom-left
-            // see: https://github.com/bjorn/tiled/issues/91
-            if (entity.rotation == 0.f) {
-                entity.position = { (f32)object.x * Scale.x, ((f32)object.y - Tileset.tileSize.y) * Scale.y };
-            }
-            else if (entity.rotation == 90.f) {
-                entity.position = { (f32)object.x * Scale.x, (f32)object.y * Scale.y };
-            }
-            else if (entity.rotation == 180.f) {
-                entity.position = { ((f32)object.x - Tileset.tileSize.x) * Scale.x, (f32)object.y * Scale.y };
-            }
-            else if (entity.rotation == 270.f) {
-                entity.position = { ((f32)object.x - Tileset.tileSize.x) * Scale.x, ((f32)object.y - Tileset.tileSize.y) * Scale.y };
-            }
-
-            u32 gid = object.gid;
-
-            entity.flipped = gid & (7 << 29);       // take three most significant bits
-
-            gid &= ~(FLIPPED_HORIZONTALLY_FLAG | FLIPPED_VERTICALLY_FLAG | FLIPPED_DIAGONALLY_FLAG);
-
-            s32 uvX = (gid - 1) % Tileset.columns;
-            s32 uvY = (gid - 1) / Tileset.columns;
-
-            entity.uv = { (uvX * (Tileset.tileSize.x + Tileset.spacing) + Tileset.margin) / (f32)Tileset.imageSize.x,
-                         (uvY * (Tileset.tileSize.y + Tileset.spacing) + Tileset.margin) / (f32)Tileset.imageSize.y };
-
-
-            entity.offset = index * sizeof(drawable_entity);
-            entity.spriteScale = vec2(1.f);
-            entity.shouldRender = 1;
-            entity.collides = true;
-            entity.underEffect = false;
-
-            if (Tileset.tiles.find(gid) != Tileset.tiles.end()) {
-                tile_spec spec = Tileset.tiles.at(gid);
-
-                entity.box.position = entity.position + spec.box.position * Scale;
-                entity.box.size = spec.box.size * Scale;
-            }
-            else {
-                entity.box.position = entity.position;
-                entity.box.size = { (f32)object.width * Scale.x, (f32)object.height * Scale.y };
-            }
-
-            ++index;
-
-            ObjectLayer.DrawableEntities[DrawableEntityIndex++] = entity;
-        }
-        else {
-            entity entity = {};
-            entity.id = object.id;
-            entity.position = { (f32)object.x * Scale.x, (f32)object.y * Scale.y };
-            entity.box.position = { (f32)object.x * Scale.x, (f32)object.y * Scale.y };
-            entity.box.size = { (f32)object.width * Scale.x, (f32)object.height * Scale.y };
-
-            ObjectLayer.Entities[EntityIndex++] = entity;
-        }
-    }
-
-    return ObjectLayer;
 }
