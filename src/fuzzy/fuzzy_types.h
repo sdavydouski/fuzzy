@@ -1,22 +1,19 @@
 #pragma once
 
-#include <glad\glad.h>
+#include <glad/glad.h>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <glm/mat4x4.hpp>
-#include <nlohmann/json.hpp>
 #include <string>
-#include <vector>
-#include <map>
 
 #pragma region STL types
 using string = std::string;
-
-template<typename T>
-using vector = std::vector<T>;
 #pragma endregion
 
-using json = nlohmann::json;
+#define global_variable static
+#define internal_function static
+
+#define InvalidCodePath assert(!"InvalidCodePath")
 
 #pragma region GLM types
 using vec2 = glm::vec2;

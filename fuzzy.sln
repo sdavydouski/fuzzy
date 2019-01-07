@@ -22,6 +22,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "misc", "misc", "{B8071DF9-9
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "data", "data", "{40618B3B-D41E-41B0-A0E0-30EAED9F756A}"
+	ProjectSection(SolutionItems) = preProject
+		data\animations.json = data\animations.json
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "shaders", "shaders", "{849DEA6D-56FE-4DD0-BF45-650BC17E3E72}"
 	ProjectSection(SolutionItems) = preProject
@@ -29,19 +32,19 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "shaders", "shaders", "{849D
 		data\shaders\basic.vert = data\shaders\basic.vert
 	EndProjectSection
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "textures", "textures", "{403821E1-DD33-43B6-8927-BB1E7C53B811}"
-	ProjectSection(SolutionItems) = preProject
-		data\textures\industrial_tileset.png = data\textures\industrial_tileset.png
-		data\textures\sprites.json = data\textures\sprites.json
-	EndProjectSection
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "levels", "levels", "{EDA354BB-F825-4C1C-9964-99D43988FECE}"
-	ProjectSection(SolutionItems) = preProject
-		data\levels\level01.json = data\levels\level01.json
-		data\levels\tileset.json = data\levels\tileset.json
-	EndProjectSection
-EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fuzzy", "src\fuzzy\fuzzy.vcxproj", "{5C53446B-0425-4F9C-BD52-63191C214C6B}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tilesets", "tilesets", "{585FEC08-E915-47C6-853B-AC2EA5AD4F55}"
+	ProjectSection(SolutionItems) = preProject
+		data\tilesets\industrial_tileset.png = data\tilesets\industrial_tileset.png
+		data\tilesets\industrial_tileset_with_spacing.png = data\tilesets\industrial_tileset_with_spacing.png
+		data\tilesets\tileset.json = data\tilesets\tileset.json
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "maps", "maps", "{AFC518B3-35F3-4855-8232-3149FBF8DEA1}"
+	ProjectSection(SolutionItems) = preProject
+		data\maps\map01.json = data\maps\map01.json
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -73,8 +76,8 @@ Global
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{849DEA6D-56FE-4DD0-BF45-650BC17E3E72} = {40618B3B-D41E-41B0-A0E0-30EAED9F756A}
-		{403821E1-DD33-43B6-8927-BB1E7C53B811} = {40618B3B-D41E-41B0-A0E0-30EAED9F756A}
-		{EDA354BB-F825-4C1C-9964-99D43988FECE} = {40618B3B-D41E-41B0-A0E0-30EAED9F756A}
+		{585FEC08-E915-47C6-853B-AC2EA5AD4F55} = {40618B3B-D41E-41B0-A0E0-30EAED9F756A}
+		{AFC518B3-35F3-4855-8232-3149FBF8DEA1} = {40618B3B-D41E-41B0-A0E0-30EAED9F756A}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {6CB12932-8CAA-433E-822D-8A13813D9D25}

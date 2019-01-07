@@ -21,51 +21,20 @@
 #pragma warning(disable:4302)
 #pragma warning(disable:4311)
 
-game_params GameParams = {};
+global_variable game_params GameParams = {};
 
-// todo: should probably move these out...
-inline s32 StringLength(const char* String) {
-    s32 Length = 0;
-
-    while (*String++) {
-        ++Length;
-    }
-
-    return Length;
-}
-
-inline void ConcatenateStrings(const char* SourceA, const char* SourceB, char* Dest) {
-    s32 SourceALength = StringLength(SourceA);
-    for (s32 Index = 0; Index < SourceALength; ++Index) {
-        *Dest++ = *SourceA++;
-    }
-
-    s32 SourceBLength = StringLength(SourceB);
-    for (s32 Index = 0; Index < SourceBLength; ++Index) {
-        *Dest++ = *SourceB++;
-    }
-
-    *Dest++ = 0;
-}
-
-void Win32GetFullPathToEXEDirectory(win32_state* State) {
+void Win32GetFullPathToEXEDirectory(win32_state *State) {
     char EXEFullPath[WIN32_FILE_PATH];
     GetModuleFileNameA(0, EXEFullPath, sizeof(EXEFullPath));
 
-    char* OnePastLastEXEFullPathSlash = EXEFullPath;
-
-    for (char* Scan = EXEFullPath; *Scan; ++Scan) {
-        if (*Scan == '\\') {
-            OnePastLastEXEFullPathSlash = Scan + 1;
-        }
-    }
+    char* OnePastLastEXEFullPathSlash = GetLastAfterDelimiter(EXEFullPath, '\\');
 
     for (char Index = 0; Index < OnePastLastEXEFullPathSlash - EXEFullPath; ++Index) {
         State->EXEDirectoryFullPath[Index] = EXEFullPath[Index];
     }
 }
 
-FILETIME Win32GetLastWriteTime(const char* FileName) {
+FILETIME Win32GetLastWriteTime(char *FileName) {
     FILETIME LastWriteTime = {};
 
     WIN32_FILE_ATTRIBUTE_DATA FileInformation;
@@ -76,14 +45,14 @@ FILETIME Win32GetLastWriteTime(const char* FileName) {
     return LastWriteTime;
 }
 
-b32 Win32FileExists(const char* FileName) {
+b32 Win32FileExists(char *FileName) {
     WIN32_FILE_ATTRIBUTE_DATA Ignored;
     b32 Exists = GetFileAttributesExA(FileName, GetFileExInfoStandard, &Ignored);
 
     return Exists;
 }
 
-win32_game_code Win32LoadGameCode(const char* SourceDLLName, const char* TempDLLName, const char* LockFileName) {
+win32_game_code Win32LoadGameCode(char *SourceDLLName, char *TempDLLName, char *LockFileName) {
     win32_game_code Result = {};
 
     if (!Win32FileExists(LockFileName)) {
@@ -103,7 +72,7 @@ win32_game_code Win32LoadGameCode(const char* SourceDLLName, const char* TempDLL
     return Result;
 }
 
-void Win32UnloadGameCode(win32_game_code* GameCode) {
+void Win32UnloadGameCode(win32_game_code *GameCode) {
     if (GameCode->GameCodeDLL) {
         FreeLibrary(GameCode->GameCodeDLL);
         GameCode->GameCodeDLL = 0;
@@ -113,7 +82,7 @@ void Win32UnloadGameCode(win32_game_code* GameCode) {
     GameCode->UpdateAndRender = 0;
 }
 
-void Win32InitOpenGLRenderer(game_memory* GameMemory) {
+void Win32InitOpenGLRenderer(game_memory *GameMemory) {
     GameMemory->Renderer = {};
     GameMemory->Renderer.glCreateShader = glCreateShader;
     GameMemory->Renderer.glShaderSource = glShaderSource;
@@ -149,16 +118,18 @@ void Win32InitOpenGLRenderer(game_memory* GameMemory) {
     GameMemory->Renderer.glClear = glClear;
     GameMemory->Renderer.glClearColor = glClearColor;
     GameMemory->Renderer.glDrawArraysInstanced = glDrawArraysInstanced;
+    GameMemory->Renderer.glGetActiveUniform = glGetActiveUniform;
 }
 
-s32 CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, s32 nCmdShow) {
+//s32 CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, s32 nCmdShow) {
+int main() {
     win32_state Win32State = {};
     game_memory GameMemory = {};
 
     GameMemory.PermanentStorageSize = Megabytes(64);
     GameMemory.TransientStorageSize = Megabytes(128);
 
-    void* BaseAddress = (void*)Terabytes(2);
+    void *BaseAddress = (void*)Terabytes(2);
 
     Win32State.TotalSize = GameMemory.PermanentStorageSize + GameMemory.TransientStorageSize;
     Win32State.GameMemoryBlock = VirtualAlloc(BaseAddress, Win32State.TotalSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
@@ -169,7 +140,7 @@ s32 CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
     GameMemory.Platform = {};
     GameMemory.Platform.PrintOutput = GamePrintOutput;
     GameMemory.Platform.ReadTextFile = GameReadTextFile;
-    GameMemory.Platform.ReadJsonFile = GameReadJsonFile;
+    // todo: stbi_load loads image into arbitrary location which is not good
     GameMemory.Platform.ReadImageFile = stbi_load;
     GameMemory.Platform.FreeImageFile = stbi_image_free;
 
@@ -203,35 +174,35 @@ s32 CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     //glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
-    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
-    const GLFWvidmode* vidmode = glfwGetVideoMode(monitor);
+    GLFWmonitor *Monitor = glfwGetPrimaryMonitor();
+    const GLFWvidmode* Vidmode = glfwGetVideoMode(Monitor);
 
-    GLFWwindow* window = glfwCreateWindow(GameParams.ScreenWidth, GameParams.ScreenHeight, "Fuzzy", nullptr, nullptr);
-    if (!window) {
+    GLFWwindow *Window = glfwCreateWindow(GameParams.ScreenWidth, GameParams.ScreenHeight, "Fuzzy", NULL, NULL);
+    if (!Window) {
         OutputDebugStringA("Failed to create GLFW window\n");
         glfwTerminate();
         return EXIT_FAILURE;
     }
 
-    glfwSetWindowPos(window, (vidmode->width - GameParams.ScreenWidth) / 2, (vidmode->height - GameParams.ScreenHeight) / 2);
+    glfwSetWindowPos(Window, (Vidmode->width - GameParams.ScreenWidth) / 2, (Vidmode->height - GameParams.ScreenHeight) / 2);
 
-    glfwSetKeyCallback(window, [](GLFWwindow* window, s32 key, s32 scancode, s32 action, s32 mods) {
-        if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
-            glfwSetWindowShouldClose(window, GLFW_TRUE);
+    glfwSetKeyCallback(Window, [](GLFWwindow *Window, s32 Key, s32 Scancode, s32 Action, s32 Mods) {
+        if (Key == GLFW_KEY_ESCAPE && Action == GLFW_PRESS) {
+            glfwSetWindowShouldClose(Window, GLFW_TRUE);
         }
-        if (action == GLFW_PRESS) {
-            GameParams.Input.Keys[key] = true;
-        } else if (action == GLFW_RELEASE) {
-            GameParams.Input.Keys[key] = false;
-            GameParams.Input.ProcessedKeys[key] = false;
+        if (Action == GLFW_PRESS) {
+            GameParams.Input.Keys[Key] = true;
+        } else if (Action == GLFW_RELEASE) {
+            GameParams.Input.Keys[Key] = false;
+            GameParams.Input.ProcessedKeys[Key] = false;
         }
     });
 
-    glfwSetFramebufferSizeCallback(window, [](GLFWwindow* window, s32 width, s32 height) {
-        glViewport(0, 0, width, height);
+    glfwSetFramebufferSizeCallback(Window, [](GLFWwindow *Window, s32 Width, s32 Height) {
+        glViewport(0, 0, Width, Height);
     });
 
-    glfwMakeContextCurrent(window);
+    glfwMakeContextCurrent(Window);
 
     glfwSwapInterval(1);
 
@@ -240,7 +211,7 @@ s32 CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
         return EXIT_FAILURE;
     }
 
-    char* OpenGLVersion = (char*)glGetString(GL_VERSION);
+    char *OpenGLVersion = (char*)glGetString(GL_VERSION);
     OutputDebugStringA(OpenGLVersion);
     OutputDebugStringA("\n");
 
@@ -249,19 +220,19 @@ s32 CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
     glViewport(0, 0, GameParams.ScreenWidth, GameParams.ScreenHeight);
     
-    f64 lastTime = glfwGetTime();
-    f64 currentTime = glfwGetTime();
+    f64 LastTime = glfwGetTime();
+    f64 CurrentTime = glfwGetTime();
 
-    while (!glfwWindowShouldClose(window)) {
+    while (!glfwWindowShouldClose(Window)) {
         FILETIME NewDLLWriteTime = Win32GetLastWriteTime(SourceGameCodeDLLFullPath);
         if (CompareFileTime(&NewDLLWriteTime, &GameCode.DLLLastWriteTime) != 0) {
             Win32UnloadGameCode(&GameCode);
             GameCode = Win32LoadGameCode(SourceGameCodeDLLFullPath, TempGameCodeDLLFullPath, GameCodeLockFullPath);
         }
 
-        currentTime = glfwGetTime();
-        GameParams.Delta = (f32) (currentTime - lastTime);
-        lastTime = currentTime;
+        CurrentTime = glfwGetTime();
+        GameParams.Delta = (f32) (CurrentTime - LastTime);
+        LastTime = CurrentTime;
 
         glfwPollEvents();
 
@@ -269,7 +240,7 @@ s32 CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
             GameCode.UpdateAndRender(&GameMemory, &GameParams);
         }
 
-        glfwSwapBuffers(window);
+        glfwSwapBuffers(Window);
     }
 
     glfwTerminate();

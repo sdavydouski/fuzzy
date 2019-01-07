@@ -5,7 +5,7 @@ set libs_dir=".\build\libs"
 
 if not exist %build_dir% mkdir %build_dir%
 pushd %build_dir%
-cmake -D GLFW_BUILD_DOCS=OFF -D GLFW_BUILD_TESTS=OFF -D GLFW_BUILD_EXAMPLES=OFF -D USE_MSVC_RUNTIME_LIBRARY_DLL=OFF ..\..\externals\glfw -G "Visual Studio 15 2017 Win64" 
+cmake -D GLFW_BUILD_DOCS=OFF -D GLFW_BUILD_TESTS=OFF -D GLFW_BUILD_EXAMPLES=OFF -D USE_MSVC_RUNTIME_LIBRARY_DLL=ON ..\..\externals\glfw -G "Visual Studio 15 2017 Win64" 
 devenv .\GLFW.sln -rebuild Debug 
 popd
 

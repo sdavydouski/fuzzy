@@ -4,7 +4,7 @@
 
 struct win32_state {
     u64 TotalSize;
-    void* GameMemoryBlock;
+    void *GameMemoryBlock;
 
     char EXEDirectoryFullPath[WIN32_FILE_PATH];
 };
@@ -13,13 +13,13 @@ struct win32_game_code {
     HMODULE GameCodeDLL;
     FILETIME DLLLastWriteTime;
 
-    game_update_and_render* UpdateAndRender;
+    game_update_and_render *UpdateAndRender;
 
     b32 IsValid;
 };
 
 GAME_PRINT_OUTPUT(GamePrintOutput) {
-    OutputDebugStringA(Output.c_str());
+    OutputDebugStringA(Output);
 }
 
 GAME_READ_TEXT_FILE(GameReadTextFile) {
@@ -31,14 +31,3 @@ GAME_READ_TEXT_FILE(GameReadTextFile) {
     Result << In.rdbuf();
     return Result.str();
 }
-
-GAME_READ_JSON_FILE(GameReadJsonFile) {
-    std::fstream In(Path);
-
-    assert(In.good());
-
-    json Result;
-    In >> Result;
-    return Result;
-}
-

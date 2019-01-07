@@ -119,7 +119,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir)\externals\json\include\;$(SolutionDir)\externals\stb\;$(SolutionDir)\externals\glm\;$(SolutionDir)\generated\glad\include\;$(SolutionDir)\externals\glfw\include;$(SolutionDir)\src\fuzzy;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\externals\glm\;$(SolutionDir)\externals\stb\;$(SolutionDir)\generated\glad\include\;$(SolutionDir)\externals\glfw\include;$(SolutionDir)\src\fuzzy;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <MinimalRebuild>false</MinimalRebuild>
@@ -170,7 +170,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir)\externals\json\include\;$(SolutionDir)\externals\stb\;$(SolutionDir)\externals\glm\;$(SolutionDir)\generated\glad\include;$(SolutionDir)\externals\glfw\include;%(AdditionalIncludeDirectories);D:\C++\VisualStudio\fuzzy\src\fuzzy</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\externals\glm\;$(SolutionDir)\externals\stb\;$(SolutionDir)\generated\glad\include;$(SolutionDir)\externals\glfw\include;%(AdditionalIncludeDirectories);D:\C++\VisualStudio\fuzzy\src\fuzzy</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <PreprocessorDefinitions>%(PreprocessorDefinitions)</PreprocessorDefinitions>

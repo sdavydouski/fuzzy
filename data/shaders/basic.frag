@@ -19,17 +19,19 @@ uniform sampler2D spriteTexture;
 #define PARTICLE_TYPE 4.f
 
 void main() {
-    if (type == TILE_TYPE) {
-        if (uvOffset.x >= 0.f && uvOffset.y >= 0.f) {
-            color = texture(spriteTexture, uv + uvOffset);
-        } else {
-            color = vec4(0.f);
-        }
-    } else if (type == SPRITE_TYPE || type == ENTITY_TYPE) {
-        color = texture(spriteTexture, uv + uvOffset);
-        //color = vec4(1.f);
-    } else if (type == PARTICLE_TYPE) {
-        color = texture(spriteTexture, uv + uvOffset);
-        color.a = alpha;
-    }
+    color = vec4(1.f);
+    //if (type == TILE_TYPE) {
+    //    // todo: do i need this condition?
+    //    if (uvOffset.x >= 0.f && uvOffset.y >= 0.f) {
+    //        color = texture(spriteTexture, uv + uvOffset);
+    //    } else {
+    //        color = vec4(0.f);
+    //    }
+    //} else if (type == SPRITE_TYPE || type == ENTITY_TYPE) {
+    //    color = texture(spriteTexture, uv + uvOffset);
+    //    //color = vec4(1.f);
+    //} else if (type == PARTICLE_TYPE) {
+    //    color = texture(spriteTexture, uv + uvOffset);
+    //    color.a = alpha;
+    //}
 }
