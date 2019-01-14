@@ -12,13 +12,13 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "misc", "misc", "{B8071DF9-9
 	ProjectSection(SolutionItems) = preProject
 		.gitignore = .gitignore
 		.gitmodules = .gitmodules
-		clean.bat = clean.bat
-		game_build.bat = game_build.bat
-		glad_generate.bat = glad_generate.bat
-		glfw_build.bat = glfw_build.bat
+		misc\clean.bat = misc\clean.bat
+		misc\game_build.bat = misc\game_build.bat
+		misc\glad_generate.bat = misc\glad_generate.bat
+		misc\glfw_build.bat = misc\glfw_build.bat
 		LICENSE.md = LICENSE.md
 		README.md = README.md
-		update_git_submodules.bat = update_git_submodules.bat
+		misc\updata_git_submodules.bat = misc\updata_git_submodules.bat
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "data", "data", "{40618B3B-D41E-41B0-A0E0-30EAED9F756A}"

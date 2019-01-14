@@ -12,6 +12,7 @@ using string = std::string;
 
 #define global_variable static
 #define internal_function static
+#define local_persist static
 
 #define InvalidCodePath assert(!"InvalidCodePath")
 

@@ -144,7 +144,13 @@ struct tileset {
     u32 Columns;
     u32 Margin;
     u32 Spacing;
-    ivec2 TileSize;
+    
+    s32 TileWidthInPixels;
+    s32 TileHeightInPixels;
+
+    f32 TileWidthInMeters;
+    f32 TileHeightInMeters;
+
     bitmap Image;
 
     u32 TileCount;
@@ -302,6 +308,8 @@ struct particle_emitter {
 };
 
 struct game_state {
+    b32 IsInitialized;
+
     memory_arena WorldArena;
 
     //sprite Bob;
@@ -323,8 +331,9 @@ struct game_state {
     //u32 TilesCount;
     //tile *Tiles;
 
-    // top-left corner
-    //vec2 Camera;
+    // top-left corner <-- is it?
+    vec2 CameraPosition;
+    f32 Zoom;
 
     //drawable_entity Player;
     //drawable_entity SwooshEffect;
@@ -338,6 +347,8 @@ struct game_state {
     f32 UpdateRate;
     //f32 ChargeSpawnCooldown;
 
+    u32 TotalTileCount;
+    u32 TilesVBO;
     //u32 VBOTiles;
     //u32 VBOEntities;
     //u32 VBOParticles;
@@ -345,4 +356,11 @@ struct game_state {
     //s32 ModelUniformLocation;
     //s32 ViewUniformLocation;
     //s32 TypeUniformLocation;
+
+    mat4 Projection;
+
+    s32 VPUniformLocation;
+
+    f32 ScreenWidthInMeters;
+    f32 ScreenHeightInMeters;
 };

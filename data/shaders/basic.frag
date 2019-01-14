@@ -4,22 +4,26 @@
 #pragma debug(on)
 
 in vec2 uv;
-in vec2 uvOffset;
-in float alpha;
+in vec2 instanceUVOffset;
+//in vec2 uvOffset;
+//in float alpha;
 
-out vec4 color;
+out vec4 out_Color;
 
-uniform int type;
+//uniform int type;
 
-uniform sampler2D spriteTexture;
+uniform sampler2D u_TilesetImage;
 
-#define TILE_TYPE 1.f
-#define SPRITE_TYPE 2.f
-#define ENTITY_TYPE 3.f
-#define PARTICLE_TYPE 4.f
+//#define TILE_TYPE 1.f
+//#define SPRITE_TYPE 2.f
+//#define ENTITY_TYPE 3.f
+//#define PARTICLE_TYPE 4.f
 
-void main() {
-    color = vec4(1.f);
+void main()
+{
+    out_Color = texture(u_TilesetImage, uv + instanceUVOffset);
+    //out_Color = vec4(1.f);
+    //out_color = vec4(1.f);
     //if (type == TILE_TYPE) {
     //    // todo: do i need this condition?
     //    if (uvOffset.x >= 0.f && uvOffset.y >= 0.f) {

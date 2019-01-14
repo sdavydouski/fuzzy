@@ -5,6 +5,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <fstream>
+#include <iostream>
 
 #include "fuzzy_types.h"
 #include "fuzzy_platform.h"
@@ -15,24 +16,27 @@ global_variable const u32 FLIPPED_HORIZONTALLY_FLAG = 0x80000000;
 global_variable const u32 FLIPPED_VERTICALLY_FLAG = 0x40000000;
 global_variable const u32 FLIPPED_DIAGONALLY_FLAG = 0x20000000;
 
-inline vec3
-NormalizeRGB(u32 Red, u32 Green, u32 Blue) {
+internal_function inline vec3
+NormalizeRGB(u32 Red, u32 Green, u32 Blue)
+{
     const f32 MAX = 255.f;
     return vec3(Red / MAX, Green / MAX, Blue / MAX);
 }
 
-inline u32
-CreateShader(game_memory *Memory, game_state *GameState, GLenum Type, char *Source) {
+internal_function u32
+CreateShader(game_memory *Memory, game_state *GameState, GLenum Type, char *Source)
+{
     u32 Shader = Memory->Renderer.glCreateShader(Type);
     Memory->Renderer.glShaderSource(Shader, 1, &Source, NULL);
     Memory->Renderer.glCompileShader(Shader);
 
     s32 IsShaderCompiled;
     Memory->Renderer.glGetShaderiv(Shader, GL_COMPILE_STATUS, &IsShaderCompiled);
-    if (!IsShaderCompiled) {
+    if (!IsShaderCompiled)
+    {
         s32 LogLength;
         Memory->Renderer.glGetShaderiv(Shader, GL_INFO_LOG_LENGTH, &LogLength);
-        
+
         // todo: use temporary memory
         char *ErrorLog = PushString(&GameState->WorldArena, LogLength);
 
@@ -49,8 +53,9 @@ CreateShader(game_memory *Memory, game_state *GameState, GLenum Type, char *Sour
     return Shader;
 }
 
-inline u32 
-CreateProgram(game_memory *Memory, game_state *GameState, u32 VertexShader, u32 FragmentShader) {
+internal_function u32
+CreateProgram(game_memory *Memory, game_state *GameState, u32 VertexShader, u32 FragmentShader)
+{
     u32 Program = Memory->Renderer.glCreateProgram();
     Memory->Renderer.glAttachShader(Program, VertexShader);
     Memory->Renderer.glAttachShader(Program, FragmentShader);
@@ -61,7 +66,8 @@ CreateProgram(game_memory *Memory, game_state *GameState, u32 VertexShader, u32 
     s32 IsProgramLinked;
     Memory->Renderer.glGetProgramiv(Program, GL_LINK_STATUS, &IsProgramLinked);
 
-    if (!IsProgramLinked) {
+    if (!IsProgramLinked)
+    {
         s32 LogLength;
         Memory->Renderer.glGetProgramiv(Program, GL_INFO_LOG_LENGTH, &LogLength);
 
@@ -79,31 +85,42 @@ CreateProgram(game_memory *Memory, game_state *GameState, u32 VertexShader, u32 
     return Program;
 }
 
-inline s32 
-GetUniformLocation(game_memory *Memory, u32 ShaderProgram, const char *Name) {
+internal_function inline s32
+GetUniformLocation(game_memory *Memory, u32 ShaderProgram, const char *Name)
+{
     s32 UniformLocation = Memory->Renderer.glGetUniformLocation(ShaderProgram, Name);
     //assert(uniformLocation != -1);
     return UniformLocation;
 }
 
-inline void 
-SetShaderUniform(game_memory *Memory, s32 Location, s32 Value) {
+internal_function inline void
+SetShaderUniform(game_memory *Memory, s32 Location, s32 Value)
+{
     Memory->Renderer.glUniform1i(Location, Value);
 }
 
-inline void 
-SetShaderUniform(game_memory *Memory, s32 Location, vec2 Value) {
+internal_function inline void
+SetShaderUniform(game_memory *Memory, s32 Location, f32 Value)
+{
+    Memory->Renderer.glUniform1f(Location, Value);
+}
+
+internal_function inline void
+SetShaderUniform(game_memory *Memory, s32 Location, vec2 Value)
+{
     Memory->Renderer.glUniform2f(Location, Value.x, Value.y);
 }
 
-inline void 
-SetShaderUniform(game_memory *Memory, s32 Location, const mat4& Value) {
+internal_function inline void
+SetShaderUniform(game_memory *Memory, s32 Location, const mat4& Value)
+{
     Memory->Renderer.glUniformMatrix4fv(Location, 1, GL_FALSE, glm::value_ptr(Value));
 }
 
 // todo: write more efficient functions
-inline f32 
-Clamp(f32 Value, f32 Min, f32 Max) {
+internal_function inline f32
+Clamp(f32 Value, f32 Min, f32 Max)
+{
     if (Value < Min) return Min;
     if (Value > Max) return Max;
 
@@ -116,14 +133,16 @@ Clamp(f32 Value, f32 Min, f32 Max) {
 //    return value;
 //}
 
-inline f32 
-GetRandomInRange(f32 Min, f32 Max) {
+internal_function inline f32
+GetRandomInRange(f32 Min, f32 Max)
+{
     f32 Result = Min + (f32)(rand()) / ((f32)(RAND_MAX / (Max - Min)));
     return Result;
 }
 
-inline b32 
-IntersectAABB(const aabb& Box1, const aabb& Box2) {
+internal_function inline b32
+IntersectAABB(const aabb& Box1, const aabb& Box2)
+{
     // Separating Axis Theorem
     b32 XCollision = Box1.Position.x + Box1.Size.x > Box2.Position.x && Box1.Position.x < Box2.Position.x + Box2.Size.x;
     b32 YCollision = Box1.Position.y + Box1.Size.y > Box2.Position.y && Box1.Position.y < Box2.Position.y + Box2.Size.y;
@@ -150,16 +169,21 @@ IntersectAABB(const aabb& Box1, const aabb& Box2) {
 //    return Result;
 //}
 
-inline u32 
-FindFirstUnusedParticle(particle_emitter *Emitter) {
-    for (u32 i = Emitter->LastUsedParticle; i < Emitter->ParticlesCount; ++i) {
-        if (Emitter->Particles[i].Lifespan <= 0.f) {
+internal_function u32
+FindFirstUnusedParticle(particle_emitter *Emitter)
+{
+    for (u32 i = Emitter->LastUsedParticle; i < Emitter->ParticlesCount; ++i)
+    {
+        if (Emitter->Particles[i].Lifespan <= 0.f)
+        {
             return i;
         }
     }
 
-    for (u32 i = 0; i < Emitter->LastUsedParticle; ++i) {
-        if (Emitter->Particles[i].Lifespan <= 0.f) {
+    for (u32 i = 0; i < Emitter->LastUsedParticle; ++i)
+    {
+        if (Emitter->Particles[i].Lifespan <= 0.f)
+        {
             return i;
         }
     }
@@ -168,8 +192,9 @@ FindFirstUnusedParticle(particle_emitter *Emitter) {
 }
 
 // basic Minkowski-based collision detection
-inline vec2 
-SweptAABB(const vec2 Point, const vec2 Delta, const aabb& Box, const vec2 Padding) {
+internal_function vec2
+SweptAABB(const vec2 Point, const vec2 Delta, const aabb& Box, const vec2 Padding)
+{
     vec2 Time = vec2(1.f);
 
     f32 LeftTime = 1.f;
@@ -180,26 +205,32 @@ SweptAABB(const vec2 Point, const vec2 Delta, const aabb& Box, const vec2 Paddin
     vec2 Position = Box.Position - Padding;
     vec2 Size = Box.Size + Padding;
 
-    if (Delta.x != 0.f && Position.y < Point.y && Point.y < Position.y + Size.y) {
+    if (Delta.x != 0.f && Position.y < Point.y && Point.y < Position.y + Size.y)
+    {
         LeftTime = (Position.x - Point.x) / Delta.x;
-        if (LeftTime < Time.x) {
+        if (LeftTime < Time.x)
+        {
             Time.x = LeftTime;
         }
 
         RightTime = (Position.x + Size.x - Point.x) / Delta.x;
-        if (RightTime < Time.x) {
+        if (RightTime < Time.x)
+        {
             Time.x = RightTime;
         }
     }
 
-    if (Delta.y != 0.f && Position.x < Point.x && Point.x < Position.x + Size.x) {
+    if (Delta.y != 0.f && Position.x < Point.x && Point.x < Position.x + Size.x)
+    {
         TopTime = (Position.y - Point.y) / Delta.y;
-        if (TopTime < Time.y) {
+        if (TopTime < Time.y)
+        {
             Time.y = TopTime;
         }
 
         BottomTime = (Position.y + Size.y - Point.y) / Delta.y;
-        if (BottomTime < Time.y) {
+        if (BottomTime < Time.y)
+        {
             Time.y = BottomTime;
         }
     }
@@ -225,86 +256,103 @@ global_variable const u32 KEY_SPACE = 32;
 global_variable const u32 KEY_S = 83;
 
 
-//inline void 
-//processInput(game_state *GameState, game_input *Input) {
-//    sprite *Bob = &GameState->Bob;
-//    sprite *Swoosh = &GameState->Swoosh;
-//
-//    if (Input->Keys[KEY_LEFT] == KEY_PRESS) {
-//        if (
-//            Bob->CurrentAnimation != Bob->Animations[2] &&
-//            Bob->CurrentAnimation != Bob->Animations[1] &&
-//            Bob->CurrentAnimation != Bob->Animations[3]
-//            ) {
-//            Bob->CurrentAnimation = Bob->Animations[2];
-//        }
-//        Bob->Acceleration.x = -12.f;
-//        Bob->Flipped |= FLIPPED_HORIZONTALLY_FLAG;
-//    }
-//
-//    if (Input->Keys[KEY_RIGHT] == KEY_PRESS) {
-//        if (
-//            Bob->CurrentAnimation != Bob->Animations[2] &&
-//            Bob->CurrentAnimation != Bob->Animations[1] &&
-//            Bob->CurrentAnimation != Bob->Animations[3]
-//            ) {
-//            Bob->CurrentAnimation = Bob->Animations[2];
-//        }
-//        Bob->Acceleration.x = 12.f;
-//        Bob->Flipped &= 0;
-//    }
-//
-//    if (Input->Keys[KEY_LEFT] == KEY_RELEASE && !Input->ProcessedKeys[KEY_LEFT]) {
-//        Input->ProcessedKeys[KEY_LEFT] = true;
-//        if (Bob->CurrentAnimation != Bob->Animations[0]) {
-//            Bob->CurrentAnimation = Bob->Animations[0];
-//            Bob->XAnimationOffset = 0.f;
-//            Bob->Flipped |= FLIPPED_HORIZONTALLY_FLAG;
-//        }
-//    }
-//
-//    if (Input->Keys[KEY_RIGHT] == KEY_RELEASE && !Input->ProcessedKeys[KEY_RIGHT]) {
-//        Input->ProcessedKeys[KEY_RIGHT] = true;
-//        if (Bob->CurrentAnimation != Bob->Animations[0]) {
-//            Bob->CurrentAnimation = Bob->Animations[0];
-//            Bob->XAnimationOffset = 0.f;
-//            Bob->Flipped &= 0;
-//        }
-//    }
-//
-//    if (Input->Keys[KEY_SPACE] == KEY_PRESS && !Input->ProcessedKeys[KEY_SPACE]) {
-//        Input->ProcessedKeys[KEY_SPACE] = true;
-//        Bob->Acceleration.y = -350.f;
-//        Bob->Velocity.y = 0.f;
-//    }
-//
-//    if (Input->Keys[KEY_S] == KEY_PRESS && !Input->ProcessedKeys[KEY_S]) {
-//        Input->ProcessedKeys[KEY_S] = true;
-//        Bob->CurrentAnimation = Bob->Animations[3];
-//        Bob->XAnimationOffset = 0.f;
-//
-//        Swoosh->ShouldRender = true;
-//        Swoosh->XAnimationOffset = 0.f;
-//        Swoosh->Flipped = Bob->Flipped;
-//
-//        // todo: make it better
-//        for (u32 DrawableEntityIndex = 0; DrawableEntityIndex < GameState->DrawableEntitiesCount; ++DrawableEntityIndex) {
-//            drawable_entity *Entity = &GameState->DrawableEntities[DrawableEntityIndex];
-//            if (Entity->Type == tile_type::REFLECTOR) {
-//                Entity->UnderEffect = false;
-//            }
-//        }
-//
-//        if (Swoosh->Flipped & FLIPPED_HORIZONTALLY_FLAG) {
-//            Swoosh->Position = { Bob->Box.Position.x - 2 * TILE_SIZE.x, Bob->Box.Position.y };
-//            Swoosh->Box.Position = { Bob->Box.Position.x - 2 * TILE_SIZE.x, Bob->Box.Position.y };
-//        }
-//        else {
-//            Swoosh->Position = { Bob->Box.Position.x + TILE_SIZE.x, Bob->Box.Position.y };
-//            Swoosh->Box.Position = { Bob->Box.Position.x + TILE_SIZE.x, Bob->Box.Position.y };
-//        }
-//    }
-//}
+internal_function void
+ProcessInput(game_state *GameState, game_input *Input)
+{
+    f32 Delta = 0.001f;
+
+    if (Input->Keys[KEY_LEFT] == KEY_PRESS)
+    {
+        GameState->Zoom -= Delta;
+    }
+
+    if (Input->Keys[KEY_RIGHT] == KEY_PRESS)
+    {
+        GameState->Zoom += Delta;
+    }
+
+    if (GameState->Zoom < 0.1f) {
+        GameState->Zoom = 0.1f;
+    }
+
+    //sprite *Bob = &GameState->Bob;
+    //sprite *Swoosh = &GameState->Swoosh;
+
+    //if (Input->Keys[KEY_LEFT] == KEY_PRESS) {
+    //    if (
+    //        Bob->CurrentAnimation != Bob->Animations[2] &&
+    //        Bob->CurrentAnimation != Bob->Animations[1] &&
+    //        Bob->CurrentAnimation != Bob->Animations[3]
+    //        ) {
+    //        Bob->CurrentAnimation = Bob->Animations[2];
+    //    }
+    //    Bob->Acceleration.x = -12.f;
+    //    Bob->Flipped |= FLIPPED_HORIZONTALLY_FLAG;
+    //}
+
+    //if (Input->Keys[KEY_RIGHT] == KEY_PRESS) {
+    //    if (
+    //        Bob->CurrentAnimation != Bob->Animations[2] &&
+    //        Bob->CurrentAnimation != Bob->Animations[1] &&
+    //        Bob->CurrentAnimation != Bob->Animations[3]
+    //        ) {
+    //        Bob->CurrentAnimation = Bob->Animations[2];
+    //    }
+    //    Bob->Acceleration.x = 12.f;
+    //    Bob->Flipped &= 0;
+    //}
+
+    //if (Input->Keys[KEY_LEFT] == KEY_RELEASE && !Input->ProcessedKeys[KEY_LEFT]) {
+    //    Input->ProcessedKeys[KEY_LEFT] = true;
+    //    if (Bob->CurrentAnimation != Bob->Animations[0]) {
+    //        Bob->CurrentAnimation = Bob->Animations[0];
+    //        Bob->XAnimationOffset = 0.f;
+    //        Bob->Flipped |= FLIPPED_HORIZONTALLY_FLAG;
+    //    }
+    //}
+
+    //if (Input->Keys[KEY_RIGHT] == KEY_RELEASE && !Input->ProcessedKeys[KEY_RIGHT]) {
+    //    Input->ProcessedKeys[KEY_RIGHT] = true;
+    //    if (Bob->CurrentAnimation != Bob->Animations[0]) {
+    //        Bob->CurrentAnimation = Bob->Animations[0];
+    //        Bob->XAnimationOffset = 0.f;
+    //        Bob->Flipped &= 0;
+    //    }
+    //}
+
+    //if (Input->Keys[KEY_SPACE] == KEY_PRESS && !Input->ProcessedKeys[KEY_SPACE]) {
+    //    Input->ProcessedKeys[KEY_SPACE] = true;
+    //    Bob->Acceleration.y = -350.f;
+    //    Bob->Velocity.y = 0.f;
+    //}
+
+    //if (Input->Keys[KEY_S] == KEY_PRESS && !Input->ProcessedKeys[KEY_S]) {
+    //    Input->ProcessedKeys[KEY_S] = true;
+    //    Bob->CurrentAnimation = Bob->Animations[3];
+    //    Bob->XAnimationOffset = 0.f;
+
+    //    Swoosh->ShouldRender = true;
+    //    Swoosh->XAnimationOffset = 0.f;
+    //    Swoosh->Flipped = Bob->Flipped;
+
+    //    // todo: make it better
+    //    for (u32 DrawableEntityIndex = 0; DrawableEntityIndex < GameState->DrawableEntitiesCount; ++DrawableEntityIndex) {
+    //        drawable_entity *Entity = &GameState->DrawableEntities[DrawableEntityIndex];
+    //        if (Entity->Type == tile_type::REFLECTOR) {
+    //            Entity->UnderEffect = false;
+    //        }
+    //    }
+
+    //    if (Swoosh->Flipped & FLIPPED_HORIZONTALLY_FLAG) {
+    //        Swoosh->Position = { Bob->Box.Position.x - 2 * TILE_SIZE.x, Bob->Box.Position.y };
+    //        Swoosh->Box.Position = { Bob->Box.Position.x - 2 * TILE_SIZE.x, Bob->Box.Position.y };
+    //    }
+    //    else {
+    //        Swoosh->Position = { Bob->Box.Position.x + TILE_SIZE.x, Bob->Box.Position.y };
+    //        Swoosh->Box.Position = { Bob->Box.Position.x + TILE_SIZE.x, Bob->Box.Position.y };
+    //    }
+    //}
+}
 
 //inline void
 //AssignAnimationsToEntity(game_state *GameState, json *AnimationsConfig, u32 Index, sprite *Entity) {
@@ -336,27 +384,31 @@ global_variable const u32 KEY_S = 83;
 //    Entity->FrameTime = 0.f;
 //}
 
-extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
+extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
+{
     assert(sizeof(game_state) <= Memory->PermanentStorageSize);
 
     game_state *GameState = (game_state*)Memory->PermanentStorage;
 
     s32 ScreenWidth = Params->ScreenWidth;
     s32 ScreenHeight = Params->ScreenHeight;
-
-    //sprite *Bob = &GameState->Bob;
-    //sprite *Swoosh = &GameState->Swoosh;
-    //sprite *Enemy = &GameState->Enemy;
+    vec2 ScreenCenter = vec2(ScreenWidth / 2.f, ScreenHeight / 2.f);
 
     platform_api *Platform = &Memory->Platform;
     renderer_api *Renderer = &Memory->Renderer;
 
-    if (!Memory->IsInitalized) {
+    if (!GameState->IsInitialized)
+    {
         InitializeMemoryArena(
-            &GameState->WorldArena, 
-            Memory->PermanentStorageSize - sizeof(game_state), 
+            &GameState->WorldArena,
+            Memory->PermanentStorageSize - sizeof(game_state),
             (u8*)Memory->PermanentStorage + sizeof(game_state)
         );
+
+        GameState->ScreenWidthInMeters = 20.f;
+        f32 MetersToPixels = (f32)ScreenWidth / GameState->ScreenWidthInMeters;
+        f32 PixelsToMeters = 1.f / MetersToPixels;
+        GameState->ScreenHeightInMeters = ScreenHeight * PixelsToMeters;
 
         //string TilesetJson = Platform->ReadTextFile("tilesets/tileset.json");
         //GameState->Tileset = {};
@@ -369,7 +421,9 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
         tile_meta_info *TileInfo = GetTileMetaInfo(&GameState->Map.Tilesets[0].Source, 544);
 
+        // todo: eventually support multiple tilesets
         tileset *Tileset = &GameState->Map.Tilesets[0].Source;
+        u32 TilesetFirstGID = GameState->Map.Tilesets[0].FirstGID;
 
         u32 texture;
         Renderer->glGenTextures(1, &texture);
@@ -384,7 +438,6 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
             0, GL_RGBA, GL_UNSIGNED_BYTE, Tileset->Image.Memory);
 
         //Platform->FreeImageFile(textureImage);
-
         string VertexShaderSource = Memory->Platform.ReadTextFile("shaders/basic.vert");
         string FragmentShaderSource = Memory->Platform.ReadTextFile("shaders/basic.frag");
         u32 VertexShader = CreateShader(Memory, GameState, GL_VERTEX_SHADER, &VertexShaderSource[0]);
@@ -393,14 +446,22 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
         Renderer->glUseProgram(Program);
 
-        mat4 projection = glm::ortho(0.0f, (f32)ScreenWidth, (f32)ScreenHeight, 0.0f);
+        //GameState->Projection = glm::ortho(0.f, (f32)ScreenWidth, 0.f, (f32)ScreenHeight, -100.f, 100.f);
 
-        s32 projectionUniformLocation = GetUniformLocation(Memory, Program, "projection");
-        SetShaderUniform(Memory, projectionUniformLocation, projection);
+        //s32 projectionUniformLocation = GetUniformLocation(Memory, Program, "projection");
+        //SetShaderUniform(Memory, projectionUniformLocation, projection);
         //GameState->ViewUniformLocation = getUniformLocation(Memory, Program, "view");
         //GameState->ModelUniformLocation = getUniformLocation(Memory, Program, "model");
         //GameState->TypeUniformLocation = getUniformLocation(Memory, Program, "type");
-        s32 tileTypeUniformLocation = GetUniformLocation(Memory, Program, "tileType");
+        //s32 tileTypeUniformLocation = GetUniformLocation(Memory, Program, "tileType");
+
+        GameState->VPUniformLocation = GetUniformLocation(Memory, Program, "u_VP");
+
+        vec2 TileSize01 = vec2((f32)Tileset->TileWidthInPixels / (f32)Tileset->Image.Width,
+            (f32)Tileset->TileHeightInPixels / (f32)Tileset->Image.Height);
+
+        s32 TileSizeUniformLocation = GetUniformLocation(Memory, Program, "u_TileSize");
+        SetShaderUniform(Memory, TileSizeUniformLocation, TileSize01);
 
         //json AnimationsConfig = Platform->ReadJsonFile("animations.json");
 
@@ -443,12 +504,12 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         //s32 spriteSizeUniformLocation = getUniformLocation(Memory, Program, "spriteSize");
         //setShaderUniform(Memory, spriteSizeUniformLocation, vec2(GameState->SpriteWidth, GameState->SpriteHeight));
 
-        f32 vertices[] = {
-            // Pos    // UV
-            0.f, 0.f, 0.f, 0.f,
-            0.f, 1.f, 0.f, 1.f,
-            1.f, 0.f, 1.f, 0.f,
-            1.f, 1.f, 1.f, 1.f
+        f32 QuadVertices[] = {
+            // Pos     // UV
+            0.f, 0.f,  0.f, 1.f,
+            0.f, 1.f,  0.f, 0.f,
+            1.f, 0.f,  1.f, 1.f,
+            1.f, 1.f,  1.f, 0.f
         };
 
         //GameState->Map = LoadMap(&GameState->WorldArena, Platform->ReadJsonFile, "maps/map01.json", GameState->Tileset, Scale);
@@ -469,13 +530,147 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
         //u64 TotalTileSizeInBytes = GameState->TilesCount * sizeof(tile);
 
-        //u32 VAO;
-        //Renderer->glGenVertexArrays(1, &VAO);
-        //Renderer->glBindVertexArray(VAO);
+        u32 VAO;
+        Renderer->glGenVertexArrays(1, &VAO);
+        Renderer->glBindVertexArray(VAO);
 
-        //Renderer->glGenBuffers(1, &GameState->VBOTiles);
-        //Renderer->glBindBuffer(GL_ARRAY_BUFFER, GameState->VBOTiles);
-        //Renderer->glBufferData(GL_ARRAY_BUFFER, sizeof(vertices) + TotalTileSizeInBytes, nullptr, GL_STATIC_DRAW);
+        GameState->TotalTileCount = 0;
+        for (u32 TileLayerIndex = 0; TileLayerIndex < GameState->Map.TileLayerCount; ++TileLayerIndex)
+        {
+            for (u32 ChunkIndex = 0; ChunkIndex < GameState->Map.TileLayers[TileLayerIndex].ChunkCount; ++ChunkIndex)
+            {
+                for (u32 GIDIndex = 0; GIDIndex < GameState->Map.TileLayers[TileLayerIndex].Chunks[ChunkIndex].GIDCount; ++GIDIndex)
+                {
+                    u32 GID = GameState->Map.TileLayers[TileLayerIndex].Chunks[ChunkIndex].GIDs[GIDIndex];
+                    if (GID > 0)
+                    {
+                        ++GameState->TotalTileCount;
+                    }
+                }
+            }
+        }
+
+        mat4 *TileInstanceModels = PushArray<mat4>(&GameState->WorldArena, GameState->TotalTileCount);
+        vec2 *TileInstanceUVOffsets01 = PushArray<vec2>(&GameState->WorldArena, GameState->TotalTileCount);
+
+        vec2 ScreenCenterInMeters = vec2(GameState->ScreenWidthInMeters / 2.f, GameState->ScreenHeightInMeters / 2.f);
+
+        u32 TileInstanceIndex = 0;
+        for (u32 TileLayerIndex = 0; TileLayerIndex < GameState->Map.TileLayerCount; ++TileLayerIndex)
+        {
+            for (u32 ChunkIndex = 0; ChunkIndex < GameState->Map.TileLayers[TileLayerIndex].ChunkCount; ++ChunkIndex)
+            {
+                for (u32 GIDIndex = 0; GIDIndex < GameState->Map.TileLayers[TileLayerIndex].Chunks[ChunkIndex].GIDCount; ++GIDIndex)
+                {
+                    map_chunk *Chunk = GameState->Map.TileLayers[TileLayerIndex].Chunks + ChunkIndex;
+                    u32 GID = Chunk->GIDs[GIDIndex];
+                    if (GID > 0)
+                    {
+                        mat4 *TileInstanceModel = TileInstanceModels + TileInstanceIndex;
+                        *TileInstanceModel = mat4(1.f);
+
+                        s32 TileMapX = Chunk->X + (GIDIndex % Chunk->Width);
+                        s32 TileMapY = Chunk->Y + (GIDIndex / Chunk->Height);
+
+                        f32 TileXMeters = ScreenCenterInMeters.x + TileMapX * Tileset->TileWidthInMeters;
+                        f32 TileYMeters = ScreenCenterInMeters.y - TileMapY * Tileset->TileHeightInMeters;
+
+                        *TileInstanceModel = glm::translate(*TileInstanceModel, vec3(TileXMeters, TileYMeters, 0.f));
+                        *TileInstanceModel = glm::scale(*TileInstanceModel, 
+                            vec3(Tileset->TileWidthInMeters, Tileset->TileHeightInMeters, 0.f));
+
+                        vec2 *TileInstanceUVOffset01 = TileInstanceUVOffsets01 + TileInstanceIndex;
+
+                        s32 TileX = (GID - TilesetFirstGID) % Tileset->Columns;
+                        s32 TileY = (GID - TilesetFirstGID) / Tileset->Columns;
+
+                        *TileInstanceUVOffset01 = vec2(
+                            (TileX * (Tileset->TileWidthInPixels + Tileset->Spacing) + Tileset->Margin) / Tileset->Image.Width,
+                            (TileY * (Tileset->TileHeightInPixels + Tileset->Spacing) + Tileset->Margin) / Tileset->Image.Height
+                        );
+
+                        *TileInstanceUVOffset01 = vec2(TileX * TileSize01.x, TileY * TileSize01.y);
+
+                        ++TileInstanceIndex;
+                    }
+                }
+            }
+        }
+        /*
+        Chunk-based rendering.
+
+        Divide your map into chunks.
+        (Small sized squares of tiles; something like 32x32 tiles would work.)
+        Make a separate VBO (possibly IBO) for each chunk.
+        Only draw visible chunks.
+        When a chunk is modified, update it's VBO accordingly.
+        If you want an infinite map, you'll have to create and destroy chunks on the fly. Otherwise it shouldn't be necessary.
+        */
+
+        //TotalTileCount = TILE_COUNT;
+        //mat4 TileModels[TILE_COUNT];
+
+        //TileModels[0] = mat4(1.f);
+        //TileModels[0] = glm::translate(TileModels[0], vec3(0.f, ScreenHeight - 16.f, 0.f));
+        //TileModels[0] = glm::scale(TileModels[0], vec3(16.f, 16.f, 1.f));
+
+        //TileModels[1] = mat4(1.f);
+        //TileModels[1] = glm::translate(TileModels[1], vec3(ScreenWidth - 32.f, ScreenHeight - 32.f, 0.f));
+        //TileModels[1] = glm::scale(TileModels[1], vec3(32.f, 32.f, 1.f));
+
+        //TileModels[2] = mat4(1.f);
+        //TileModels[2] = glm::translate(TileModels[2], vec3(ScreenWidth - 64.f, 0.f, 0.f));
+        //TileModels[2] = glm::scale(TileModels[2], vec3(64.f, 64.f, 1.f));
+
+        //TileModels[3] = mat4(1.f);
+        //TileModels[3] = glm::translate(TileModels[3], vec3(0.f, 0.f, 0.f));
+        //TileModels[3] = glm::scale(TileModels[3], vec3(128.f, 128.f, 1.f));
+
+        //TileModels[4] = mat4(1.f);
+        //TileModels[4] = glm::translate(TileModels[4], vec3(ScreenWidth / 2.f, ScreenHeight / 2.f, 0.f));
+        //TileModels[4] = glm::scale(TileModels[4], vec3(256.f, 256.f, 1.f));
+
+        Renderer->glGenBuffers(1, &GameState->TilesVBO);
+        Renderer->glBindBuffer(GL_ARRAY_BUFFER, GameState->TilesVBO);
+        Renderer->glBufferData(GL_ARRAY_BUFFER, sizeof(QuadVertices) + GameState->TotalTileCount * (sizeof(mat4) + sizeof(vec2)),
+            NULL, GL_STATIC_DRAW);
+
+        Renderer->glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(QuadVertices), QuadVertices);
+        Renderer->glBufferSubData(GL_ARRAY_BUFFER, sizeof(QuadVertices),
+            GameState->TotalTileCount * sizeof(mat4), TileInstanceModels);
+        Renderer->glBufferSubData(GL_ARRAY_BUFFER, sizeof(QuadVertices) + GameState->TotalTileCount * sizeof(mat4),
+            GameState->TotalTileCount * sizeof(vec2), TileInstanceUVOffsets01);
+
+        Renderer->glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, sizeof(vec4), (void *)0);
+        Renderer->glEnableVertexAttribArray(0);
+
+        Renderer->glEnableVertexAttribArray(1);
+        Renderer->glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(mat4),
+            (void *)(sizeof(QuadVertices)));
+        Renderer->glVertexAttribDivisor(1, 1);
+
+        Renderer->glEnableVertexAttribArray(2);
+        Renderer->glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(mat4),
+            (void *)(sizeof(QuadVertices) + sizeof(vec4)));
+        Renderer->glVertexAttribDivisor(2, 1);
+
+        Renderer->glEnableVertexAttribArray(3);
+        Renderer->glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(mat4),
+            (void *)(sizeof(QuadVertices) + 2 * sizeof(vec4)));
+        Renderer->glVertexAttribDivisor(3, 1);
+
+        Renderer->glEnableVertexAttribArray(4);
+        Renderer->glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(mat4),
+            (void *)(sizeof(QuadVertices) + 3 * sizeof(vec4)));
+        Renderer->glVertexAttribDivisor(4, 1);
+
+        Renderer->glVertexAttribPointer(5, 2, GL_FLOAT, GL_FALSE, sizeof(vec2),
+            (void *)(sizeof(QuadVertices) + GameState->TotalTileCount * sizeof(mat4)));
+        Renderer->glEnableVertexAttribArray(5);
+        Renderer->glVertexAttribDivisor(5, 1);
+
+        //Renderer->glEnableVertexAttribArray(1);
+        //Renderer->glVertexAttribDivisor(1, 1);
 
         //Renderer->glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
         //Renderer->glBufferSubData(GL_ARRAY_BUFFER, sizeof(vertices), TotalTileSizeInBytes, GameState->Tiles);
@@ -570,17 +765,17 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         //GameState->ParticleEmittersMaxCount = 50;
         //GameState->ParticleEmitters = PushArray<particle_emitter>(&GameState->WorldArena, GameState->ParticleEmittersMaxCount);
 
-        particle_emitter Charge = {};
-        Charge.ParticlesCount = 500;
-        Charge.NewParticlesCount = 5;
-        Charge.Dt = 0.01f;
-        Charge.Position = { 4.5 * TILE_SIZE.x, 6.5 * TILE_SIZE.y };
-        Charge.Box.Position = { 4.5 * TILE_SIZE.x, 6.5 * TILE_SIZE.y };
-        Charge.Box.Size = { 0.1f * TILE_SIZE.x, 0.1f * TILE_SIZE.x };
-        Charge.Velocity = { 0.f, 0.f };
-        Charge.ReflectorIndex = -1;
-        Charge.TimeLeft = 3.f;
-        Charge.Particles = PushArray<particle>(&GameState->WorldArena, Charge.ParticlesCount);
+        //particle_emitter Charge = {};
+        //Charge.ParticlesCount = 500;
+        //Charge.NewParticlesCount = 5;
+        //Charge.Dt = 0.01f;
+        //Charge.Position = { 4.5 * TILE_SIZE.x, 6.5 * TILE_SIZE.y };
+        //Charge.Box.Position = { 4.5 * TILE_SIZE.x, 6.5 * TILE_SIZE.y };
+        //Charge.Box.Size = { 0.1f * TILE_SIZE.x, 0.1f * TILE_SIZE.x };
+        //Charge.Velocity = { 0.f, 0.f };
+        //Charge.ReflectorIndex = -1;
+        //Charge.TimeLeft = 3.f;
+        //Charge.Particles = PushArray<particle>(&GameState->WorldArena, Charge.ParticlesCount);
 
         //GameState->ParticleEmitters[GameState->ParticleEmittersIndex++] = Charge;
 
@@ -607,20 +802,44 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         GameState->Lag = 0.f;
 
         // todo: draw collision regions
-        //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        //Renderer->glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
         //GameState->ChargeSpawnCooldown = 0.f;
 
-        Renderer->glClearColor(BackgroundColor.r, BackgroundColor.g, BackgroundColor.b, 1.0f);
+        Renderer->glClearColor(BackgroundColor.r, BackgroundColor.g, BackgroundColor.b, 1.f);
 
-        Memory->IsInitalized = true;
+        GameState->IsInitialized = true;
+
+        GameState->CameraPosition.x = 1.f;
+
+        GameState->Zoom = 1.f / 1.f;
     }
 
-    tileset *Tileset = &GameState->Map.Tilesets[0].Source;
+    //tileset *Tileset = &GameState->Map.Tilesets[0].Source;
 
-    GameState->Lag += Params->Delta;
+    //GameState->Lag += Params->Delta;
 
-    Renderer->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    //Renderer->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    ProcessInput(GameState, &Params->Input);
+
+    Renderer->glClear(GL_COLOR_BUFFER_BIT);
+
+    Renderer->glBindBuffer(GL_ARRAY_BUFFER, GameState->TilesVBO);
+
+    GameState->Projection = glm::ortho(
+        -GameState->ScreenWidthInMeters / 2.f * GameState->Zoom, GameState->ScreenWidthInMeters / 2.f * GameState->Zoom,
+        -GameState->ScreenHeightInMeters / 2.f * GameState->Zoom, GameState->ScreenHeightInMeters / 2.f * GameState->Zoom
+    );
+
+    mat4 View = mat4(1.f);
+    View = glm::translate(View, vec3(-GameState->ScreenWidthInMeters / 2.f, -GameState->ScreenHeightInMeters / 2.f, 0.f));
+
+    mat4 VP = GameState->Projection * View;
+
+    SetShaderUniform(Memory, GameState->VPUniformLocation, VP);
+
+    Renderer->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, GameState->TotalTileCount);
 
     //while (GameState->Lag >= GameState->UpdateRate) {
     //    Renderer->glBindBuffer(GL_ARRAY_BUFFER, GameState->VBOEntities);
@@ -628,7 +847,6 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     //    f32 dt = 0.15f;
 
     //    Bob->Acceleration.x = 0.f;
-    //    processInput(GameState, &Params->Input);
 
     //    // friction imitation
     //    // todo: take scale into account!
@@ -1026,8 +1244,6 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     //mat4 view = mat4(1.0f);
     //view = glm::translate(view, vec3(-GameState->Camera, 0.f));
     //setShaderUniform(Memory, GameState->ViewUniformLocation, view);
-
-    Renderer->glClear(GL_COLOR_BUFFER_BIT);
 
     //--- drawing tilemap ---
     //Renderer->glBindBuffer(GL_ARRAY_BUFFER, GameState->VBOTiles);

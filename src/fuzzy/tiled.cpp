@@ -4,25 +4,32 @@
 using namespace rapidjson;
 
 internal_function tile_type
-GetTileTypeFromString(const char *String) {
+GetTileTypeFromString(const char *String)
+{
     tile_type Result;
 
-    if (StringEquals(String, "player")) {
+    if (StringEquals(String, "player")) 
+    {
         Result = tile_type::PLAYER;
     }
-    else if (StringEquals(String, "effect")) {
+    else if (StringEquals(String, "effect")) 
+    {
         Result = tile_type::EFFECT;
     }
-    else if (StringEquals(String, "reflector")) {
+    else if (StringEquals(String, "reflector")) 
+    {
         Result = tile_type::REFLECTOR;
     }
-    else if (StringEquals(String, "lamp")) {
+    else if (StringEquals(String, "lamp")) 
+    {
         Result = tile_type::LAMP;
     }
-    else if (StringEquals(String, "platform")) {
+    else if (StringEquals(String, "platform")) 
+    {
         Result = tile_type::PLATFORM;
     }
-    else {
+    else 
+    {
         Result = tile_type::UNKNOWN;
     }
 
@@ -32,7 +39,8 @@ GetTileTypeFromString(const char *String) {
 typedef GenericDocument<UTF8<>, MemoryPoolAllocator<>, MemoryPoolAllocator<>> DocumentType;
 
 internal_function DocumentType
-ParseJSON(const char *Json, u64 ValueBufferSize, u64 ParseBufferSize, memory_arena *Region) {
+ParseJSON(const char *Json, u64 ValueBufferSize, u64 ParseBufferSize, memory_arena *Region) 
+{
     // todo: temporary memory for document storage
     void *ValueBuffer = PushSize(Region, ValueBufferSize);
     void *ParseBuffer = PushSize(Region, ParseBufferSize);
@@ -46,8 +54,9 @@ ParseJSON(const char *Json, u64 ValueBufferSize, u64 ParseBufferSize, memory_are
     return Document;
 }
 
-void
-LoadTileset(tileset *Tileset, const char *Json, memory_arena *Arena, platform_api *Platform) {
+internal_function void
+LoadTileset(tileset *Tileset, const char *Json, memory_arena *Arena, platform_api *Platform) 
+{
     // todo: think more about the sizes
     u64 ValueBufferSize = Kilobytes(512);
     u64 ParseBufferSize = Kilobytes(32);
@@ -60,27 +69,52 @@ LoadTileset(tileset *Tileset, const char *Json, memory_arena *Arena, platform_ap
 
     Tileset->Image.Memory = Platform->ReadImageFile(FullImagePath, 
         &Tileset->Image.Width, &Tileset->Image.Height, &Tileset->Image.Channels, 0);
-    if (!Tileset->Image.Memory) {
+    if (!Tileset->Image.Memory) 
+    {
         Platform->PrintOutput("Image loading failed:\n");
     }
     assert(Tileset->Image.Memory);
 
-    Tileset->TileSize = {
-        Document["tilewidth"].GetUint(),
-        Document["tileheight"].GetUint()
-    };
+    Tileset->TileWidthInPixels = Document["tilewidth"].GetInt();
+    Tileset->TileHeightInPixels = Document["tileheight"].GetInt();
     Tileset->Columns = Document["columns"].GetUint();
     Tileset->Margin = Document["margin"].GetUint();
     Tileset->Spacing = Document["spacing"].GetUint();
 
+    assert(Document.HasMember("properties"));
+
+    const Value& CustomProperties = Document["properties"];
+    assert(CustomProperties.IsArray());
+    
+    for (SizeType CustomPropertyIndex = 0; CustomPropertyIndex < CustomProperties.Size(); ++CustomPropertyIndex) 
+    {
+        const Value& CustomProperty = CustomProperties[CustomPropertyIndex];
+        const char* PropertyName = CustomProperty["name"].GetString();
+
+        if (StringEquals(PropertyName, "TileWidthInMeters"))
+        {
+            Tileset->TileWidthInMeters = CustomProperty["value"].GetFloat();
+        }
+        else if (StringEquals(PropertyName, "TileHeightInMeters"))
+        {
+            Tileset->TileHeightInMeters = CustomProperty["value"].GetFloat();
+        }
+        else 
+        {
+            InvalidCodePath;
+        }
+    }
+
     Tileset->TileCount = Document["tilecount"].GetUint();
     Tileset->Tiles = PushArray<tile_meta_info>(Arena, Tileset->TileCount);
 
-    if (Document.HasMember("tiles")) {
+    if (Document.HasMember("tiles")) 
+    {
         const Value& Tiles = Document["tiles"];
         assert(Tiles.IsArray());
 
-        for (SizeType TileIndex = 0; TileIndex < Tiles.Size(); ++TileIndex) {
+        for (SizeType TileIndex = 0; TileIndex < Tiles.Size(); ++TileIndex) 
+        {
             const Value& Tile = Tiles[TileIndex];
 
             u32 TileId = Tile["id"].GetUint();
@@ -89,11 +123,13 @@ LoadTileset(tileset *Tileset, const char *Json, memory_arena *Arena, platform_ap
             TileInfo->BoxCount = 0;
             TileInfo->AnimationFrameCount = 0;
 
-            if (Tile.HasMember("type")) {
+            if (Tile.HasMember("type")) 
+            {
                 TileInfo->Type = GetTileTypeFromString(Tile["type"].GetString());
             }
 
-            if (Tile.HasMember("objectgroup")) {
+            if (Tile.HasMember("objectgroup")) 
+            {
                 const Value& TileObjects = Tile["objectgroup"]["objects"];
 
                 assert(TileObjects.IsArray());
@@ -101,7 +137,8 @@ LoadTileset(tileset *Tileset, const char *Json, memory_arena *Arena, platform_ap
                 TileInfo->BoxCount = TileObjects.Size();
                 TileInfo->Boxes = PushArray<aabb>(Arena, TileInfo->BoxCount);
 
-                for (SizeType ObjectIndex = 0; ObjectIndex < TileObjects.Size(); ++ObjectIndex) {
+                for (SizeType ObjectIndex = 0; ObjectIndex < TileObjects.Size(); ++ObjectIndex) 
+                {
                     const Value& Object = TileObjects[ObjectIndex];
 
                     aabb *Box = TileInfo->Boxes + ObjectIndex;
@@ -114,7 +151,8 @@ LoadTileset(tileset *Tileset, const char *Json, memory_arena *Arena, platform_ap
                 }
             }
 
-            if (Tile.HasMember("animation")) {
+            if (Tile.HasMember("animation")) 
+            {
                 const Value& Animation = Tile["animation"];
 
                 assert(Animation.IsArray());
@@ -122,7 +160,8 @@ LoadTileset(tileset *Tileset, const char *Json, memory_arena *Arena, platform_ap
                 TileInfo->AnimationFrameCount = Animation.Size();
                 TileInfo->AnimationFrames = PushArray<animation_frame>(Arena, TileInfo->AnimationFrameCount);
 
-                for (SizeType AnimationFrameIndex = 0; AnimationFrameIndex < Animation.Size(); ++AnimationFrameIndex) {
+                for (SizeType AnimationFrameIndex = 0; AnimationFrameIndex < Animation.Size(); ++AnimationFrameIndex) 
+                {
                     const Value& Frame = Animation[AnimationFrameIndex];
 
                     animation_frame *AnimationFrame = TileInfo->AnimationFrames + AnimationFrameIndex;
@@ -138,7 +177,8 @@ global_variable const char *TILE_LAYER = "tilelayer";
 global_variable const char *OBJECT_LAYER = "objectgroup";
 
 void
-LoadMap(tiled_map *Map, const char *Json, memory_arena *Arena, platform_api *Platform) {
+LoadMap(tiled_map *Map, const char *Json, memory_arena *Arena, platform_api *Platform) 
+{
     // todo: think more about the sizes
     u64 ValueBufferSize = Megabytes(32);
     u64 ParseBufferSize = Megabytes(1);
@@ -170,17 +210,21 @@ LoadMap(tiled_map *Map, const char *Json, memory_arena *Arena, platform_api *Pla
     u32 TileLayerCount = 0;
     u32 ObjectGroupCount = 0;
 
-    for (SizeType LayerIndex = 0; LayerIndex < Layers.Size(); ++LayerIndex) {
+    for (SizeType LayerIndex = 0; LayerIndex < Layers.Size(); ++LayerIndex) 
+    {
         const Value& Layer = Layers[LayerIndex];
         const char *LayerType = Layer["type"].GetString();
 
-        if (StringEquals(LayerType, TILE_LAYER)) {
+        if (StringEquals(LayerType, TILE_LAYER)) 
+        {
             ++TileLayerCount;
         }
-        else if (StringEquals(LayerType, OBJECT_LAYER)) {
+        else if (StringEquals(LayerType, OBJECT_LAYER)) 
+        {
             ++ObjectGroupCount;
         }
-        else {
+        else 
+        {
             InvalidCodePath;
         }
     }
@@ -194,11 +238,13 @@ LoadMap(tiled_map *Map, const char *Json, memory_arena *Arena, platform_api *Pla
     u32 TileLayerIndex = 0;
     u32 ObjectLayerIndex = 0;
 
-    for (SizeType LayerIndex = 0; LayerIndex < Layers.Size(); ++LayerIndex) {
+    for (SizeType LayerIndex = 0; LayerIndex < Layers.Size(); ++LayerIndex)
+    {
         const Value& Layer = Layers[LayerIndex];
         const char *LayerType = Layer["type"].GetString();
 
-        if (StringEquals(LayerType, TILE_LAYER)) {
+        if (StringEquals(LayerType, TILE_LAYER)) 
+        {
             tile_layer *TileLayer = Map->TileLayers + TileLayerIndex;
 
             TileLayer->StartX = Layer["startx"].GetInt();
@@ -213,7 +259,8 @@ LoadMap(tiled_map *Map, const char *Json, memory_arena *Arena, platform_api *Pla
             TileLayer->ChunkCount = Chunks.Size();
             TileLayer->Chunks = PushArray<map_chunk>(Arena, TileLayer->ChunkCount);
 
-            for (SizeType ChunkIndex = 0; ChunkIndex < Chunks.Size(); ++ChunkIndex) {
+            for (SizeType ChunkIndex = 0; ChunkIndex < Chunks.Size(); ++ChunkIndex)
+            {
                 const Value& Chunk = Chunks[ChunkIndex];
 
                 map_chunk *MapChunk = TileLayer->Chunks + ChunkIndex;
@@ -230,14 +277,16 @@ LoadMap(tiled_map *Map, const char *Json, memory_arena *Arena, platform_api *Pla
                 MapChunk->GIDCount = ChunkData.Size();
                 MapChunk->GIDs = PushArray<u32>(Arena, MapChunk->GIDCount);
 
-                for (SizeType ChunkDataIndex = 0; ChunkDataIndex < ChunkData.Size(); ++ChunkDataIndex) {
+                for (SizeType ChunkDataIndex = 0; ChunkDataIndex < ChunkData.Size(); ++ChunkDataIndex)
+                {
                     MapChunk->GIDs[ChunkDataIndex] = ChunkData[ChunkDataIndex].GetUint();
                 }
             }
 
             ++TileLayerIndex;
         }
-        else if (StringEquals(LayerType, OBJECT_LAYER)) {
+        else if (StringEquals(LayerType, OBJECT_LAYER)) 
+        {
             object_layer *ObjectLayer = Map->ObjectLayers + ObjectLayerIndex;
 
             const Value& Objects = Layer["objects"];
@@ -246,7 +295,8 @@ LoadMap(tiled_map *Map, const char *Json, memory_arena *Arena, platform_api *Pla
             ObjectLayer->ObjectCount = Objects.Size();
             ObjectLayer->Objects = PushArray<map_object>(Arena, ObjectLayer->ObjectCount);
 
-            for (SizeType ObjectIndex = 0; ObjectIndex < Objects.Size(); ++ObjectIndex) {
+            for (SizeType ObjectIndex = 0; ObjectIndex < Objects.Size(); ++ObjectIndex) 
+            {
                 const Value& Object = Objects[ObjectIndex];
 
                 map_object *MapObject = ObjectLayer->Objects + ObjectIndex;
@@ -263,7 +313,8 @@ LoadMap(tiled_map *Map, const char *Json, memory_arena *Arena, platform_api *Pla
 
             ++ObjectLayerIndex;
         }
-        else {
+        else
+        {
             InvalidCodePath;
         }
     }

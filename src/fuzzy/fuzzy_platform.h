@@ -54,6 +54,9 @@ typedef GL_GET_UNIFORM_LOCATION(gl_get_uniform_location);
 #define GL_UNIFORM_1I(name) void name(s32 Location, s32 V0)
 typedef GL_UNIFORM_1I(gl_uniform_1i);
 
+#define GL_UNIFORM_1F(name) void name(s32 Location, f32 V0)
+typedef GL_UNIFORM_1F(gl_uniform_1f);
+
 #define GL_UNIFORM_2F(name) void name(s32 Location, f32 V0, f32 V1)
 typedef GL_UNIFORM_2F(gl_uniform_2f);
 
@@ -139,9 +142,17 @@ typedef GL_DRAW_ARRAYS_INSTANCED(gl_draw_arrays_instanced);
 #define GL_GET_ACTIVE_UNIFORM(name) void name(GLuint program, GLuint index, GLsizei bufSize, GLsizei *length, GLint *size, GLenum *type, GLchar *name)
 typedef GL_GET_ACTIVE_UNIFORM(gl_get_active_uniform);
 
+#define GL_POLYGON_MODE_FUNC(name) void name(GLenum Face, GLenum Mode)
+typedef GL_POLYGON_MODE_FUNC(gl_polygon_mode);
+
+#define GL_DRAW_ARRAYS(name) void name(GLenum Mode, GLint First, GLsizei Count)
+typedef GL_DRAW_ARRAYS(gl_draw_arrays);
+
 #pragma endregion
 
 struct renderer_api {
+    gl_draw_arrays *glDrawArrays;
+    gl_polygon_mode *glPolygonMode;
     gl_create_shader *glCreateShader;
     gl_shader_source *glShaderSource;
     gl_compile_shader *glCompileShader;
@@ -150,6 +161,7 @@ struct renderer_api {
     gl_delete_shader *glDeleteShader;
     gl_get_uniform_location *glGetUniformLocation;
     gl_uniform_1i *glUniform1i;
+    gl_uniform_1f *glUniform1f;
     gl_uniform_2f *glUniform2f;
     gl_uniform_matrix_4fv *glUniformMatrix4fv;
     gl_gen_textures *glGenTextures;
@@ -180,8 +192,6 @@ struct renderer_api {
 };
 
 struct game_memory {
-    b32 IsInitalized;
-
     u64 PermanentStorageSize;
     void *PermanentStorage;
 
@@ -198,8 +208,8 @@ struct game_input {
 };
 
 struct game_params {
-    s32 ScreenWidth;
-    s32 ScreenHeight;
+    u32 ScreenWidth;
+    u32 ScreenHeight;
 
     f32 Delta;
 
