@@ -28,8 +28,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "data", "data", "{40618B3B-D
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "shaders", "shaders", "{849DEA6D-56FE-4DD0-BF45-650BC17E3E72}"
 	ProjectSection(SolutionItems) = preProject
-		data\shaders\basic.frag = data\shaders\basic.frag
-		data\shaders\basic.vert = data\shaders\basic.vert
+		data\shaders\box.frag = data\shaders\box.frag
+		data\shaders\box.vert = data\shaders\box.vert
+		data\shaders\tile.frag = data\shaders\tile.frag
+		data\shaders\tile.vert = data\shaders\tile.vert
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fuzzy", "src\fuzzy\fuzzy.vcxproj", "{5C53446B-0425-4F9C-BD52-63191C214C6B}"

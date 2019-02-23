@@ -76,10 +76,11 @@ enum class tile_type {
 };
 
 struct entity {
-    // todo: do not use size from aabb struct; use separate vec2 size; (maybe even store it as scale number)
     vec2 Position;
+    vec2 Size;
     aabb Box;
-    u32 Id;
+    vec2 UV01;
+    u32 ID;
 };
 
 //todo: store in VBO only the ones that are actually used in shaders
@@ -113,19 +114,11 @@ struct drawable_entity {
     f32 FrameTime;
 };
 
-// todo: rework
-struct tile {
-    vec2 Position;
-    vec2 UV;
-    u32 Flipped;
-};
-
 struct animation_frame {
     u32 Duration;
     u32 TileId;
 };
 
-// todo: merge this with tile struct
 struct tile_meta_info {
     u32 Id;
 
@@ -230,13 +223,14 @@ struct tile_layer {
 };
 
 struct map_object {
-    s32 X;
-    s32 Y;
-    u32 Width;
-    u32 Height;
+    f32 X;
+    f32 Y;
+    f32 Width;
+    f32 Height;
 
-    s32 Rotation;
+    f32 Rotation;
 
+    u32 ID;
     u32 GID;
 };
 
@@ -347,8 +341,11 @@ struct game_state {
     f32 UpdateRate;
     //f32 ChargeSpawnCooldown;
 
+    u32 TotalTileBoxCount;
+    u32 TileBoxesVAO;
+
     u32 TotalTileCount;
-    u32 TilesVBO;
+    u32 TilesVAO;
     //u32 VBOTiles;
     //u32 VBOEntities;
     //u32 VBOParticles;
@@ -357,9 +354,13 @@ struct game_state {
     //s32 ViewUniformLocation;
     //s32 TypeUniformLocation;
 
+    u32 TilesShaderProgram;
+    u32 TileBoxesShaderProgram;
+
     mat4 Projection;
 
     s32 VPUniformLocation;
+    s32 VPUniformLocation2;
 
     f32 ScreenWidthInMeters;
     f32 ScreenHeightInMeters;

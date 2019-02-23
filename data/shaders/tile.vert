@@ -68,6 +68,7 @@ uniform vec2 u_TileSize;
 
 void main()
 {
+    // getting correct uv from texture atlas
     uv = in_Vertex.zw * u_TileSize;
     instanceUVOffset = in_InstanceUVOffset;
 

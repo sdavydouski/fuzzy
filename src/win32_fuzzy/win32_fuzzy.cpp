@@ -100,6 +100,7 @@ Win32UnloadGameCode(win32_game_code *GameCode)
 internal_function void
 Win32InitOpenGLRenderer(game_memory *GameMemory) 
 {
+    // todo: in future this will be different
     GameMemory->Renderer = {};
     GameMemory->Renderer.glDrawArrays = glDrawArrays;
     GameMemory->Renderer.glPolygonMode = glPolygonMode;
@@ -246,11 +247,48 @@ s32 main(s32 Argc, char *Argv[])
         }
         if (Action == GLFW_PRESS) 
         {
-            GameParams.Input.Keys[Key] = true;
-        } else if (Action == GLFW_RELEASE) 
+            switch (Key)
+            {
+            case GLFW_KEY_LEFT:
+                GameParams.Input.Left.isPressed = true;
+                break;
+            case GLFW_KEY_RIGHT:
+                GameParams.Input.Right.isPressed = true;
+                break;
+            case GLFW_KEY_UP:
+                GameParams.Input.Up.isPressed = true;
+                break;
+            case GLFW_KEY_DOWN:
+                GameParams.Input.Down.isPressed = true;
+                break;
+            default:
+                break;
+            }
+
+        } 
+        else if (Action == GLFW_RELEASE) 
         {
-            GameParams.Input.Keys[Key] = false;
-            GameParams.Input.ProcessedKeys[Key] = false;
+            switch (Key)
+            {
+            case GLFW_KEY_LEFT:
+                GameParams.Input.Left.isPressed = false;
+                GameParams.Input.Left.isProcessed = false;
+                break;
+            case GLFW_KEY_RIGHT:
+                GameParams.Input.Right.isPressed = false;
+                GameParams.Input.Right.isProcessed = false;
+                break;
+            case GLFW_KEY_UP:
+                GameParams.Input.Up.isPressed = false;
+                GameParams.Input.Up.isProcessed = false;
+                break;
+            case GLFW_KEY_DOWN:
+                GameParams.Input.Down.isPressed = false;
+                GameParams.Input.Down.isProcessed = false;
+                break;
+            default:
+                break;
+            }
         }
     });
 
