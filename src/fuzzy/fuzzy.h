@@ -10,7 +10,8 @@
 #define Offset(StructType, StructMember) ((u32)(&(((StructType *)0)->StructMember)))
 
 // from https://stackoverflow.com/questions/664014
-u32 Hash(u32 Value) {
+u32 Hash(u32 Value)
+{
     u32 Hash = Value;
 
     Hash = ((Hash >> 16) ^ Hash) * 0x45d9f3b;
@@ -21,7 +22,8 @@ u32 Hash(u32 Value) {
 }
 
 // from https://stackoverflow.com/questions/7666509/
-u32 Hash(char *Value) {
+u32 Hash(char *Value)
+{
     u32 Hash = 5381;
     s32 C;
 
@@ -32,24 +34,28 @@ u32 Hash(char *Value) {
     return Hash;
 }
 
-struct bitmap {
+struct bitmap
+{
     s32 Width;
     s32 Height;
     s32 Channels;
     void *Memory;
 };
 
-struct aabb {
+struct aabb
+{
     // top-left
     vec2 Position;
     vec2 Size;
 };
 
-enum class direction {
+enum class direction
+{
     TOP, LEFT, BOTTOM, RIGHT
 };
 
-struct animation {
+struct animation
+{
     s32 X;
     s32 Y;
     s32 Frames;
@@ -66,7 +72,8 @@ struct animation {
     }
 };
 
-enum class tile_type {
+enum class tile_type
+{
     UNKNOWN,
     PLAYER,
     EFFECT,
@@ -75,7 +82,8 @@ enum class tile_type {
     PLATFORM
 };
 
-struct entity {
+struct entity
+{
     vec2 Position;
     vec2 Size;
     aabb Box;
@@ -85,7 +93,8 @@ struct entity {
 
 //todo: store in VBO only the ones that are actually used in shaders
 //todo: rework concept of drawable entities (allow creation and removal)
-struct drawable_entity {
+struct drawable_entity
+{
     u32 Id;
     vec2 Position;
     aabb Box;
@@ -114,12 +123,14 @@ struct drawable_entity {
     f32 FrameTime;
 };
 
-struct animation_frame {
+struct animation_frame
+{
     u32 Duration;
     u32 TileId;
 };
 
-struct tile_meta_info {
+struct tile_meta_info
+{
     u32 Id;
 
     tile_type Type;
@@ -133,7 +144,8 @@ struct tile_meta_info {
     tile_meta_info *Next;
 };
 
-struct tileset {
+struct tileset
+{
     u32 Columns;
     u32 Margin;
     u32 Spacing;
@@ -201,7 +213,8 @@ CreateTileMetaInfo(tileset *Tileset, u32 Id, memory_arena *Arena) {
     return Result;
 }
 
-struct map_chunk {
+struct map_chunk
+{
     s32 X;
     s32 Y;
     u32 Width;
@@ -211,7 +224,8 @@ struct map_chunk {
     u32 *GIDs;
 };
 
-struct tile_layer {
+struct tile_layer
+{
     s32 StartX;
     s32 StartY;
 
@@ -222,7 +236,8 @@ struct tile_layer {
     map_chunk *Chunks;
 };
 
-struct map_object {
+struct map_object
+{
     f32 X;
     f32 Y;
     f32 Width;
@@ -234,17 +249,20 @@ struct map_object {
     u32 GID;
 };
 
-struct object_layer {
+struct object_layer
+{
     u32 ObjectCount;
     map_object *Objects;
 };
 
-struct tileset_source {
+struct tileset_source
+{
     u32 FirstGID;
     tileset Source;
 };
 
-struct tiled_map {
+struct tiled_map
+{
     u32 TileLayerCount;
     tile_layer *TileLayers;
 
@@ -255,7 +273,8 @@ struct tiled_map {
     tileset_source *Tilesets;
 };
 
-struct sprite {
+struct sprite
+{
     u32 AnimationsCount;
     animation *Animations;
 
@@ -273,7 +292,8 @@ struct sprite {
     b32 ShouldRender;
 };
 
-struct particle {
+struct particle
+{
     vec2 Position;
     vec2 Size;
     vec2 Velocity;
@@ -283,7 +303,8 @@ struct particle {
     f32 Alpha;
 };
 
-struct particle_emitter {
+struct particle_emitter
+{
     u32 LastUsedParticle;
     u32 NewParticlesCount;
     f32 Dt;
@@ -301,7 +322,8 @@ struct particle_emitter {
     f32 TimeLeft;
 };
 
-struct game_state {
+struct game_state
+{
     b32 IsInitialized;
 
     memory_arena WorldArena;
@@ -359,9 +381,8 @@ struct game_state {
 
     mat4 Projection;
 
-    s32 VPUniformLocation;
-    s32 VPUniformLocation2;
-
     f32 ScreenWidthInMeters;
     f32 ScreenHeightInMeters;
+
+    u32 UBO;
 };

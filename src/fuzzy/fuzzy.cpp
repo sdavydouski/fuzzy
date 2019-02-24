@@ -394,14 +394,9 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         f32 PixelsToMeters = 1.f / MetersToPixels;
         GameState->ScreenHeightInMeters = ScreenHeight * PixelsToMeters;
 
-        //string TilesetJson = Platform->ReadTextFile("tilesets/tileset.json");
-        //GameState->Tileset = {};
-        //LoadTileset(&GameState->Tileset, TilesetJson.c_str(), &GameState->WorldArena, Platform);
-        //tile_meta_info* TileInfo = GetTileMetaInfo(&GameState->Tileset, 512);
-
-        string MapJson = Platform->ReadTextFile("maps/map01.json");
+        char *MapJson = (char*)Platform->ReadFile("maps/map01.json").Contents;
         GameState->Map = {};
-        LoadMap(&GameState->Map, MapJson.c_str(), &GameState->WorldArena, Platform);
+        LoadMap(&GameState->Map, MapJson, &GameState->WorldArena, Platform);
 
         tile_meta_info *TileInfo = GetTileMetaInfo(&GameState->Map.Tilesets[0].Source, 544);
 
@@ -425,73 +420,43 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         vec2 TileSize01 = vec2((f32)Tileset->TileWidthInPixels / (f32)Tileset->Image.Width,
             (f32)Tileset->TileHeightInPixels / (f32)Tileset->Image.Height);
 
+        const u32 transformsBindingPoint = 0;
+
         {
-            string VertexShaderSource = Memory->Platform.ReadTextFile("shaders/tile.vert");
-            string FragmentShaderSource = Memory->Platform.ReadTextFile("shaders/tile.frag");
+            char *VertexShaderSource = (char*)Memory->Platform.ReadFile("shaders/tile.vert").Contents;
+            char *FragmentShaderSource = (char*)Memory->Platform.ReadFile("shaders/tile.frag").Contents;
             u32 VertexShader = CreateShader(Memory, GameState, GL_VERTEX_SHADER, &VertexShaderSource[0]);
             u32 FragmentShader = CreateShader(Memory, GameState, GL_FRAGMENT_SHADER, &FragmentShaderSource[0]);
             GameState->TilesShaderProgram = CreateProgram(Memory, GameState, VertexShader, FragmentShader);
 
-            Renderer->glUseProgram(GameState->TilesShaderProgram);
+            u32 transformsUniformBlockIndex = Renderer->glGetUniformBlockIndex(GameState->TilesShaderProgram, "transforms");
+            Renderer->glUniformBlockBinding(GameState->TilesShaderProgram, transformsUniformBlockIndex, transformsBindingPoint);
 
-            GameState->VPUniformLocation = GetUniformLocation(Memory, GameState->TilesShaderProgram, "u_VP");
+            Renderer->glUseProgram(GameState->TilesShaderProgram);
 
             s32 TileSizeUniformLocation = GetUniformLocation(Memory, GameState->TilesShaderProgram, "u_TileSize");
             SetShaderUniform(Memory, TileSizeUniformLocation, TileSize01);
         }
 
         {
-            string VertexShaderSource = Memory->Platform.ReadTextFile("shaders/box.vert");
-            string FragmentShaderSource = Memory->Platform.ReadTextFile("shaders/box.frag");
+            char *VertexShaderSource = (char*)Memory->Platform.ReadFile("shaders/box.vert").Contents;
+            char *FragmentShaderSource = (char*)Memory->Platform.ReadFile("shaders/box.frag").Contents;
             u32 VertexShader = CreateShader(Memory, GameState, GL_VERTEX_SHADER, &VertexShaderSource[0]);
             u32 FragmentShader = CreateShader(Memory, GameState, GL_FRAGMENT_SHADER, &FragmentShaderSource[0]);
             GameState->TileBoxesShaderProgram = CreateProgram(Memory, GameState, VertexShader, FragmentShader);
 
-            Renderer->glUseProgram(GameState->TileBoxesShaderProgram);
+            u32 transformsUniformBlockIndex = Renderer->glGetUniformBlockIndex(GameState->TileBoxesShaderProgram, "transforms");
+            Renderer->glUniformBlockBinding(GameState->TileBoxesShaderProgram, transformsUniformBlockIndex, transformsBindingPoint);
 
-            GameState->VPUniformLocation2 = GetUniformLocation(Memory, GameState->TileBoxesShaderProgram, "u_VP");
+            Renderer->glUseProgram(GameState->TileBoxesShaderProgram);
         }
 
-        //json AnimationsConfig = Platform->ReadJsonFile("animations.json");
 
-        //*Bob = {};
-        //Bob->Position = { 5 * TILE_SIZE.x, 0 * TILE_SIZE.y };
-        //Bob->Box.Position = { 5 * TILE_SIZE.x, 0 * TILE_SIZE.y };
-        //Bob->Box.Size = { 13.f * Scale.x, 16.f * Scale.y };
-        //Bob->Velocity = { 0.f, 0.f };
-        //Bob->Acceleration = { 0.f, 10.f };
+        Renderer->glGenBuffers(1, &GameState->UBO);
+        Renderer->glBindBuffer(GL_UNIFORM_BUFFER, GameState->UBO);
+        Renderer->glBufferData(GL_UNIFORM_BUFFER, sizeof(mat4), NULL, GL_STREAM_DRAW);
+        Renderer->glBindBufferBase(GL_UNIFORM_BUFFER, transformsBindingPoint, GameState->UBO);
 
-        //AssignAnimationsToEntity(GameState, &AnimationsConfig, 0, Bob);
-
-        //*Swoosh = {};
-        //Swoosh->Position = { 0.f, 0.f };     // todo: think about better ways
-        //Swoosh->Box.Position = { 0.f, 0.f };     // todo: think about better ways
-        //Swoosh->Box.Size = { 2 * TILE_SIZE.x, TILE_SIZE.y };
-        //Swoosh->ShouldRender = false;
-
-        //AssignAnimationsToEntity(GameState, &AnimationsConfig, 1, Swoosh);
-
-        //GameState->Lamp = {};
-        //AssignAnimationsToEntity(GameState, &AnimationsConfig, 2, &GameState->Lamp);
-
-        //GameState->Platform = {};
-        //AssignAnimationsToEntity(GameState, &AnimationsConfig, 3, &GameState->Platform);
-
-        //*Enemy = {};
-        //Enemy->Position = { 13 * TILE_SIZE.x, 10 * TILE_SIZE.y };
-        //Enemy->Box.Position = { 13 * TILE_SIZE.x, 10 * TILE_SIZE.y };
-        //Enemy->Box.Size = { TILE_SIZE.x, TILE_SIZE.y };
-        //Enemy->Velocity = { 0.f, 0.f };
-        //Enemy->Acceleration = { 0.f, 10.f };
-
-        //AssignAnimationsToEntity(GameState, &AnimationsConfig, 4, Enemy);
-
-
-        //GameState->SpriteWidth = ((f32)Tileset->TileSize.x) / Tileset->Image.Width;
-        //GameState->SpriteHeight = ((f32)Tileset->TileSize.y) / Tileset->Image.Height;
-
-        //s32 spriteSizeUniformLocation = getUniformLocation(Memory, Program, "spriteSize");
-        //setShaderUniform(Memory, spriteSizeUniformLocation, vec2(GameState->SpriteWidth, GameState->SpriteHeight));
 
         f32 QuadVertices[] = {
             // Pos     // UV
@@ -500,24 +465,6 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             1.f, 0.f,  1.f, 1.f,
             1.f, 1.f,  1.f, 0.f
         };
-
-        //GameState->Map = LoadMap(&GameState->WorldArena, Platform->ReadJsonFile, "maps/map01.json", GameState->Tileset, Scale);
-
-        // todo: make it efficient
-        //for (u32 TileLayersIndex = 0; TileLayersIndex < GameState->Map.TileLayerCount; ++TileLayersIndex) {
-        //    GameState->TilesCount += GameState->Map.TileLayers[TileLayersIndex].TilesCount;
-        //}
-
-        //GameState->Tiles = PushArray<tile>(&GameState->WorldArena, GameState->TilesCount);
-
-        //u32 TotalTilesIndex = 0;
-        //for (u32 TileLayersIndex = 0; TileLayersIndex < GameState->Map.TileLayerCount; ++TileLayersIndex) {
-        //    for (u32 TilesIndex = 0; TilesIndex < GameState->Map.TileLayers[TileLayersIndex].TilesCount; ++TilesIndex) {
-        //        GameState->Tiles[TotalTilesIndex++] = GameState->Map.TileLayers[TileLayersIndex].Tiles[TilesIndex];
-        //    }
-        //}
-
-        //u64 TotalTileSizeInBytes = GameState->TilesCount * sizeof(tile);
 
         // todo: in future all these counts will be in asset pack file 
         GameState->TotalTileCount = 0;
@@ -723,98 +670,6 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             (void *)(sizeof(QuadVertices) + 3 * sizeof(vec4)));
         Renderer->glVertexAttribDivisor(4, 1);
 
-        //Renderer->glEnableVertexAttribArray(1);
-        //Renderer->glVertexAttribDivisor(1, 1);
-
-        //Renderer->glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
-        //Renderer->glBufferSubData(GL_ARRAY_BUFFER, sizeof(vertices), TotalTileSizeInBytes, GameState->Tiles);
-
-        // vertices
-        //Renderer->glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(f32), (void*)0);
-        //Renderer->glEnableVertexAttribArray(0);
-
-        //// tile Position/uv
-        //Renderer->glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(tile), (void*) sizeof(vertices));
-        //Renderer->glEnableVertexAttribArray(1);
-        //Renderer->glVertexAttribDivisor(1, 1);
-
-        //// tile flipped
-        //Renderer->glVertexAttribIPointer(2, 1, GL_UNSIGNED_INT, sizeof(tile), (void*)(sizeof(vertices) + Offset(tile, Flipped)));
-        //Renderer->glEnableVertexAttribArray(2);
-        //Renderer->glVertexAttribDivisor(2, 1);
-
-        // todo: make it efficient
-        //for (u32 ObjectLayersIndex = 0; ObjectLayersIndex < GameState->Map.ObjectLayerCount; ++ObjectLayersIndex) {
-        //    GameState->EntitiesCount += GameState->Map.ObjectLayers[ObjectLayersIndex].EntitiesCount;
-        //    GameState->DrawableEntitiesCount += GameState->Map.ObjectLayers[ObjectLayersIndex].DrawableEntitiesCount;
-        //}
-        //
-        //GameState->Entities = PushArray<entity>(&GameState->WorldArena, GameState->EntitiesCount);
-
-        //// + player and swoosh effect
-        //GameState->DrawableEntitiesCount += 2;
-        //GameState->DrawableEntities = PushArray<drawable_entity>(&GameState->WorldArena, GameState->DrawableEntitiesCount);
-
-        //u32 TotalEntityIndex = 0;
-        //u32 TotalDrawableEntityIndex = 0;
-        //for (u32 ObjectLayersIndex = 0; ObjectLayersIndex < GameState->Map.ObjectLayerCount; ++ObjectLayersIndex) {
-        //    for (u32 EntityIndex = 0; EntityIndex < GameState->Map.ObjectLayers[ObjectLayersIndex].EntitiesCount; ++EntityIndex) {
-        //        GameState->Entities[TotalEntityIndex++] = GameState->Map.ObjectLayers[ObjectLayersIndex].Entities[EntityIndex];
-        //    }
-        //    for (u32 DrawableEntityIndex = 0; DrawableEntityIndex < GameState->Map.ObjectLayers[ObjectLayersIndex].DrawableEntitiesCount; ++DrawableEntityIndex) {
-        //        GameState->DrawableEntities[TotalDrawableEntityIndex++] = GameState->Map.ObjectLayers[ObjectLayersIndex].DrawableEntities[DrawableEntityIndex];
-        //    }
-        //}
-
-        //GameState->Player = {};
-        //GameState->Player.Position = Bob->Position;
-        //GameState->Player.Box = Bob->Box;
-        //GameState->Player.SpriteScale = vec2(1.f);
-        //GameState->Player.Offset = (GameState->DrawableEntitiesCount - 2) * sizeof(drawable_entity);
-        //GameState->Player.ShouldRender = 1;
-        //GameState->Player.Collides = true;
-        //GameState->Player.Type = tile_type::PLAYER;
-        //GameState->DrawableEntities[GameState->DrawableEntitiesCount - 2] = GameState->Player;
-
-        //GameState->SwooshEffect = {};
-        //GameState->SwooshEffect.Position = Swoosh->Position;
-        //GameState->SwooshEffect.Box = Swoosh->Box;
-        //GameState->SwooshEffect.SpriteScale = vec2(2.f, 1.f);
-        //GameState->SwooshEffect.Offset = (GameState->DrawableEntitiesCount - 1) * sizeof(drawable_entity);
-        //GameState->SwooshEffect.ShouldRender = 0;
-        //GameState->SwooshEffect.Collides = true;
-        //GameState->SwooshEffect.Type = tile_type::EFFECT;
-        //GameState->DrawableEntities[GameState->DrawableEntitiesCount - 1] = GameState->SwooshEffect;
-
-        //Renderer->glGenBuffers(1, &GameState->VBOEntities);
-        //Renderer->glBindBuffer(GL_ARRAY_BUFFER, GameState->VBOEntities);
-        //Renderer->glBufferData(GL_ARRAY_BUFFER, (u32)(sizeof(u32) + sizeof(drawable_entity)) * GameState->DrawableEntitiesCount, GameState->DrawableEntities, GL_STREAM_DRAW);
-
-        // Position
-        //Renderer->glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, sizeof(drawable_entity), (void*)Offset(drawable_entity, Position));
-        //Renderer->glEnableVertexAttribArray(3);
-        //Renderer->glVertexAttribDivisor(3, 1);
-        //// aabb
-        ////glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(drawable_entity), (void*) offset(drawable_entity, box));
-        ////glEnableVertexAttribArray(4);
-        ////glVertexAttribDivisor(4, 1);
-        //// uv/rotation
-        //Renderer->glVertexAttribPointer(5, 3, GL_FLOAT, GL_FALSE, sizeof(drawable_entity), (void*)Offset(drawable_entity, UV));
-        //Renderer->glEnableVertexAttribArray(5);
-        //Renderer->glVertexAttribDivisor(5, 1);
-        //// flipped
-        //Renderer->glVertexAttribIPointer(6, 1, GL_UNSIGNED_INT, sizeof(drawable_entity), (void*)Offset(drawable_entity, Flipped));
-        //Renderer->glEnableVertexAttribArray(6);
-        //Renderer->glVertexAttribDivisor(6, 1);
-        //// spriteScale
-        //Renderer->glVertexAttribPointer(7, 2, GL_FLOAT, GL_FALSE, sizeof(drawable_entity), (void*)Offset(drawable_entity, SpriteScale));
-        //Renderer->glEnableVertexAttribArray(7);
-        //Renderer->glVertexAttribDivisor(7, 1);
-        //// shouldRender
-        //Renderer->glVertexAttribIPointer(8, 1, GL_UNSIGNED_INT, sizeof(drawable_entity), (void*)Offset(drawable_entity, ShouldRender));
-        //Renderer->glEnableVertexAttribArray(8);
-        //Renderer->glVertexAttribDivisor(8, 1);
-
         //GameState->ParticleEmittersIndex = 0;
         //GameState->ParticleEmittersMaxCount = 50;
         //GameState->ParticleEmitters = PushArray<particle_emitter>(&GameState->WorldArena, GameState->ParticleEmittersMaxCount);
@@ -889,18 +744,15 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     mat4 VP = GameState->Projection * View;
 
+    Renderer->glBindBuffer(GL_UNIFORM_BUFFER, GameState->UBO);
+    Renderer->glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(mat4), &VP);
+
     Renderer->glUseProgram(GameState->TilesShaderProgram);
     Renderer->glBindVertexArray(GameState->TilesVAO);
-
-    SetShaderUniform(Memory, GameState->VPUniformLocation, VP);
-
     Renderer->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, GameState->TotalTileCount);
 
     Renderer->glUseProgram(GameState->TileBoxesShaderProgram);
     Renderer->glBindVertexArray(GameState->TileBoxesVAO);
-
-    SetShaderUniform(Memory, GameState->VPUniformLocation2, VP);
-
     Renderer->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, GameState->TotalTileBoxCount);
 
     //while (GameState->Lag >= GameState->UpdateRate) {

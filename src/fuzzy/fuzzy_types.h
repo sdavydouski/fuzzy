@@ -4,11 +4,6 @@
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <glm/mat4x4.hpp>
-#include <string>
-
-#pragma region STL types
-using string = std::string;
-#pragma endregion
 
 #define global_variable static
 #define internal_function static

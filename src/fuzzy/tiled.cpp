@@ -199,10 +199,10 @@ LoadMap(tiled_map *Map, const char *Json, memory_arena *Arena, platform_api *Pla
     char FullTilesetPath[256];
     snprintf(FullTilesetPath, sizeof(FullTilesetPath), "%s%s", "tilesets/", TilesetPath);
 
-    string TilesetJson = Platform->ReadTextFile(FullTilesetPath);
+    char *TilesetJson = (char*)Platform->ReadFile(FullTilesetPath).Contents;
 
     Map->Tilesets[0].Source = {};
-    LoadTileset(&Map->Tilesets[0].Source, TilesetJson.c_str(), Arena, Platform);
+    LoadTileset(&Map->Tilesets[0].Source, TilesetJson, Arena, Platform);
 
     const Value& Layers = Document["layers"];
     assert(Layers.IsArray());

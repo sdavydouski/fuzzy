@@ -2,8 +2,6 @@
 #include <cstdlib>
 #include <string>
 #include <cassert>
-#include <fstream>
-#include <sstream>
 #include <iostream>
 
 #include "..\..\generated\glad\src\glad.c"
@@ -131,6 +129,8 @@ Win32InitOpenGLRenderer(game_memory *GameMemory)
     GameMemory->Renderer.glBindBuffer = glBindBuffer;
     GameMemory->Renderer.glBufferData = glBufferData;
     GameMemory->Renderer.glBufferSubData = glBufferSubData;
+    GameMemory->Renderer.glBindBufferRange = glBindBufferRange;
+    GameMemory->Renderer.glBindBufferBase = glBindBufferBase;
     GameMemory->Renderer.glVertexAttribPointer = glVertexAttribPointer;
     GameMemory->Renderer.glVertexAttribIPointer = glVertexAttribIPointer;
     GameMemory->Renderer.glEnableVertexAttribArray = glEnableVertexAttribArray;
@@ -140,6 +140,8 @@ Win32InitOpenGLRenderer(game_memory *GameMemory)
     GameMemory->Renderer.glClearColor = glClearColor;
     GameMemory->Renderer.glDrawArraysInstanced = glDrawArraysInstanced;
     GameMemory->Renderer.glGetActiveUniform = glGetActiveUniform;
+    GameMemory->Renderer.glGetUniformBlockIndex = glGetUniformBlockIndex;
+    GameMemory->Renderer.glUniformBlockBinding = glUniformBlockBinding;
 }
 
 internal_function void
@@ -182,8 +184,9 @@ s32 main(s32 Argc, char *Argv[])
     GameMemory.TransientStorage = (u8*)GameMemory.PermanentStorage + GameMemory.PermanentStorageSize;
 
     GameMemory.Platform = {};
-    GameMemory.Platform.PrintOutput = GamePrintOutput;
-    GameMemory.Platform.ReadTextFile = GameReadTextFile;
+    GameMemory.Platform.ReadFile = PlatformReadFile;
+    GameMemory.Platform.FreeFile = PlatformFreeFile;
+    GameMemory.Platform.PrintOutput = PlatformPrintOutput;
 
     // todo: stbi_load loads image into arbitrary location which is not good
     GameMemory.Platform.ReadImageFile = stbi_load;

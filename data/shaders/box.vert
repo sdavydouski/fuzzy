@@ -11,8 +11,11 @@ layout(location = 1) in mat4 in_InstanceModel;
 out vec2 uv;
 out float ratio;
 
-// view-projection matrix
-uniform mat4 u_VP;
+layout(std140) uniform transforms
+{
+    // view-projection matrix
+    mat4 u_VP;
+};
 
 void main()
 {

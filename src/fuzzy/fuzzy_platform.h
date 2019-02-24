@@ -7,23 +7,35 @@
 
 #pragma region Platform API
 
-#define GAME_PRINT_OUTPUT(name) void name(const char *Output)
-typedef GAME_PRINT_OUTPUT(platform_print_output);
+#define PLATFORM_PRINT_OUTPUT(name) void name(const char *Output)
+typedef PLATFORM_PRINT_OUTPUT(platform_print_output);
 
-#define GAME_READ_TEXT_FILE(name) string name(const char *Path)
-typedef GAME_READ_TEXT_FILE(platform_read_text_file);
+struct read_file_result
+{
+    u32 Size;
+    void *Contents;
+};
 
-#define GAME_READ_IMAGE_FILE(name) u8 *name(const char *Filename, s32 *X, s32 *Y, s32 *Comp, s32 ReqComp)
-typedef GAME_READ_IMAGE_FILE(platform_read_image_file);
+#define PLATFORM_READ_FILE(name) read_file_result name(char *FileName)
+typedef PLATFORM_READ_FILE(platform_read_file);
 
-#define GAME_FREE_IMAGE_FILE(name) void name(void *Image)
-typedef GAME_FREE_IMAGE_FILE(platform_free_image_file);
+#define PLATFORM_FREE_FILE(name) void name(void *Memory)
+typedef PLATFORM_FREE_FILE(platform_free_file);
+
+#define PLATFORM_READ_IMAGE_FILE(name) u8 *name(const char *Filename, s32 *X, s32 *Y, s32 *Comp, s32 ReqComp)
+typedef PLATFORM_READ_IMAGE_FILE(platform_read_image_file);
+
+#define PLATFORM_FREE_IMAGE_FILE(name) void name(void *Image)
+typedef PLATFORM_FREE_IMAGE_FILE(platform_free_image_file);
 
 #pragma endregion
 
 struct platform_api {
     platform_print_output *PrintOutput;
-    platform_read_text_file *ReadTextFile;
+
+    platform_read_file *ReadFile;
+    platform_free_file *FreeFile;
+
     platform_read_image_file *ReadImageFile;
     platform_free_image_file *FreeImageFile;
 };
@@ -110,6 +122,12 @@ typedef GL_BIND_BUFFER(gl_bind_buffer);
 #define GL_BUFFER_DATA(name) void name(GLenum Target, GLsizeiptr Size, const GLvoid *Data, GLenum Usage)
 typedef GL_BUFFER_DATA(gl_buffer_data);
 
+#define GL_BIND_BUFFER_RANGE(name) void name(GLenum Target, GLuint Index, GLuint Buffer, GLintptr Offset, GLsizeiptr Size)
+typedef GL_BIND_BUFFER_RANGE(gl_bind_buffer_range);
+
+#define GL_BIND_BUFFER_BASE(name) void name(GLenum Target, GLuint Index, GLuint Buffer)
+typedef GL_BIND_BUFFER_BASE(gl_bind_buffer_base);
+
 #define GL_BUFFER_SUB_DATA(name) void name(GLenum Target, GLintptr Offset, GLsizeiptr Size, const GLvoid *Data)
 typedef GL_BUFFER_SUB_DATA(gl_buffer_sub_data);
 
@@ -148,6 +166,12 @@ typedef GL_POLYGON_MODE_FUNC(gl_polygon_mode);
 #define GL_DRAW_ARRAYS(name) void name(GLenum Mode, GLint First, GLsizei Count)
 typedef GL_DRAW_ARRAYS(gl_draw_arrays);
 
+#define GL_GET_UNIFORM_BLOCK_INDEX(name) u32 name(u32 program, const GLchar *uniformBlockName)
+typedef GL_GET_UNIFORM_BLOCK_INDEX(gl_get_uniform_block_index);
+
+#define GL_UNIFORM_BLOCK_BINDING_FUNC(name) void name(u32 program, u32 uniformBlockIndex, u32 uniformBlockBinding)
+typedef GL_UNIFORM_BLOCK_BINDING_FUNC(gl_uniform_block_binding);
+
 #pragma endregion
 
 struct renderer_api {
@@ -180,6 +204,8 @@ struct renderer_api {
     gl_bind_buffer *glBindBuffer;
     gl_buffer_data *glBufferData;
     gl_buffer_sub_data *glBufferSubData;
+    gl_bind_buffer_range *glBindBufferRange;
+    gl_bind_buffer_base *glBindBufferBase;
     gl_vertex_attrib_pointer *glVertexAttribPointer;
     gl_vertex_attribi_pointer *glVertexAttribIPointer;
     gl_enable_vertex_attrib_array *glEnableVertexAttribArray;
@@ -189,6 +215,8 @@ struct renderer_api {
     gl_clear_color *glClearColor;
     gl_draw_arrays_instanced *glDrawArraysInstanced;
     gl_get_active_uniform *glGetActiveUniform;
+    gl_get_uniform_block_index *glGetUniformBlockIndex;
+    gl_uniform_block_binding *glUniformBlockBinding;
 };
 
 struct game_memory {
@@ -227,12 +255,12 @@ struct game_params {
 typedef GAME_UPDATE_AND_RENDER(game_update_and_render);
 
 inline b32
-StringEquals(const char* Str1, const char* Str2) {
+StringEquals(const char *Str1, const char *Str2) {
     return strcmp(Str1, Str2) == 0;
 }
 
 inline char*
-GetLastAfterDelimiter(char* String, const char Delimiter) {
+GetLastAfterDelimiter(char *String, const char Delimiter) {
     char* Result = String;
 
     for (char *Scan = String; *Scan; ++Scan) {
