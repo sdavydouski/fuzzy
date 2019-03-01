@@ -82,13 +82,35 @@ enum class tile_type
     PLATFORM
 };
 
+struct animation_frame
+{
+    u32 Duration;
+    u32 TileId;
+};
+
+struct tile_meta_info
+{
+    u32 Id;
+
+    tile_type Type;
+
+    u32 BoxCount;
+    aabb *Boxes;
+
+    u32 AnimationFrameCount;
+    animation_frame *AnimationFrames;
+
+    tile_meta_info *Next;
+};
+
 struct entity
 {
+    u32 ID;
+
     vec2 Position;
     vec2 Size;
-    aabb Box;
-    vec2 UV01;
-    u32 ID;
+   
+    tile_meta_info *TileInfo;
 };
 
 //todo: store in VBO only the ones that are actually used in shaders
@@ -123,27 +145,6 @@ struct drawable_entity
     f32 FrameTime;
 };
 
-struct animation_frame
-{
-    u32 Duration;
-    u32 TileId;
-};
-
-struct tile_meta_info
-{
-    u32 Id;
-
-    tile_type Type;
-
-    u32 BoxCount;
-    aabb *Boxes;
-
-    u32 AnimationFrameCount;
-    animation_frame *AnimationFrames;
-
-    tile_meta_info *Next;
-};
-
 struct tileset
 {
     u32 Columns;
@@ -155,6 +156,9 @@ struct tileset
 
     f32 TileWidthInMeters;
     f32 TileHeightInMeters;
+
+    f32 TilesetWidthPixelsToMeters;
+    f32 TilesetHeightPixelsToMeters;
 
     bitmap Image;
 
@@ -261,7 +265,7 @@ struct tileset_source
     tileset Source;
 };
 
-struct tiled_map
+struct tilemap
 {
     u32 TileLayerCount;
     tile_layer *TileLayers;
@@ -357,17 +361,21 @@ struct game_state
     //f32 SpriteWidth;
     //f32 SpriteHeight;
 
-    tiled_map Map;
+    tilemap Map;
 
     f32 Lag;
     f32 UpdateRate;
     //f32 ChargeSpawnCooldown;
 
-    u32 TotalTileBoxCount;
-    u32 TileBoxesVAO;
+    u32 TotalBoxCount;
+    u32 BoxesVAO;
 
     u32 TotalTileCount;
     u32 TilesVAO;
+
+    u32 TotalObjectCount;
+    u32 TotalDrawableObjectCount;
+    u32 DrawableEntitiesVAO;
     //u32 VBOTiles;
     //u32 VBOEntities;
     //u32 VBOParticles;
@@ -377,7 +385,8 @@ struct game_state
     //s32 TypeUniformLocation;
 
     u32 TilesShaderProgram;
-    u32 TileBoxesShaderProgram;
+    u32 BoxesShaderProgram;
+    u32 DrawableEntitiesShaderProgram;
 
     mat4 Projection;
 

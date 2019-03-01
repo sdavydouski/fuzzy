@@ -243,7 +243,7 @@ global_variable const vec3 BackgroundColor = NormalizeRGB(29, 33, 45);
 internal_function void
 ProcessInput(game_state *GameState, game_input *Input)
 {
-    f32 Delta = 0.001f;
+    f32 Delta = 0.01f;
 
     if (Input->Left.isPressed)
     {
@@ -400,7 +400,6 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
         tile_meta_info *TileInfo = GetTileMetaInfo(&GameState->Map.Tilesets[0].Source, 544);
 
-        // todo: eventually support multiple tilesets
         tileset *Tileset = &GameState->Map.Tilesets[0].Source;
         u32 TilesetFirstGID = GameState->Map.Tilesets[0].FirstGID;
 
@@ -443,12 +442,28 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             char *FragmentShaderSource = (char*)Memory->Platform.ReadFile("shaders/box.frag").Contents;
             u32 VertexShader = CreateShader(Memory, GameState, GL_VERTEX_SHADER, &VertexShaderSource[0]);
             u32 FragmentShader = CreateShader(Memory, GameState, GL_FRAGMENT_SHADER, &FragmentShaderSource[0]);
-            GameState->TileBoxesShaderProgram = CreateProgram(Memory, GameState, VertexShader, FragmentShader);
+            GameState->BoxesShaderProgram = CreateProgram(Memory, GameState, VertexShader, FragmentShader);
 
-            u32 transformsUniformBlockIndex = Renderer->glGetUniformBlockIndex(GameState->TileBoxesShaderProgram, "transforms");
-            Renderer->glUniformBlockBinding(GameState->TileBoxesShaderProgram, transformsUniformBlockIndex, transformsBindingPoint);
+            u32 transformsUniformBlockIndex = Renderer->glGetUniformBlockIndex(GameState->BoxesShaderProgram, "transforms");
+            Renderer->glUniformBlockBinding(GameState->BoxesShaderProgram, transformsUniformBlockIndex, transformsBindingPoint);
 
-            Renderer->glUseProgram(GameState->TileBoxesShaderProgram);
+            Renderer->glUseProgram(GameState->BoxesShaderProgram);
+        }
+
+        {
+            char *VertexShaderSource = (char*)Memory->Platform.ReadFile("shaders/entity.vert").Contents;
+            char *FragmentShaderSource = (char*)Memory->Platform.ReadFile("shaders/entity.frag").Contents;
+            u32 VertexShader = CreateShader(Memory, GameState, GL_VERTEX_SHADER, &VertexShaderSource[0]);
+            u32 FragmentShader = CreateShader(Memory, GameState, GL_FRAGMENT_SHADER, &FragmentShaderSource[0]);
+            GameState->DrawableEntitiesShaderProgram = CreateProgram(Memory, GameState, VertexShader, FragmentShader);
+
+            u32 transformsUniformBlockIndex = Renderer->glGetUniformBlockIndex(GameState->DrawableEntitiesShaderProgram, "transforms");
+            Renderer->glUniformBlockBinding(GameState->TilesShaderProgram, transformsUniformBlockIndex, transformsBindingPoint);
+
+            Renderer->glUseProgram(GameState->DrawableEntitiesShaderProgram);
+
+            s32 TileSizeUniformLocation = GetUniformLocation(Memory, GameState->DrawableEntitiesShaderProgram, "u_TileSize");
+            SetShaderUniform(Memory, TileSizeUniformLocation, TileSize01);
         }
 
 
@@ -468,7 +483,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
         // todo: in future all these counts will be in asset pack file 
         GameState->TotalTileCount = 0;
-        GameState->TotalTileBoxCount = 0;
+        GameState->TotalBoxCount = 0;
         for (u32 TileLayerIndex = 0; TileLayerIndex < GameState->Map.TileLayerCount; ++TileLayerIndex)
         {
             for (u32 ChunkIndex = 0; ChunkIndex < GameState->Map.TileLayers[TileLayerIndex].ChunkCount; ++ChunkIndex)
@@ -483,26 +498,52 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                         tile_meta_info *TileInfo = GetTileMetaInfo(Tileset, GID - TilesetFirstGID);
                         if (TileInfo)
                         {
-                            GameState->TotalTileBoxCount += TileInfo->BoxCount;
+                            GameState->TotalBoxCount += TileInfo->BoxCount;
                         }
                     }
                 }
             }
         }
 
-        mat4 *TileInstanceModels = PushArray<mat4>(&GameState->WorldArena, GameState->TotalTileCount);
-        vec2 *TileInstanceUVOffsets01 = PushArray<vec2>(&GameState->WorldArena, GameState->TotalTileCount);
-        
-        aabb *TileBoxes = PushArray<aabb>(&GameState->WorldArena, GameState->TotalTileBoxCount);
-        mat4 *TileBoxInstanceModels = PushArray<mat4>(&GameState->WorldArena, GameState->TotalTileBoxCount);
+        GameState->TotalObjectCount = 0;
+        GameState->TotalDrawableObjectCount = 0;
+        for (u32 ObjectLayerIndex = 0; ObjectLayerIndex < GameState->Map.ObjectLayerCount; ++ObjectLayerIndex)
+        {
+            u32 ObjectCount = GameState->Map.ObjectLayers[ObjectLayerIndex].ObjectCount;
+            GameState->TotalObjectCount += ObjectCount;
+
+            for (u32 ObjectIndex = 0; ObjectIndex < ObjectCount; ++ObjectIndex)
+            {
+                map_object *Object = GameState->Map.ObjectLayers[ObjectLayerIndex].Objects + ObjectIndex;
+
+                if (Object->GID)
+                {
+                    ++GameState->TotalDrawableObjectCount;
+
+                    u32 TileID = Object->GID - TilesetFirstGID;
+                    tile_meta_info *TileInfo = GetTileMetaInfo(Tileset, TileID);
+
+                    if (TileInfo)
+                    {
+                        GameState->TotalBoxCount += TileInfo->BoxCount;
+                    }
+                }
+            }
+        }
 
         vec2 ScreenCenterInMeters = vec2(
             GameState->ScreenWidthInMeters / 2.f,
             GameState->ScreenHeightInMeters / 2.f
         );
 
+        mat4 *TileInstanceModels = PushArray<mat4>(&GameState->WorldArena, GameState->TotalTileCount);
+        vec2 *TileInstanceUVOffsets01 = PushArray<vec2>(&GameState->WorldArena, GameState->TotalTileCount);
+        
+        aabb *Boxes = PushArray<aabb>(&GameState->WorldArena, GameState->TotalBoxCount);
+        mat4 *BoxInstanceModels = PushArray<mat4>(&GameState->WorldArena, GameState->TotalBoxCount);
+
         u32 TileInstanceIndex = 0;
-        u32 TileBoxIndex = 0;
+        u32 BoxIndex = 0;
         for (u32 TileLayerIndex = 0; TileLayerIndex < GameState->Map.TileLayerCount; ++TileLayerIndex)
         {
             for (u32 ChunkIndex = 0; ChunkIndex < GameState->Map.TileLayers[TileLayerIndex].ChunkCount; ++ChunkIndex)
@@ -513,6 +554,8 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                     u32 GID = Chunk->GIDs[GIDIndex];
                     if (GID > 0)
                     {
+                        u32 TileID = GID - TilesetFirstGID;
+
                         // TileInstanceModel
                         mat4 *TileInstanceModel = TileInstanceModels + TileInstanceIndex;
                         *TileInstanceModel = mat4(1.f);
@@ -530,45 +573,41 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                         // TileInstanceUVOffset01
                         vec2 *TileInstanceUVOffset01 = TileInstanceUVOffsets01 + TileInstanceIndex;
 
-                        s32 TileX = (GID - TilesetFirstGID) % Tileset->Columns;
-                        s32 TileY = (GID - TilesetFirstGID) / Tileset->Columns;
+                        s32 TileX = TileID % Tileset->Columns;
+                        s32 TileY = TileID / Tileset->Columns;
 
                         *TileInstanceUVOffset01 = vec2(
-                            (TileX * (Tileset->TileWidthInPixels + Tileset->Spacing) + Tileset->Margin) / Tileset->Image.Width,
-                            (TileY * (Tileset->TileHeightInPixels + Tileset->Spacing) + Tileset->Margin) / Tileset->Image.Height
+                            (f32)(TileX * (Tileset->TileWidthInPixels + Tileset->Spacing) + Tileset->Margin) / (f32)Tileset->Image.Width,
+                            (f32)(TileY * (Tileset->TileHeightInPixels + Tileset->Spacing) + Tileset->Margin) / (f32)Tileset->Image.Height
                         );
 
-                        *TileInstanceUVOffset01 = vec2(TileX * TileSize01.x, TileY * TileSize01.y);
-
-                        tile_meta_info *TileInfo = GetTileMetaInfo(Tileset, GID - TilesetFirstGID);
+                        tile_meta_info *TileInfo = GetTileMetaInfo(Tileset, TileID);
                         if (TileInfo)
                         {
-                            // TileBox
-                            for (u32 CurrentTileBoxIndex = 0; CurrentTileBoxIndex < TileInfo->BoxCount; ++CurrentTileBoxIndex)
+                            // Box
+                            for (u32 CurrentBoxIndex = 0; CurrentBoxIndex < TileInfo->BoxCount; ++CurrentBoxIndex)
                             {
-                                aabb *TileBox = TileBoxes + TileBoxIndex;
+                                aabb *Box = Boxes + BoxIndex;
 
-                                f32 TilesetPixelsToMeters = Tileset->TileWidthInMeters / Tileset->TileWidthInPixels;
-
-                                TileBox->Position.x = TileXMeters + 
-                                    TileInfo->Boxes[CurrentTileBoxIndex].Position.x * TilesetPixelsToMeters;
-                                TileBox->Position.y = TileYMeters + 
+                                Box->Position.x = TileXMeters + 
+                                    TileInfo->Boxes[CurrentBoxIndex].Position.x * Tileset->TilesetWidthPixelsToMeters;
+                                Box->Position.y = TileYMeters + 
                                     ((Tileset->TileHeightInPixels - 
-                                        TileInfo->Boxes[CurrentTileBoxIndex].Position.y - 
-                                        TileInfo->Boxes[CurrentTileBoxIndex].Size.y) * TilesetPixelsToMeters);
+                                        TileInfo->Boxes[CurrentBoxIndex].Position.y - 
+                                        TileInfo->Boxes[CurrentBoxIndex].Size.y) * Tileset->TilesetHeightPixelsToMeters);
 
-                                TileBox->Size.x = TileInfo->Boxes[CurrentTileBoxIndex].Size.x * TilesetPixelsToMeters;
-                                TileBox->Size.y = TileInfo->Boxes[CurrentTileBoxIndex].Size.y * TilesetPixelsToMeters;
+                                Box->Size.x = TileInfo->Boxes[CurrentBoxIndex].Size.x * Tileset->TilesetWidthPixelsToMeters;
+                                Box->Size.y = TileInfo->Boxes[CurrentBoxIndex].Size.y * Tileset->TilesetHeightPixelsToMeters;
 
-                                mat4 *TileBoxInstanceModel = TileBoxInstanceModels + TileBoxIndex;
-                                *TileBoxInstanceModel = mat4(1.f);
+                                mat4 *BoxInstanceModel = BoxInstanceModels + BoxIndex;
+                                *BoxInstanceModel = mat4(1.f);
 
-                                *TileBoxInstanceModel = glm::translate(*TileBoxInstanceModel, 
-                                    vec3(TileBox->Position.x, TileBox->Position.y, 0.f));
-                                *TileBoxInstanceModel = glm::scale(*TileBoxInstanceModel,
-                                    vec3(TileBox->Size.x, TileBox->Size.y, 0.f));
+                                *BoxInstanceModel = glm::translate(*BoxInstanceModel, 
+                                    vec3(Box->Position.x, Box->Position.y, 0.f));
+                                *BoxInstanceModel = glm::scale(*BoxInstanceModel,
+                                    vec3(Box->Size.x, Box->Size.y, 0.f));
 
-                                ++TileBoxIndex;
+                                ++BoxIndex;
                             }
                         }
 
@@ -577,6 +616,87 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                 }
             }
         }
+
+        entity *Entities = PushArray<entity>(&GameState->WorldArena, GameState->TotalObjectCount);
+
+        mat4 *EntityInstanceModels = PushArray<mat4>(&GameState->WorldArena, GameState->TotalDrawableObjectCount);
+        vec2 *EntityInstanceUVOffsets01 = PushArray<vec2>(&GameState->WorldArena, GameState->TotalDrawableObjectCount);
+
+        u32 EntityInstanceIndex = 0;
+        for (u32 ObjectLayerIndex = 0; ObjectLayerIndex < GameState->Map.ObjectLayerCount; ++ObjectLayerIndex)
+        {
+            for (u32 ObjectIndex = 0; ObjectIndex < GameState->Map.ObjectLayers[ObjectLayerIndex].ObjectCount; ++ObjectIndex)
+            {
+                map_object *Object = GameState->Map.ObjectLayers[ObjectLayerIndex].Objects + ObjectIndex;
+                entity *Entity = Entities + ObjectIndex;
+
+                Entity->ID = Object->ID;
+                // tile objects have their position at bottom-left (https://github.com/bjorn/tiled/issues/91)
+                Entity->Position = vec2(Object->X * Tileset->TilesetWidthPixelsToMeters, (Object->Y - Object->Height) * Tileset->TilesetWidthPixelsToMeters);
+                Entity->Size = vec2(Object->Width * Tileset->TilesetHeightPixelsToMeters, Object->Height * Tileset->TilesetHeightPixelsToMeters);
+
+                if (Object->GID)
+                {
+                    u32 TileID = Object->GID - TilesetFirstGID;
+
+                    Entity->TileInfo = GetTileMetaInfo(Tileset, TileID);
+
+                    // EntityInstanceModel
+                    mat4 *EntityInstanceModel = EntityInstanceModels + EntityInstanceIndex;
+                    *EntityInstanceModel = mat4(1.f);
+
+                    f32 EntityWorldXInMeters = ScreenCenterInMeters.x + Entity->Position.x;
+                    f32 EntityWorldYInMeters = ScreenCenterInMeters.y - Entity->Position.y;
+
+                    *EntityInstanceModel = glm::translate(*EntityInstanceModel, vec3(EntityWorldXInMeters, EntityWorldYInMeters, 0.f));
+                    *EntityInstanceModel = glm::scale(*EntityInstanceModel,
+                        vec3(Entity->Size.x, Entity->Size.y, 0.f));
+
+                    // EntityInstanceUVOffset01
+                    vec2 *EntityInstanceUVOffset01 = EntityInstanceUVOffsets01 + EntityInstanceIndex;
+
+                    s32 TileX = TileID % Tileset->Columns;
+                    s32 TileY = TileID / Tileset->Columns;
+
+                    *EntityInstanceUVOffset01 = vec2(
+                        (f32)(TileX * (Tileset->TileWidthInPixels + Tileset->Spacing) + Tileset->Margin) / (f32)Tileset->Image.Width,
+                        (f32)(TileY * (Tileset->TileHeightInPixels + Tileset->Spacing) + Tileset->Margin) / (f32)Tileset->Image.Height
+                    );
+
+                    if (Entity->TileInfo)
+                    {
+                        // Box
+                        for (u32 CurrentBoxIndex = 0; CurrentBoxIndex < Entity->TileInfo->BoxCount; ++CurrentBoxIndex)
+                        {
+                            aabb *Box = Boxes + BoxIndex;
+
+                            Box->Position.x = EntityWorldXInMeters +
+                                Entity->TileInfo->Boxes[CurrentBoxIndex].Position.x * Tileset->TilesetWidthPixelsToMeters;
+                            Box->Position.y = EntityWorldYInMeters +
+                                ((Tileset->TileHeightInPixels -
+                                    Entity->TileInfo->Boxes[CurrentBoxIndex].Position.y -
+                                    Entity->TileInfo->Boxes[CurrentBoxIndex].Size.y) * Tileset->TilesetHeightPixelsToMeters);
+
+                            Box->Size.x = Entity->TileInfo->Boxes[CurrentBoxIndex].Size.x * Tileset->TilesetWidthPixelsToMeters;
+                            Box->Size.y = Entity->TileInfo->Boxes[CurrentBoxIndex].Size.y * Tileset->TilesetHeightPixelsToMeters;
+
+                            mat4 *BoxInstanceModel = BoxInstanceModels + BoxIndex;
+                            *BoxInstanceModel = mat4(1.f);
+
+                            *BoxInstanceModel = glm::translate(*BoxInstanceModel,
+                                vec3(Box->Position.x, Box->Position.y, 0.f));
+                            *BoxInstanceModel = glm::scale(*BoxInstanceModel,
+                                vec3(Box->Size.x, Box->Size.y, 0.f));
+
+                            ++BoxIndex;
+                        }
+                    }
+
+                    ++EntityInstanceIndex;
+                }
+            }
+        }
+
         /*
         Chunk-based rendering.
 
@@ -634,18 +754,18 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
 
         // Tile Boxes
-        Renderer->glGenVertexArrays(1, &GameState->TileBoxesVAO);
-        Renderer->glBindVertexArray(GameState->TileBoxesVAO);
+        Renderer->glGenVertexArrays(1, &GameState->BoxesVAO);
+        Renderer->glBindVertexArray(GameState->BoxesVAO);
 
-        u32 TileBoxesVBO;
-        Renderer->glGenBuffers(1, &TileBoxesVBO);
-        Renderer->glBindBuffer(GL_ARRAY_BUFFER, TileBoxesVBO);
-        Renderer->glBufferData(GL_ARRAY_BUFFER, sizeof(QuadVertices) + GameState->TotalTileBoxCount * sizeof(mat4),
+        u32 BoxesVBO;
+        Renderer->glGenBuffers(1, &BoxesVBO);
+        Renderer->glBindBuffer(GL_ARRAY_BUFFER, BoxesVBO);
+        Renderer->glBufferData(GL_ARRAY_BUFFER, sizeof(QuadVertices) + GameState->TotalBoxCount * sizeof(mat4),
             NULL, GL_STATIC_DRAW);
 
         Renderer->glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(QuadVertices), QuadVertices);
         Renderer->glBufferSubData(GL_ARRAY_BUFFER, sizeof(QuadVertices),
-            GameState->TotalTileBoxCount * sizeof(mat4), TileBoxInstanceModels);
+            GameState->TotalBoxCount * sizeof(mat4), BoxInstanceModels);
 
         Renderer->glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, sizeof(vec4), (void *)0);
         Renderer->glEnableVertexAttribArray(0);
@@ -669,6 +789,50 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Renderer->glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(mat4),
             (void *)(sizeof(QuadVertices) + 3 * sizeof(vec4)));
         Renderer->glVertexAttribDivisor(4, 1);
+
+        // Drawable Entities
+        Renderer->glGenVertexArrays(1, &GameState->DrawableEntitiesVAO);
+        Renderer->glBindVertexArray(GameState->DrawableEntitiesVAO);
+
+        u32 DrawableEntitiesVBO;
+        Renderer->glGenBuffers(1, &DrawableEntitiesVBO);
+        Renderer->glBindBuffer(GL_ARRAY_BUFFER, DrawableEntitiesVBO);
+        Renderer->glBufferData(GL_ARRAY_BUFFER, sizeof(QuadVertices) + GameState->TotalDrawableObjectCount * (sizeof(mat4) + sizeof(vec2)),
+            NULL, GL_STATIC_DRAW);
+
+        Renderer->glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(QuadVertices), QuadVertices);
+        Renderer->glBufferSubData(GL_ARRAY_BUFFER, sizeof(QuadVertices),
+            GameState->TotalDrawableObjectCount * sizeof(mat4), EntityInstanceModels);
+        Renderer->glBufferSubData(GL_ARRAY_BUFFER, sizeof(QuadVertices) + GameState->TotalDrawableObjectCount * sizeof(mat4),
+            GameState->TotalDrawableObjectCount * sizeof(vec2), EntityInstanceUVOffsets01);
+
+        Renderer->glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, sizeof(vec4), (void *)0);
+        Renderer->glEnableVertexAttribArray(0);
+
+        Renderer->glEnableVertexAttribArray(1);
+        Renderer->glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(mat4),
+            (void *)(sizeof(QuadVertices)));
+        Renderer->glVertexAttribDivisor(1, 1);
+
+        Renderer->glEnableVertexAttribArray(2);
+        Renderer->glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(mat4),
+            (void *)(sizeof(QuadVertices) + sizeof(vec4)));
+        Renderer->glVertexAttribDivisor(2, 1);
+
+        Renderer->glEnableVertexAttribArray(3);
+        Renderer->glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(mat4),
+            (void *)(sizeof(QuadVertices) + 2 * sizeof(vec4)));
+        Renderer->glVertexAttribDivisor(3, 1);
+
+        Renderer->glEnableVertexAttribArray(4);
+        Renderer->glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(mat4),
+            (void *)(sizeof(QuadVertices) + 3 * sizeof(vec4)));
+        Renderer->glVertexAttribDivisor(4, 1);
+
+        Renderer->glVertexAttribPointer(5, 2, GL_FLOAT, GL_FALSE, sizeof(vec2),
+            (void *)(sizeof(QuadVertices) + GameState->TotalDrawableObjectCount * sizeof(mat4)));
+        Renderer->glEnableVertexAttribArray(5);
+        Renderer->glVertexAttribDivisor(5, 1);
 
         //GameState->ParticleEmittersIndex = 0;
         //GameState->ParticleEmittersMaxCount = 50;
@@ -710,7 +874,6 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         GameState->UpdateRate = 0.01f;   // 10 ms
         GameState->Lag = 0.f;
 
-        // todo: draw collision regions
         //Renderer->glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
         //GameState->ChargeSpawnCooldown = 0.f;
@@ -751,9 +914,14 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     Renderer->glBindVertexArray(GameState->TilesVAO);
     Renderer->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, GameState->TotalTileCount);
 
-    Renderer->glUseProgram(GameState->TileBoxesShaderProgram);
-    Renderer->glBindVertexArray(GameState->TileBoxesVAO);
-    Renderer->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, GameState->TotalTileBoxCount);
+    // todo: draw border around entities using stencil buffer
+    Renderer->glUseProgram(GameState->DrawableEntitiesShaderProgram);
+    Renderer->glBindVertexArray(GameState->DrawableEntitiesVAO);
+    Renderer->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, GameState->TotalDrawableObjectCount);
+
+    Renderer->glUseProgram(GameState->BoxesShaderProgram);
+    Renderer->glBindVertexArray(GameState->BoxesVAO);
+    Renderer->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, GameState->TotalBoxCount);
 
     //while (GameState->Lag >= GameState->UpdateRate) {
     //    Renderer->glBindBuffer(GL_ARRAY_BUFFER, GameState->VBOEntities);

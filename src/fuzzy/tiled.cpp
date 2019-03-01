@@ -105,6 +105,9 @@ LoadTileset(tileset *Tileset, const char *Json, memory_arena *Arena, platform_ap
         }
     }
 
+    Tileset->TilesetWidthPixelsToMeters = Tileset->TileWidthInMeters / Tileset->TileWidthInPixels;
+    Tileset->TilesetHeightPixelsToMeters = Tileset->TileHeightInMeters / Tileset->TileHeightInPixels;
+
     Tileset->TileCount = Document["tilecount"].GetUint();
     Tileset->Tiles = PushArray<tile_meta_info>(Arena, Tileset->TileCount);
 
@@ -177,7 +180,7 @@ global_variable const char *TILE_LAYER = "tilelayer";
 global_variable const char *OBJECT_LAYER = "objectgroup";
 
 void
-LoadMap(tiled_map *Map, const char *Json, memory_arena *Arena, platform_api *Platform) 
+LoadMap(tilemap *Map, const char *Json, memory_arena *Arena, platform_api *Platform) 
 {
     // todo: think more about the sizes
     u64 ValueBufferSize = Megabytes(32);

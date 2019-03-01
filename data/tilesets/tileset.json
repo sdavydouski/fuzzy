@@ -553,7 +553,30 @@
                  "duration":250,
                  "tileid":514
                 }],
-         "id":512
+         "id":512,
+         "objectgroup":
+            {
+             "draworder":"index",
+             "name":"",
+             "objects":[
+                    {
+                     "height":14,
+                     "id":1,
+                     "name":"",
+                     "rotation":0,
+                     "type":"",
+                     "visible":true,
+                     "width":9,
+                     "x":3,
+                     "y":2
+                    }],
+             "opacity":1,
+             "type":"objectgroup",
+             "visible":true,
+             "x":0,
+             "y":0
+            },
+         "type":"player"
         }, 
         {
          "animation":[
@@ -590,6 +613,10 @@
                  "tileid":551
                 }],
          "id":544
+        }, 
+        {
+         "id":692,
+         "type":"player"
         }],
  "tilewidth":16,
  "type":"tileset",
