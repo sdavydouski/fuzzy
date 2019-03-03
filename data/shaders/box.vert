@@ -9,7 +9,6 @@ layout(location = 0) in vec4 in_Vertex;
 layout(location = 1) in mat4 in_InstanceModel;
 
 out vec2 uv;
-out float ratio;
 
 layout(std140) uniform transforms
 {

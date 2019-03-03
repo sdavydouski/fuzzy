@@ -368,6 +368,34 @@ ProcessInput(game_state *GameState, game_input *Input)
 //    Entity->FrameTime = 0.f;
 //}
 
+internal_function void
+SetupVertexBuffer(renderer_api *Renderer, vertex_buffer *Buffer)
+{
+    Renderer->glGenVertexArrays(1, &Buffer->VAO);
+    Renderer->glBindVertexArray(Buffer->VAO);
+
+    Renderer->glGenBuffers(1, &Buffer->VBO);
+    Renderer->glBindBuffer(GL_ARRAY_BUFFER, Buffer->VBO);
+    Renderer->glBufferData(GL_ARRAY_BUFFER, Buffer->Size, NULL, Buffer->Usage);
+
+    for (u32 VertexSubBufferIndex = 0; VertexSubBufferIndex < Buffer->DataLayout->SubBufferCount; ++VertexSubBufferIndex)
+    {
+        vertex_sub_buffer *VertexSubBuffer = Buffer->DataLayout->SubBuffers + VertexSubBufferIndex;
+
+        Renderer->glBufferSubData(GL_ARRAY_BUFFER, VertexSubBuffer->Offset, VertexSubBuffer->Size, VertexSubBuffer->Data);
+    }
+
+    for (u32 VertexAttributeIndex = 0; VertexAttributeIndex < Buffer->AttributesLayout->AttributeCount; ++VertexAttributeIndex)
+    {
+        vertex_buffer_attribute *VertexAttribute = Buffer->AttributesLayout->Attributes + VertexAttributeIndex;
+
+        Renderer->glEnableVertexAttribArray(VertexAttribute->Index);
+        Renderer->glVertexAttribPointer(VertexAttribute->Index, VertexAttribute->Size, 
+            VertexAttribute->Type, VertexAttribute->Normalized, VertexAttribute->Stride, VertexAttribute->OffsetPointer);
+        Renderer->glVertexAttribDivisor(VertexAttribute->Index, VertexAttribute->Divisor);
+    }
+}
+
 extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
     assert(sizeof(game_state) <= Memory->PermanentStorageSize);
@@ -472,7 +500,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Renderer->glBufferData(GL_UNIFORM_BUFFER, sizeof(mat4), NULL, GL_STREAM_DRAW);
         Renderer->glBindBufferBase(GL_UNIFORM_BUFFER, transformsBindingPoint, GameState->UBO);
 
-
+        // todo: put this into memory arena
         f32 QuadVertices[] = {
             // Pos     // UV
             0.f, 0.f,  0.f, 1.f,
@@ -708,183 +736,314 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         If you want an infinite map, you'll have to create and destroy chunks on the fly. Otherwise it shouldn't be necessary.
         */
 
-        // Tiles
-        Renderer->glGenVertexArrays(1, &GameState->TilesVAO);
-        Renderer->glBindVertexArray(GameState->TilesVAO);
+        #pragma region Tiles
+        GameState->TilesVertexBuffer = {};
+        GameState->TilesVertexBuffer.Size = sizeof(QuadVertices) + GameState->TotalTileCount * (sizeof(mat4) + sizeof(vec2));
+        GameState->TilesVertexBuffer.Usage = GL_STATIC_DRAW;
 
-        u32 TilesVBO;
-        Renderer->glGenBuffers(1, &TilesVBO);
-        Renderer->glBindBuffer(GL_ARRAY_BUFFER, TilesVBO);
-        Renderer->glBufferData(GL_ARRAY_BUFFER, sizeof(QuadVertices) + GameState->TotalTileCount * (sizeof(mat4) + sizeof(vec2)),
-            NULL, GL_STATIC_DRAW);
+        GameState->TilesVertexBuffer.DataLayout = PushStruct<vertex_buffer_data_layout>(&GameState->WorldArena);
+        GameState->TilesVertexBuffer.DataLayout->SubBufferCount = 3;
+        GameState->TilesVertexBuffer.DataLayout->SubBuffers = PushArray<vertex_sub_buffer>(
+            &GameState->WorldArena, GameState->TilesVertexBuffer.DataLayout->SubBufferCount);
 
-        Renderer->glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(QuadVertices), QuadVertices);
-        Renderer->glBufferSubData(GL_ARRAY_BUFFER, sizeof(QuadVertices),
-            GameState->TotalTileCount * sizeof(mat4), TileInstanceModels);
-        Renderer->glBufferSubData(GL_ARRAY_BUFFER, sizeof(QuadVertices) + GameState->TotalTileCount * sizeof(mat4),
-            GameState->TotalTileCount * sizeof(vec2), TileInstanceUVOffsets01);
+        {
+            vertex_sub_buffer *SubBuffer = GameState->TilesVertexBuffer.DataLayout->SubBuffers + 0;
+            SubBuffer->Offset = 0;
+            SubBuffer->Size = sizeof(QuadVertices);
+            SubBuffer->Data = QuadVertices;
+        }
 
-        Renderer->glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, sizeof(vec4), (void *)0);
-        Renderer->glEnableVertexAttribArray(0);
+        {
+            vertex_sub_buffer *SubBuffer = GameState->TilesVertexBuffer.DataLayout->SubBuffers + 1;
+            SubBuffer->Offset = sizeof(QuadVertices);
+            SubBuffer->Size = GameState->TotalTileCount * sizeof(mat4);
+            SubBuffer->Data = TileInstanceModels;
+        }
 
-        Renderer->glEnableVertexAttribArray(1);
-        Renderer->glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(mat4),
-            (void *)(sizeof(QuadVertices)));
-        Renderer->glVertexAttribDivisor(1, 1);
+        {
+            vertex_sub_buffer *SubBuffer = GameState->TilesVertexBuffer.DataLayout->SubBuffers + 2;
+            SubBuffer->Offset = sizeof(QuadVertices) + GameState->TotalTileCount * sizeof(mat4);
+            SubBuffer->Size = GameState->TotalTileCount * sizeof(vec2);
+            SubBuffer->Data = TileInstanceUVOffsets01;
+        }
 
-        Renderer->glEnableVertexAttribArray(2);
-        Renderer->glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(mat4),
-            (void *)(sizeof(QuadVertices) + sizeof(vec4)));
-        Renderer->glVertexAttribDivisor(2, 1);
+        GameState->TilesVertexBuffer.AttributesLayout = PushStruct<vertex_buffer_attributes_layout>(&GameState->WorldArena);
+        GameState->TilesVertexBuffer.AttributesLayout->AttributeCount = 6;
+        GameState->TilesVertexBuffer.AttributesLayout->Attributes = PushArray<vertex_buffer_attribute>(
+            &GameState->WorldArena, GameState->TilesVertexBuffer.AttributesLayout->AttributeCount);
 
-        Renderer->glEnableVertexAttribArray(3);
-        Renderer->glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(mat4),
-            (void *)(sizeof(QuadVertices) + 2 * sizeof(vec4)));
-        Renderer->glVertexAttribDivisor(3, 1);
+        {
+            vertex_buffer_attribute *Attribute = GameState->TilesVertexBuffer.AttributesLayout->Attributes + 0;
+            Attribute->Index = 0;
+            Attribute->Size = 4;
+            Attribute->Type = GL_FLOAT;
+            Attribute->Normalized = GL_FALSE;
+            Attribute->Stride = sizeof(vec4);
+            Attribute->Divisor = 0;
+            Attribute->OffsetPointer = (void *)0;
+        }
 
-        Renderer->glEnableVertexAttribArray(4);
-        Renderer->glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(mat4),
-            (void *)(sizeof(QuadVertices) + 3 * sizeof(vec4)));
-        Renderer->glVertexAttribDivisor(4, 1);
+        {
+            vertex_buffer_attribute *Attribute = GameState->TilesVertexBuffer.AttributesLayout->Attributes + 1;
+            Attribute->Index = 1;
+            Attribute->Size = 4;
+            Attribute->Type = GL_FLOAT;
+            Attribute->Normalized = GL_FALSE;
+            Attribute->Stride = sizeof(mat4);
+            Attribute->Divisor = 1;
+            Attribute->OffsetPointer = (void *)(sizeof(QuadVertices));
+        }
 
-        Renderer->glVertexAttribPointer(5, 2, GL_FLOAT, GL_FALSE, sizeof(vec2),
-            (void *)(sizeof(QuadVertices) + GameState->TotalTileCount * sizeof(mat4)));
-        Renderer->glEnableVertexAttribArray(5);
-        Renderer->glVertexAttribDivisor(5, 1);
+        {
+            vertex_buffer_attribute *Attribute = GameState->TilesVertexBuffer.AttributesLayout->Attributes + 2;
+            Attribute->Index = 2;
+            Attribute->Size = 4;
+            Attribute->Type = GL_FLOAT;
+            Attribute->Normalized = GL_FALSE;
+            Attribute->Stride = sizeof(mat4);
+            Attribute->Divisor = 1;
+            Attribute->OffsetPointer = (void *)(sizeof(QuadVertices) + sizeof(vec4));
+        }
 
+        {
+            vertex_buffer_attribute *Attribute = GameState->TilesVertexBuffer.AttributesLayout->Attributes + 3;
+            Attribute->Index = 3;
+            Attribute->Size = 4;
+            Attribute->Type = GL_FLOAT;
+            Attribute->Normalized = GL_FALSE;
+            Attribute->Stride = sizeof(mat4);
+            Attribute->Divisor = 1;
+            Attribute->OffsetPointer = (void *)(sizeof(QuadVertices) + 2 * sizeof(vec4));
+        }
 
-        // Tile Boxes
-        Renderer->glGenVertexArrays(1, &GameState->BoxesVAO);
-        Renderer->glBindVertexArray(GameState->BoxesVAO);
+        {
+            vertex_buffer_attribute *Attribute = GameState->TilesVertexBuffer.AttributesLayout->Attributes + 4;
+            Attribute->Index = 4;
+            Attribute->Size = 4;
+            Attribute->Type = GL_FLOAT;
+            Attribute->Normalized = GL_FALSE;
+            Attribute->Stride = sizeof(mat4);
+            Attribute->Divisor = 1;
+            Attribute->OffsetPointer = (void *)(sizeof(QuadVertices) + 3 * sizeof(vec4));
+        }
 
-        u32 BoxesVBO;
-        Renderer->glGenBuffers(1, &BoxesVBO);
-        Renderer->glBindBuffer(GL_ARRAY_BUFFER, BoxesVBO);
-        Renderer->glBufferData(GL_ARRAY_BUFFER, sizeof(QuadVertices) + GameState->TotalBoxCount * sizeof(mat4),
-            NULL, GL_STATIC_DRAW);
+        {
+            vertex_buffer_attribute *Attribute = GameState->TilesVertexBuffer.AttributesLayout->Attributes + 5;
+            Attribute->Index = 5;
+            Attribute->Size = 2;
+            Attribute->Type = GL_FLOAT;
+            Attribute->Normalized = GL_FALSE;
+            Attribute->Stride = sizeof(vec2);
+            Attribute->Divisor = 1;
+            Attribute->OffsetPointer = (void *)(sizeof(QuadVertices) + GameState->TotalTileCount * sizeof(mat4));
+        }
 
-        Renderer->glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(QuadVertices), QuadVertices);
-        Renderer->glBufferSubData(GL_ARRAY_BUFFER, sizeof(QuadVertices),
-            GameState->TotalBoxCount * sizeof(mat4), BoxInstanceModels);
+        SetupVertexBuffer(Renderer, &GameState->TilesVertexBuffer);
+        #pragma endregion
 
-        Renderer->glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, sizeof(vec4), (void *)0);
-        Renderer->glEnableVertexAttribArray(0);
+        #pragma region Tile Boxes
+        GameState->BoxesVertexBuffer = {};
+        GameState->BoxesVertexBuffer.Size = sizeof(QuadVertices) + GameState->TotalBoxCount * sizeof(mat4);
+        GameState->BoxesVertexBuffer.Usage = GL_STREAM_DRAW;
 
-        Renderer->glEnableVertexAttribArray(1);
-        Renderer->glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(mat4),
-            (void *)(sizeof(QuadVertices)));
-        Renderer->glVertexAttribDivisor(1, 1);
+        GameState->BoxesVertexBuffer.DataLayout = PushStruct<vertex_buffer_data_layout>(&GameState->WorldArena);
+        GameState->BoxesVertexBuffer.DataLayout->SubBufferCount = 3;
+        GameState->BoxesVertexBuffer.DataLayout->SubBuffers = PushArray<vertex_sub_buffer>(
+            &GameState->WorldArena, GameState->BoxesVertexBuffer.DataLayout->SubBufferCount);
 
-        Renderer->glEnableVertexAttribArray(2);
-        Renderer->glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(mat4),
-            (void *)(sizeof(QuadVertices) + sizeof(vec4)));
-        Renderer->glVertexAttribDivisor(2, 1);
+        {
+            vertex_sub_buffer *SubBuffer = GameState->BoxesVertexBuffer.DataLayout->SubBuffers + 0;
+            SubBuffer->Offset = 0;
+            SubBuffer->Size = sizeof(QuadVertices);
+            SubBuffer->Data = QuadVertices;
+        }
 
-        Renderer->glEnableVertexAttribArray(3);
-        Renderer->glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(mat4),
-            (void *)(sizeof(QuadVertices) + 2 * sizeof(vec4)));
-        Renderer->glVertexAttribDivisor(3, 1);
+        {
+            vertex_sub_buffer *SubBuffer = GameState->BoxesVertexBuffer.DataLayout->SubBuffers + 1;
+            SubBuffer->Offset = sizeof(QuadVertices);
+            SubBuffer->Size = GameState->TotalBoxCount * sizeof(mat4);
+            SubBuffer->Data = BoxInstanceModels;
+        }
 
-        Renderer->glEnableVertexAttribArray(4);
-        Renderer->glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(mat4),
-            (void *)(sizeof(QuadVertices) + 3 * sizeof(vec4)));
-        Renderer->glVertexAttribDivisor(4, 1);
+        GameState->BoxesVertexBuffer.AttributesLayout = PushStruct<vertex_buffer_attributes_layout>(&GameState->WorldArena);
+        GameState->BoxesVertexBuffer.AttributesLayout->AttributeCount = 5;
+        GameState->BoxesVertexBuffer.AttributesLayout->Attributes = PushArray<vertex_buffer_attribute>(
+            &GameState->WorldArena, GameState->BoxesVertexBuffer.AttributesLayout->AttributeCount);
 
-        // Drawable Entities
-        Renderer->glGenVertexArrays(1, &GameState->DrawableEntitiesVAO);
-        Renderer->glBindVertexArray(GameState->DrawableEntitiesVAO);
+        {
+            vertex_buffer_attribute *Attribute = GameState->BoxesVertexBuffer.AttributesLayout->Attributes + 0;
+            Attribute->Index = 0;
+            Attribute->Size = 4;
+            Attribute->Type = GL_FLOAT;
+            Attribute->Normalized = GL_FALSE;
+            Attribute->Stride = sizeof(vec4);
+            Attribute->Divisor = 0;
+            Attribute->OffsetPointer = (void *)0;
+        }
 
-        u32 DrawableEntitiesVBO;
-        Renderer->glGenBuffers(1, &DrawableEntitiesVBO);
-        Renderer->glBindBuffer(GL_ARRAY_BUFFER, DrawableEntitiesVBO);
-        Renderer->glBufferData(GL_ARRAY_BUFFER, sizeof(QuadVertices) + GameState->TotalDrawableObjectCount * (sizeof(mat4) + sizeof(vec2)),
-            NULL, GL_STATIC_DRAW);
+        {
+            vertex_buffer_attribute *Attribute = GameState->BoxesVertexBuffer.AttributesLayout->Attributes + 1;
+            Attribute->Index = 1;
+            Attribute->Size = 4;
+            Attribute->Type = GL_FLOAT;
+            Attribute->Normalized = GL_FALSE;
+            Attribute->Stride = sizeof(mat4);
+            Attribute->Divisor = 1;
+            Attribute->OffsetPointer = (void *)(sizeof(QuadVertices));
+        }
 
-        Renderer->glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(QuadVertices), QuadVertices);
-        Renderer->glBufferSubData(GL_ARRAY_BUFFER, sizeof(QuadVertices),
-            GameState->TotalDrawableObjectCount * sizeof(mat4), EntityInstanceModels);
-        Renderer->glBufferSubData(GL_ARRAY_BUFFER, sizeof(QuadVertices) + GameState->TotalDrawableObjectCount * sizeof(mat4),
-            GameState->TotalDrawableObjectCount * sizeof(vec2), EntityInstanceUVOffsets01);
+        {
+            vertex_buffer_attribute *Attribute = GameState->BoxesVertexBuffer.AttributesLayout->Attributes + 2;
+            Attribute->Index = 2;
+            Attribute->Size = 4;
+            Attribute->Type = GL_FLOAT;
+            Attribute->Normalized = GL_FALSE;
+            Attribute->Stride = sizeof(mat4);
+            Attribute->Divisor = 1;
+            Attribute->OffsetPointer = (void *)(sizeof(QuadVertices) + sizeof(vec4));
+        }
 
-        Renderer->glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, sizeof(vec4), (void *)0);
-        Renderer->glEnableVertexAttribArray(0);
+        {
+            vertex_buffer_attribute *Attribute = GameState->BoxesVertexBuffer.AttributesLayout->Attributes + 3;
+            Attribute->Index = 3;
+            Attribute->Size = 4;
+            Attribute->Type = GL_FLOAT;
+            Attribute->Normalized = GL_FALSE;
+            Attribute->Stride = sizeof(mat4);
+            Attribute->Divisor = 1;
+            Attribute->OffsetPointer = (void *)(sizeof(QuadVertices) + 2 * sizeof(vec4));
+        }
 
-        Renderer->glEnableVertexAttribArray(1);
-        Renderer->glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(mat4),
-            (void *)(sizeof(QuadVertices)));
-        Renderer->glVertexAttribDivisor(1, 1);
+        {
+            vertex_buffer_attribute *Attribute = GameState->BoxesVertexBuffer.AttributesLayout->Attributes + 4;
+            Attribute->Index = 4;
+            Attribute->Size = 4;
+            Attribute->Type = GL_FLOAT;
+            Attribute->Normalized = GL_FALSE;
+            Attribute->Stride = sizeof(mat4);
+            Attribute->Divisor = 1;
+            Attribute->OffsetPointer = (void *)(sizeof(QuadVertices) + 3 * sizeof(vec4));
+        }
 
-        Renderer->glEnableVertexAttribArray(2);
-        Renderer->glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(mat4),
-            (void *)(sizeof(QuadVertices) + sizeof(vec4)));
-        Renderer->glVertexAttribDivisor(2, 1);
+        SetupVertexBuffer(Renderer, &GameState->BoxesVertexBuffer);
+        #pragma endregion
 
-        Renderer->glEnableVertexAttribArray(3);
-        Renderer->glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(mat4),
-            (void *)(sizeof(QuadVertices) + 2 * sizeof(vec4)));
-        Renderer->glVertexAttribDivisor(3, 1);
+        #pragma region Drawable Entities
+        GameState->DrawableEntitiesVertexBuffer = {};
+        GameState->DrawableEntitiesVertexBuffer.Size = sizeof(QuadVertices) + GameState->TotalDrawableObjectCount * (sizeof(mat4) + sizeof(vec2));
+        GameState->DrawableEntitiesVertexBuffer.Usage = GL_STREAM_DRAW;
 
-        Renderer->glEnableVertexAttribArray(4);
-        Renderer->glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(mat4),
-            (void *)(sizeof(QuadVertices) + 3 * sizeof(vec4)));
-        Renderer->glVertexAttribDivisor(4, 1);
+        GameState->DrawableEntitiesVertexBuffer.DataLayout = PushStruct<vertex_buffer_data_layout>(&GameState->WorldArena);
+        GameState->DrawableEntitiesVertexBuffer.DataLayout->SubBufferCount = 3;
+        GameState->DrawableEntitiesVertexBuffer.DataLayout->SubBuffers = PushArray<vertex_sub_buffer>(
+            &GameState->WorldArena, GameState->DrawableEntitiesVertexBuffer.DataLayout->SubBufferCount);
 
-        Renderer->glVertexAttribPointer(5, 2, GL_FLOAT, GL_FALSE, sizeof(vec2),
-            (void *)(sizeof(QuadVertices) + GameState->TotalDrawableObjectCount * sizeof(mat4)));
-        Renderer->glEnableVertexAttribArray(5);
-        Renderer->glVertexAttribDivisor(5, 1);
+        {
+            vertex_sub_buffer *SubBuffer = GameState->DrawableEntitiesVertexBuffer.DataLayout->SubBuffers + 0;
+            SubBuffer->Offset = 0;
+            SubBuffer->Size = sizeof(QuadVertices);
+            SubBuffer->Data = QuadVertices;
+        }
 
-        //GameState->ParticleEmittersIndex = 0;
-        //GameState->ParticleEmittersMaxCount = 50;
-        //GameState->ParticleEmitters = PushArray<particle_emitter>(&GameState->WorldArena, GameState->ParticleEmittersMaxCount);
+        {
+            vertex_sub_buffer *SubBuffer = GameState->DrawableEntitiesVertexBuffer.DataLayout->SubBuffers + 1;
+            SubBuffer->Offset = sizeof(QuadVertices);
+            SubBuffer->Size = GameState->TotalObjectCount * sizeof(mat4);
+            SubBuffer->Data = EntityInstanceModels;
+        }
 
-        //particle_emitter Charge = {};
-        //Charge.ParticlesCount = 500;
-        //Charge.NewParticlesCount = 5;
-        //Charge.Dt = 0.01f;
-        //Charge.Position = { 4.5 * TILE_SIZE.x, 6.5 * TILE_SIZE.y };
-        //Charge.Box.Position = { 4.5 * TILE_SIZE.x, 6.5 * TILE_SIZE.y };
-        //Charge.Box.Size = { 0.1f * TILE_SIZE.x, 0.1f * TILE_SIZE.x };
-        //Charge.Velocity = { 0.f, 0.f };
-        //Charge.ReflectorIndex = -1;
-        //Charge.TimeLeft = 3.f;
-        //Charge.Particles = PushArray<particle>(&GameState->WorldArena, Charge.ParticlesCount);
+        {
+            vertex_sub_buffer *SubBuffer = GameState->DrawableEntitiesVertexBuffer.DataLayout->SubBuffers + 2;
+            SubBuffer->Offset = sizeof(QuadVertices) + GameState->TotalObjectCount * sizeof(mat4);
+            SubBuffer->Size = GameState->TotalObjectCount * sizeof(vec2);
+            SubBuffer->Data = EntityInstanceUVOffsets01;
+        }
 
-        //GameState->ParticleEmitters[GameState->ParticleEmittersIndex++] = Charge;
+        GameState->DrawableEntitiesVertexBuffer.AttributesLayout = PushStruct<vertex_buffer_attributes_layout>(&GameState->WorldArena);
+        GameState->DrawableEntitiesVertexBuffer.AttributesLayout->AttributeCount = 6;
+        GameState->DrawableEntitiesVertexBuffer.AttributesLayout->Attributes = PushArray<vertex_buffer_attribute>(
+            &GameState->WorldArena, GameState->DrawableEntitiesVertexBuffer.AttributesLayout->AttributeCount);
 
-        //Renderer->glGenBuffers(1, &GameState->VBOParticles);
-        //Renderer->glBindBuffer(GL_ARRAY_BUFFER, GameState->VBOParticles);
-        //// todo: manage it somehow
-        //Renderer->glBufferData(GL_ARRAY_BUFFER, GameState->ParticleEmittersMaxCount * (Charge.ParticlesCount) * sizeof(particle),
-        //    nullptr, GL_STREAM_DRAW);
+        {
+            vertex_buffer_attribute *Attribute = GameState->DrawableEntitiesVertexBuffer.AttributesLayout->Attributes + 0;
+            Attribute->Index = 0;
+            Attribute->Size = 4;
+            Attribute->Type = GL_FLOAT;
+            Attribute->Normalized = GL_FALSE;
+            Attribute->Stride = sizeof(vec4);
+            Attribute->Divisor = 0;
+            Attribute->OffsetPointer = (void *)0;
+        }
 
-        //// particle's Position/Size
-        //Renderer->glVertexAttribPointer(9, 4, GL_FLOAT, GL_FALSE, sizeof(particle), (void*)Offset(particle, Position));
-        //Renderer->glEnableVertexAttribArray(9);
-        //Renderer->glVertexAttribDivisor(9, 1);
-        //// particle's uv
-        //Renderer->glVertexAttribPointer(10, 2, GL_FLOAT, GL_FALSE, sizeof(particle), (void*)Offset(particle, UV));
-        //Renderer->glEnableVertexAttribArray(10);
-        //Renderer->glVertexAttribDivisor(10, 1);
-        //// particle's alpha value
-        //Renderer->glVertexAttribPointer(11, 1, GL_FLOAT, GL_FALSE, sizeof(particle), (void*)Offset(particle, Alpha));
-        //Renderer->glEnableVertexAttribArray(11);
-        //Renderer->glVertexAttribDivisor(11, 1);
+        {
+            vertex_buffer_attribute *Attribute = GameState->DrawableEntitiesVertexBuffer.AttributesLayout->Attributes + 1;
+            Attribute->Index = 1;
+            Attribute->Size = 4;
+            Attribute->Type = GL_FLOAT;
+            Attribute->Normalized = GL_FALSE;
+            Attribute->Stride = sizeof(mat4);
+            Attribute->Divisor = 1;
+            Attribute->OffsetPointer = (void *)(sizeof(QuadVertices));
+        }
+
+        {
+            vertex_buffer_attribute *Attribute = GameState->DrawableEntitiesVertexBuffer.AttributesLayout->Attributes + 2;
+            Attribute->Index = 2;
+            Attribute->Size = 4;
+            Attribute->Type = GL_FLOAT;
+            Attribute->Normalized = GL_FALSE;
+            Attribute->Stride = sizeof(mat4);
+            Attribute->Divisor = 1;
+            Attribute->OffsetPointer = (void *)(sizeof(QuadVertices) + sizeof(vec4));
+        }
+
+        {
+            vertex_buffer_attribute *Attribute = GameState->DrawableEntitiesVertexBuffer.AttributesLayout->Attributes + 3;
+            Attribute->Index = 3;
+            Attribute->Size = 4;
+            Attribute->Type = GL_FLOAT;
+            Attribute->Normalized = GL_FALSE;
+            Attribute->Stride = sizeof(mat4);
+            Attribute->Divisor = 1;
+            Attribute->OffsetPointer = (void *)(sizeof(QuadVertices) + 2 * sizeof(vec4));
+        }
+
+        {
+            vertex_buffer_attribute *Attribute = GameState->DrawableEntitiesVertexBuffer.AttributesLayout->Attributes + 4;
+            Attribute->Index = 4;
+            Attribute->Size = 4;
+            Attribute->Type = GL_FLOAT;
+            Attribute->Normalized = GL_FALSE;
+            Attribute->Stride = sizeof(mat4);
+            Attribute->Divisor = 1;
+            Attribute->OffsetPointer = (void *)(sizeof(QuadVertices) + 3 * sizeof(vec4));
+        }
+
+        {
+            vertex_buffer_attribute *Attribute = GameState->DrawableEntitiesVertexBuffer.AttributesLayout->Attributes + 5;
+            Attribute->Index = 5;
+            Attribute->Size = 2;
+            Attribute->Type = GL_FLOAT;
+            Attribute->Normalized = GL_FALSE;
+            Attribute->Stride = sizeof(vec2);
+            Attribute->Divisor = 1;
+            Attribute->OffsetPointer = (void *)(sizeof(QuadVertices) + GameState->TotalDrawableObjectCount * sizeof(mat4));
+        }
+
+        SetupVertexBuffer(Renderer, &GameState->DrawableEntitiesVertexBuffer);
+        #pragma endregion
 
         GameState->UpdateRate = 0.01f;   // 10 ms
         GameState->Lag = 0.f;
 
         //Renderer->glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
-        //GameState->ChargeSpawnCooldown = 0.f;
-
         Renderer->glClearColor(BackgroundColor.r, BackgroundColor.g, BackgroundColor.b, 1.f);
 
-        GameState->IsInitialized = true;
-
         GameState->CameraPosition.x = 1.f;
-
         GameState->Zoom = 1.f / 1.f;
+
+        GameState->IsInitialized = true;
     }
 
     //tileset *Tileset = &GameState->Map.Tilesets[0].Source;
@@ -911,16 +1070,16 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     Renderer->glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(mat4), &VP);
 
     Renderer->glUseProgram(GameState->TilesShaderProgram);
-    Renderer->glBindVertexArray(GameState->TilesVAO);
+    Renderer->glBindVertexArray(GameState->TilesVertexBuffer.VAO);
     Renderer->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, GameState->TotalTileCount);
 
     // todo: draw border around entities using stencil buffer
     Renderer->glUseProgram(GameState->DrawableEntitiesShaderProgram);
-    Renderer->glBindVertexArray(GameState->DrawableEntitiesVAO);
+    Renderer->glBindVertexArray(GameState->DrawableEntitiesVertexBuffer.VAO);
     Renderer->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, GameState->TotalDrawableObjectCount);
 
     Renderer->glUseProgram(GameState->BoxesShaderProgram);
-    Renderer->glBindVertexArray(GameState->BoxesVAO);
+    Renderer->glBindVertexArray(GameState->BoxesVertexBuffer.VAO);
     Renderer->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, GameState->TotalBoxCount);
 
     //while (GameState->Lag >= GameState->UpdateRate) {

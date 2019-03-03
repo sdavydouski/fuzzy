@@ -230,16 +230,16 @@ struct game_memory {
     renderer_api Renderer;
 };
 
-struct game_key_state {
+struct key_state {
     b32 isPressed;
     b32 isProcessed;
 };
 
 struct game_input {
-    game_key_state Up;
-    game_key_state Down;
-    game_key_state Left;
-    game_key_state Right;
+    key_state Up;
+    key_state Down;
+    key_state Left;
+    key_state Right;
 };
 
 struct game_params {
