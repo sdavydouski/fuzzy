@@ -241,23 +241,21 @@ SweptAABB(const vec2 Point, const vec2 Delta, const aabb& Box, const vec2 Paddin
 global_variable const vec3 BackgroundColor = NormalizeRGB(29, 33, 45);
 
 internal_function void
-ProcessInput(game_state *GameState, game_input *Input)
+ProcessInput(game_state *GameState, game_input *Input, f32 Delta)
 {
-    f32 Delta = 0.01f;
-
     if (Input->Left.isPressed)
     {
-        GameState->Zoom -= Delta;
+        GameState->Player->Acceleration.x = -12.f;
     }
 
     if (Input->Right.isPressed)
     {
-        GameState->Zoom += Delta;
+        GameState->Player->Acceleration.x = 12.f;
     }
 
-    if (GameState->Zoom < 0.1f) {
-        GameState->Zoom = 0.1f;
-    }
+    //if (GameState->Zoom < 0.1f) {
+    //    GameState->Zoom = 0.1f;
+    //}
 
     //sprite *Bob = &GameState->Bob;
     //sprite *Swoosh = &GameState->Swoosh;
@@ -500,7 +498,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Renderer->glBufferData(GL_UNIFORM_BUFFER, sizeof(mat4), NULL, GL_STREAM_DRAW);
         Renderer->glBindBufferBase(GL_UNIFORM_BUFFER, transformsBindingPoint, GameState->UBO);
 
-        // todo: put this into memory arena
+        // todo: put this into memory arena?
         f32 QuadVertices[] = {
             // Pos     // UV
             0.f, 0.f,  0.f, 1.f,
@@ -567,7 +565,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         mat4 *TileInstanceModels = PushArray<mat4>(&GameState->WorldArena, GameState->TotalTileCount);
         vec2 *TileInstanceUVOffsets01 = PushArray<vec2>(&GameState->WorldArena, GameState->TotalTileCount);
         
-        aabb *Boxes = PushArray<aabb>(&GameState->WorldArena, GameState->TotalBoxCount);
+        GameState->Boxes = PushArray<aabb>(&GameState->WorldArena, GameState->TotalBoxCount);
         mat4 *BoxInstanceModels = PushArray<mat4>(&GameState->WorldArena, GameState->TotalBoxCount);
 
         u32 TileInstanceIndex = 0;
@@ -615,7 +613,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                             // Box
                             for (u32 CurrentBoxIndex = 0; CurrentBoxIndex < TileInfo->BoxCount; ++CurrentBoxIndex)
                             {
-                                aabb *Box = Boxes + BoxIndex;
+                                aabb *Box = GameState->Boxes + BoxIndex;
 
                                 Box->Position.x = TileXMeters + 
                                     TileInfo->Boxes[CurrentBoxIndex].Position.x * Tileset->TilesetWidthPixelsToMeters;
@@ -647,21 +645,38 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
         entity *Entities = PushArray<entity>(&GameState->WorldArena, GameState->TotalObjectCount);
 
+        // todo: !!!
+        GameState->Player = Entities + 0;
+
         mat4 *EntityInstanceModels = PushArray<mat4>(&GameState->WorldArena, GameState->TotalDrawableObjectCount);
         vec2 *EntityInstanceUVOffsets01 = PushArray<vec2>(&GameState->WorldArena, GameState->TotalDrawableObjectCount);
 
         u32 EntityInstanceIndex = 0;
+        u32 BoxModelOffset = sizeof(QuadVertices);
         for (u32 ObjectLayerIndex = 0; ObjectLayerIndex < GameState->Map.ObjectLayerCount; ++ObjectLayerIndex)
         {
             for (u32 ObjectIndex = 0; ObjectIndex < GameState->Map.ObjectLayers[ObjectLayerIndex].ObjectCount; ++ObjectIndex)
             {
                 map_object *Object = GameState->Map.ObjectLayers[ObjectLayerIndex].Objects + ObjectIndex;
-                entity *Entity = Entities + ObjectIndex;
+                entity *Entity = Entities + EntityInstanceIndex;
 
                 Entity->ID = Object->ID;
                 // tile objects have their position at bottom-left (https://github.com/bjorn/tiled/issues/91)
-                Entity->Position = vec2(Object->X * Tileset->TilesetWidthPixelsToMeters, (Object->Y - Object->Height) * Tileset->TilesetWidthPixelsToMeters);
-                Entity->Size = vec2(Object->Width * Tileset->TilesetHeightPixelsToMeters, Object->Height * Tileset->TilesetHeightPixelsToMeters);
+                Entity->Position = vec2(
+                    Object->X * Tileset->TilesetWidthPixelsToMeters, 
+                    (Object->Y - Object->Height) * Tileset->TilesetWidthPixelsToMeters
+                );
+                Entity->Size = vec2(
+                    Object->Width * Tileset->TilesetHeightPixelsToMeters, 
+                    Object->Height * Tileset->TilesetHeightPixelsToMeters
+                );
+
+                Entity->Type = Object->Type;
+                // todo: very fragile (deal with sizeof(QuadVertices) part)!
+                Entity->InstanceModelOffset = EntityInstanceIndex * sizeof(mat4) + sizeof(QuadVertices);
+
+                BoxModelOffset += BoxIndex * sizeof(mat4);
+                Entity->BoxModelOffset = BoxModelOffset;
 
                 if (Object->GID)
                 {
@@ -680,6 +695,8 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                     *EntityInstanceModel = glm::scale(*EntityInstanceModel,
                         vec3(Entity->Size.x, Entity->Size.y, 0.f));
 
+                    Entity->InstanceModel = EntityInstanceModel;
+
                     // EntityInstanceUVOffset01
                     vec2 *EntityInstanceUVOffset01 = EntityInstanceUVOffsets01 + EntityInstanceIndex;
 
@@ -693,10 +710,13 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
                     if (Entity->TileInfo)
                     {
+                        Entity->BoxCount = Entity->TileInfo->BoxCount;
+                        Entity->Boxes = PushArray<aabb_info>(&GameState->WorldArena, Entity->BoxCount);
+
                         // Box
                         for (u32 CurrentBoxIndex = 0; CurrentBoxIndex < Entity->TileInfo->BoxCount; ++CurrentBoxIndex)
                         {
-                            aabb *Box = Boxes + BoxIndex;
+                            aabb *Box = GameState->Boxes + BoxIndex;
 
                             Box->Position.x = EntityWorldXInMeters +
                                 Entity->TileInfo->Boxes[CurrentBoxIndex].Position.x * Tileset->TilesetWidthPixelsToMeters;
@@ -715,6 +735,9 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                                 vec3(Box->Position.x, Box->Position.y, 0.f));
                             *BoxInstanceModel = glm::scale(*BoxInstanceModel,
                                 vec3(Box->Size.x, Box->Size.y, 0.f));
+
+                            Entity->Boxes[CurrentBoxIndex].Box = Box;
+                            Entity->Boxes[CurrentBoxIndex].Model = BoxInstanceModel;
 
                             ++BoxIndex;
                         }
@@ -847,7 +870,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         GameState->BoxesVertexBuffer.Usage = GL_STREAM_DRAW;
 
         GameState->BoxesVertexBuffer.DataLayout = PushStruct<vertex_buffer_data_layout>(&GameState->WorldArena);
-        GameState->BoxesVertexBuffer.DataLayout->SubBufferCount = 3;
+        GameState->BoxesVertexBuffer.DataLayout->SubBufferCount = 2;
         GameState->BoxesVertexBuffer.DataLayout->SubBuffers = PushArray<vertex_sub_buffer>(
             &GameState->WorldArena, GameState->BoxesVertexBuffer.DataLayout->SubBufferCount);
 
@@ -1046,40 +1069,114 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         GameState->IsInitialized = true;
     }
 
-    //tileset *Tileset = &GameState->Map.Tilesets[0].Source;
+    //std::cout << Params->Delta << std::endl;
+    GameState->Lag += Params->Delta;
 
-    //GameState->Lag += Params->Delta;
+    ProcessInput(GameState, &Params->Input, Params->Delta);
 
-    //Renderer->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    while (GameState->Lag >= GameState->UpdateRate)
+    {
+        GameState->Lag -= GameState->UpdateRate;
 
-    ProcessInput(GameState, &Params->Input);
+        GameState->Projection = glm::ortho(
+            -GameState->ScreenWidthInMeters / 2.f * GameState->Zoom, GameState->ScreenWidthInMeters / 2.f * GameState->Zoom,
+            -GameState->ScreenHeightInMeters / 2.f * GameState->Zoom, GameState->ScreenHeightInMeters / 2.f * GameState->Zoom
+        );
+
+        mat4 View = mat4(1.f);
+        View = glm::translate(View, vec3(-GameState->ScreenWidthInMeters / 2.f, -GameState->ScreenHeightInMeters / 2.f, 0.f));
+
+        GameState->VP = GameState->Projection * View;
+
+        f32 Dt = 0.1f;
+
+        //GameState->Player->Acceleration.y = -0.01f;
+
+        // friction imitation
+        GameState->Player->Acceleration.x += -8.f * GameState->Player->Velocity.x;
+        GameState->Player->Velocity.x += GameState->Player->Acceleration.x * Dt;
+
+        GameState->Player->Acceleration.y += -0.01f * GameState->Player->Velocity.y;
+        GameState->Player->Velocity.y += GameState->Player->Acceleration.y * Dt;
+
+        vec2 Move = 0.5f * GameState->Player->Acceleration * Dt * Dt + GameState->Player->Velocity * Dt;
+
+        // todo: collision detection
+        vec2 CollisionTime = vec2(1.f);
+
+        for (u32 BoxIndex = 0; BoxIndex < GameState->TotalBoxCount; ++BoxIndex)
+        {
+            // todo: check only with player's boxes!
+            aabb *Box = GameState->Boxes + BoxIndex;
+
+            for (u32 PlayerBoxIndex = 0; PlayerBoxIndex < GameState->Player->BoxCount; ++PlayerBoxIndex)
+            {
+                aabb_info *PlayerBox = GameState->Player->Boxes + PlayerBoxIndex;
+
+                if (Box != PlayerBox->Box)
+                {
+                    vec2 t = SweptAABB(PlayerBox->Box->Position, Move, *Box, PlayerBox->Box->Size);
+
+                    if (t.x >= 0.f && t.x < CollisionTime.x) CollisionTime.x = t.x;
+                    if (t.y >= 0.f && t.y < CollisionTime.y) CollisionTime.y = t.y;
+                }
+            }
+        }
+
+        std::cout << CollisionTime.x << " " << CollisionTime.y << std::endl;
+
+        GameState->Player->Position += Move;
+        GameState->Player->Acceleration.x = 0.f;
+
+        // todo: store 1/size as well
+        *GameState->Player->InstanceModel = glm::scale(*GameState->Player->InstanceModel, vec3(1.f / GameState->Player->Size, 1.f));
+        *GameState->Player->InstanceModel = glm::translate(*GameState->Player->InstanceModel, vec3(Move, 0.f));
+        *GameState->Player->InstanceModel = glm::scale(*GameState->Player->InstanceModel, vec3(GameState->Player->Size, 1.f));
+
+        for (u32 PlayerBoxModelIndex = 0; PlayerBoxModelIndex < GameState->Player->BoxCount; ++PlayerBoxModelIndex)
+        {
+            aabb_info *PlayerBox = GameState->Player->Boxes + PlayerBoxModelIndex;
+
+            *PlayerBox->Model = glm::scale(*PlayerBox->Model, vec3(1.f / PlayerBox->Box->Size, 1.f));
+            *PlayerBox->Model = glm::translate(*PlayerBox->Model, vec3(Move, 0.f));
+            *PlayerBox->Model = glm::scale(*PlayerBox->Model, vec3(PlayerBox->Box->Size, 1.f));
+        }
+    }
 
     Renderer->glClear(GL_COLOR_BUFFER_BIT);
 
-    GameState->Projection = glm::ortho(
-        -GameState->ScreenWidthInMeters / 2.f * GameState->Zoom, GameState->ScreenWidthInMeters / 2.f * GameState->Zoom,
-        -GameState->ScreenHeightInMeters / 2.f * GameState->Zoom, GameState->ScreenHeightInMeters / 2.f * GameState->Zoom
-    );
-
-    mat4 View = mat4(1.f);
-    View = glm::translate(View, vec3(-GameState->ScreenWidthInMeters / 2.f, -GameState->ScreenHeightInMeters / 2.f, 0.f));
-
-    mat4 VP = GameState->Projection * View;
-
     Renderer->glBindBuffer(GL_UNIFORM_BUFFER, GameState->UBO);
-    Renderer->glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(mat4), &VP);
+    Renderer->glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(mat4), &GameState->VP);
 
+    // Draw tiles
     Renderer->glUseProgram(GameState->TilesShaderProgram);
     Renderer->glBindVertexArray(GameState->TilesVertexBuffer.VAO);
     Renderer->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, GameState->TotalTileCount);
 
+    // Draw entities
     // todo: draw border around entities using stencil buffer
     Renderer->glUseProgram(GameState->DrawableEntitiesShaderProgram);
     Renderer->glBindVertexArray(GameState->DrawableEntitiesVertexBuffer.VAO);
+    Renderer->glBindBuffer(GL_ARRAY_BUFFER, GameState->DrawableEntitiesVertexBuffer.VBO);
+
+    Renderer->glBufferSubData(GL_ARRAY_BUFFER, GameState->Player->InstanceModelOffset, sizeof(mat4), GameState->Player->InstanceModel);
+
     Renderer->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, GameState->TotalDrawableObjectCount);
 
+    // Draw collidable regions
     Renderer->glUseProgram(GameState->BoxesShaderProgram);
     Renderer->glBindVertexArray(GameState->BoxesVertexBuffer.VAO);
+    Renderer->glBindBuffer(GL_ARRAY_BUFFER, GameState->BoxesVertexBuffer.VBO);
+
+    for (u32 PlayerBoxModelIndex = 0; PlayerBoxModelIndex < GameState->Player->BoxCount; ++PlayerBoxModelIndex)
+    {
+        aabb_info *PlayerBox = GameState->Player->Boxes + PlayerBoxModelIndex;
+
+        Renderer->glBufferSubData(GL_ARRAY_BUFFER, 
+            GameState->Player->BoxModelOffset + PlayerBoxModelIndex * sizeof(mat4), 
+            sizeof(mat4), PlayerBox->Model);
+    }
+
     Renderer->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, GameState->TotalBoxCount);
 
     //while (GameState->Lag >= GameState->UpdateRate) {

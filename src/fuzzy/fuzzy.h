@@ -1,5 +1,6 @@
 #pragma once
 
+#include "fuzzy_types.h"
 #include "fuzzy_memory.h"
 
 #define ArrayLength(Array) (sizeof(Array) / sizeof((Array)[0]))
@@ -72,11 +73,10 @@ struct animation
     }
 };
 
-enum class tile_type
+enum class entity_type
 {
     UNKNOWN,
     PLAYER,
-    EFFECT,
     REFLECTOR,
     LAMP,
     PLATFORM
@@ -92,7 +92,7 @@ struct tile_meta_info
 {
     u32 Id;
 
-    tile_type Type;
+    char *Type;
 
     u32 BoxCount;
     aabb *Boxes;
@@ -103,12 +103,30 @@ struct tile_meta_info
     tile_meta_info *Next;
 };
 
+struct aabb_info
+{
+    aabb *Box;
+    mat4 *Model;
+};
+
 struct entity
 {
     u32 ID;
 
     vec2 Position;
+    vec2 Velocity;
+    vec2 Acceleration;
+
     vec2 Size;
+    entity_type Type;
+
+    u32 InstanceModelOffset;
+    u32 BoxModelOffset;
+    // todo: ???
+    mat4 *InstanceModel;
+
+    u32 BoxCount;
+    aabb_info *Boxes;
    
     tile_meta_info *TileInfo;
 };
@@ -132,7 +150,6 @@ struct drawable_entity
     b32 Collides;
     b32 UnderEffect;
     b32 IsRotating;
-    tile_type Type;
 
     b32 IsColliding;
 
@@ -248,6 +265,7 @@ struct map_object
     f32 Height;
 
     f32 Rotation;
+    entity_type Type;
 
     u32 ID;
     u32 GID;
@@ -367,11 +385,6 @@ struct vertex_buffer
     vertex_buffer_attributes_layout *AttributesLayout;
 };
 
-
-
-
-
-
 struct game_state
 {
     b32 IsInitialized;
@@ -401,43 +414,32 @@ struct game_state
     vec2 CameraPosition;
     f32 Zoom;
 
-    //drawable_entity Player;
-    //drawable_entity SwooshEffect;
-
-    //f32 SpriteWidth;
-    //f32 SpriteHeight;
-
     tilemap Map;
 
     f32 Lag;
     f32 UpdateRate;
-    //f32 ChargeSpawnCooldown;
 
     u32 TotalBoxCount;
-    vertex_buffer BoxesVertexBuffer;
-
     u32 TotalTileCount;
-    vertex_buffer TilesVertexBuffer;
-
     u32 TotalObjectCount;
     u32 TotalDrawableObjectCount;
-    vertex_buffer DrawableEntitiesVertexBuffer;
-    //u32 VBOTiles;
-    //u32 VBOEntities;
-    //u32 VBOParticles;
 
-    //s32 ModelUniformLocation;
-    //s32 ViewUniformLocation;
-    //s32 TypeUniformLocation;
+    vertex_buffer BoxesVertexBuffer;
+    vertex_buffer TilesVertexBuffer;
+    vertex_buffer DrawableEntitiesVertexBuffer;
 
     u32 TilesShaderProgram;
     u32 BoxesShaderProgram;
     u32 DrawableEntitiesShaderProgram;
 
     mat4 Projection;
+    mat4 VP;
 
     f32 ScreenWidthInMeters;
     f32 ScreenHeightInMeters;
 
     u32 UBO;
+
+    entity *Player;
+    aabb *Boxes;
 };

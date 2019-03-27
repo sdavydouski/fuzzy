@@ -3,34 +3,37 @@
 
 using namespace rapidjson;
 
-internal_function tile_type
-GetTileTypeFromString(const char *String)
+internal_function entity_type
+GetEntityTypeFromString(const char *String)
 {
-    tile_type Result;
+    entity_type Result;
 
-    if (StringEquals(String, "player")) 
+    if (String)
     {
-        Result = tile_type::PLAYER;
+        if (StringEquals(String, "player"))
+        {
+            Result = entity_type::PLAYER;
+        }
+        else if (StringEquals(String, "reflector"))
+        {
+            Result = entity_type::REFLECTOR;
+        }
+        else if (StringEquals(String, "lamp"))
+        {
+            Result = entity_type::LAMP;
+        }
+        else if (StringEquals(String, "platform"))
+        {
+            Result = entity_type::PLATFORM;
+        }
+        else
+        {
+            Result = entity_type::UNKNOWN;
+        }
     }
-    else if (StringEquals(String, "effect")) 
+    else
     {
-        Result = tile_type::EFFECT;
-    }
-    else if (StringEquals(String, "reflector")) 
-    {
-        Result = tile_type::REFLECTOR;
-    }
-    else if (StringEquals(String, "lamp")) 
-    {
-        Result = tile_type::LAMP;
-    }
-    else if (StringEquals(String, "platform")) 
-    {
-        Result = tile_type::PLATFORM;
-    }
-    else 
-    {
-        Result = tile_type::UNKNOWN;
+        Result = entity_type::UNKNOWN;
     }
 
     return Result;
@@ -126,9 +129,9 @@ LoadTileset(tileset *Tileset, const char *Json, memory_arena *Arena, platform_ap
             TileInfo->BoxCount = 0;
             TileInfo->AnimationFrameCount = 0;
 
-            if (Tile.HasMember("type")) 
+            if (Tile.HasMember("type"))
             {
-                TileInfo->Type = GetTileTypeFromString(Tile["type"].GetString());
+                TileInfo->Type = const_cast<char*>(Tile["type"].GetString());
             }
 
             if (Tile.HasMember("objectgroup")) 
@@ -310,8 +313,25 @@ LoadMap(tilemap *Map, const char *Json, memory_arena *Arena, platform_api *Platf
                 MapObject->Width = Object["width"].GetFloat();
                 MapObject->Height = Object["height"].GetFloat();
 
-                MapObject->Rotation = Object["rotation"].GetFloat();
                 MapObject->GID = Object["gid"].GetUint();
+
+                entity_type ObjectType = GetEntityTypeFromString(Object["type"].GetString());
+                if (ObjectType != entity_type::UNKNOWN)
+                {
+                    MapObject->Type = ObjectType;
+                }
+                else 
+                {
+                    u32 TileID = MapObject->GID - Map->Tilesets[0].FirstGID;
+                    tile_meta_info *TileInfo = GetTileMetaInfo(&Map->Tilesets[0].Source, TileID);
+
+                    if (TileInfo)
+                    {
+                        MapObject->Type = GetEntityTypeFromString(TileInfo->Type);
+                    }
+                }
+
+                MapObject->Rotation = Object["rotation"].GetFloat();
                 MapObject->ID = Object["id"].GetUint();
             }
 

@@ -302,7 +302,7 @@ s32 main(s32 Argc, char *Argv[])
 
     glfwMakeContextCurrent(Window);
 
-    glfwSwapInterval(0);
+    glfwSwapInterval(1);
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) 
     {
@@ -337,8 +337,6 @@ s32 main(s32 Argc, char *Argv[])
         GameParams.Delta = (f32) (TotalTime - LastTime);
         LastTime = TotalTime;
         
-        glfwPollEvents();
-
         CalculateFrameStats(Window, WindowTitle, TotalTime);
 
         if (GameCode.IsValid) 
@@ -346,6 +344,7 @@ s32 main(s32 Argc, char *Argv[])
             GameCode.UpdateAndRender(&GameMemory, &GameParams);
         }
 
+        glfwPollEvents();
         glfwSwapBuffers(Window);
     }
 
