@@ -28,6 +28,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "data", "data", "{40618B3B-D
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "shaders", "shaders", "{849DEA6D-56FE-4DD0-BF45-650BC17E3E72}"
 	ProjectSection(SolutionItems) = preProject
+		data\shaders\border.frag = data\shaders\border.frag
 		data\shaders\box.frag = data\shaders\box.frag
 		data\shaders\box.vert = data\shaders\box.vert
 		data\shaders\entity.frag = data\shaders\entity.frag

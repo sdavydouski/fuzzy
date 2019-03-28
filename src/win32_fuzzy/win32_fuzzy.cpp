@@ -145,6 +145,10 @@ Win32InitOpenGLRenderer(game_memory *GameMemory)
     GameMemory->Renderer.glGetString = glGetString;
     GameMemory->Renderer.glViewport = glViewport;
     GameMemory->Renderer.glEnable = glEnable;
+    GameMemory->Renderer.glStencilOp = glStencilOp;
+    GameMemory->Renderer.glStencilFunc = glStencilFunc;
+    GameMemory->Renderer.glStencilMask = glStencilMask;
+    GameMemory->Renderer.glDisable = glDisable;
 }
 
 internal_function void

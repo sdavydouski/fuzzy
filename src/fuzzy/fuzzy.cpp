@@ -503,6 +503,22 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             SetShaderUniform(Memory, TileSizeUniformLocation, TileSize01);
         }
 
+        {
+            char *VertexShaderSource = (char*)Memory->Platform.ReadFile("shaders/entity.vert").Contents;
+            char *FragmentShaderSource = (char*)Memory->Platform.ReadFile("shaders/border.frag").Contents;
+            u32 VertexShader = CreateShader(Memory, GameState, GL_VERTEX_SHADER, &VertexShaderSource[0]);
+            u32 FragmentShader = CreateShader(Memory, GameState, GL_FRAGMENT_SHADER, &FragmentShaderSource[0]);
+            GameState->DrawableEntitiesBorderShaderProgram = CreateProgram(Memory, GameState, VertexShader, FragmentShader);
+
+            u32 transformsUniformBlockIndex = Renderer->glGetUniformBlockIndex(GameState->DrawableEntitiesBorderShaderProgram, "transforms");
+            Renderer->glUniformBlockBinding(GameState->TilesShaderProgram, transformsUniformBlockIndex, transformsBindingPoint);
+
+            Renderer->glUseProgram(GameState->DrawableEntitiesBorderShaderProgram);
+
+            s32 TileSizeUniformLocation = GetUniformLocation(Memory, GameState->DrawableEntitiesBorderShaderProgram, "u_TileSize");
+            SetShaderUniform(Memory, TileSizeUniformLocation, TileSize01);
+        }
+
 
         Renderer->glGenBuffers(1, &GameState->UBO);
         Renderer->glBindBuffer(GL_UNIFORM_BUFFER, GameState->UBO);
@@ -661,13 +677,14 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             }
         }
 
+        // todo: i don't like the concept of entities and separate drawable entities
+        // think about this
         entity *Entities = PushArray<entity>(&GameState->WorldArena, GameState->TotalObjectCount);
-
-        // todo: !!!
-        GameState->Player = Entities + 0;
 
         mat4 *EntityInstanceModels = PushArray<mat4>(&GameState->WorldArena, GameState->TotalDrawableObjectCount);
         vec2 *EntityInstanceUVOffsets01 = PushArray<vec2>(&GameState->WorldArena, GameState->TotalDrawableObjectCount);
+
+        GameState->DrawableEntities = PushArray<entity>(&GameState->WorldArena, GameState->TotalDrawableObjectCount);
 
         u32 EntityInstanceIndex = 0;
         u32 BoxModelOffset = QuadVerticesSize;
@@ -759,6 +776,16 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
                             ++BoxIndex;
                         }
+                    }
+
+                    // DrawableEntity
+                    entity *DrawableEntity = GameState->DrawableEntities + EntityInstanceIndex;
+                    // todo: hmm...
+                    *DrawableEntity = *Entity;
+
+                    if (DrawableEntity->Type == entity_type::PLAYER)
+                    {
+                        GameState->Player = DrawableEntity;
                     }
 
                     ++EntityInstanceIndex;
@@ -1083,6 +1110,11 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Renderer->glEnable(GL_BLEND);
         Renderer->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+        Renderer->glEnable(GL_STENCIL_TEST);
+        Renderer->glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+
+        //Renderer->glEnable(GL_DEPTH_TEST);
+
         Renderer->glClearColor(BackgroundColor.r, BackgroundColor.g, BackgroundColor.b, 1.f);
         //Renderer->glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
@@ -1116,8 +1148,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         GameState->Player->Acceleration.x += -8.f * GameState->Player->Velocity.x;
         GameState->Player->Acceleration.y += -0.01f * GameState->Player->Velocity.y;
 
-        GameState->Player->Velocity.x += GameState->Player->Acceleration.x * Dt;
-        GameState->Player->Velocity.y += GameState->Player->Acceleration.y * Dt;
+        GameState->Player->Velocity += GameState->Player->Acceleration * Dt;
 
         vec2 Move = 0.5f * GameState->Player->Acceleration * Dt * Dt + GameState->Player->Velocity * Dt;
 
@@ -1135,8 +1166,14 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                 {
                     vec2 t = SweptAABB(PlayerBox->Box->Position, Move, *Box, PlayerBox->Box->Size);
 
-                    if (t.x >= 0.f && t.x < CollisionTime.x) CollisionTime.x = t.x;
-                    if (t.y >= 0.f && t.y < CollisionTime.y) CollisionTime.y = t.y;
+                    if (t.x >= 0.f && t.x < CollisionTime.x)
+                    {
+                        CollisionTime.x = t.x;
+                    }
+                    if (t.y >= 0.f && t.y < CollisionTime.y)
+                    {
+                        CollisionTime.y = t.y;
+                    }
                 }
             }
         }
@@ -1176,18 +1213,24 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         }
     }
 
-    Renderer->glClear(GL_COLOR_BUFFER_BIT);
+    Renderer->glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
     Renderer->glBindBuffer(GL_UNIFORM_BUFFER, GameState->UBO);
     Renderer->glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(mat4), &GameState->VP);
+
+    Renderer->glStencilFunc(GL_ALWAYS, 1, 0x00);
+    Renderer->glStencilMask(0x00);
 
     // Draw tiles
     Renderer->glUseProgram(GameState->TilesShaderProgram);
     Renderer->glBindVertexArray(GameState->TilesVertexBuffer.VAO);
     Renderer->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, GameState->TotalTileCount);
 
-    // Draw entities
-    // todo: draw border around entities using stencil buffer
+    // Draw entities (with borders)
+    // 1st render pass: draw objects as normal, writing to the stencil buffer
+    Renderer->glStencilFunc(GL_ALWAYS, 1, 0xFF);
+    Renderer->glStencilMask(0xFF);
+
     Renderer->glUseProgram(GameState->DrawableEntitiesShaderProgram);
     Renderer->glBindVertexArray(GameState->DrawableEntitiesVertexBuffer.VAO);
     Renderer->glBindBuffer(GL_ARRAY_BUFFER, GameState->DrawableEntitiesVertexBuffer.VBO);
@@ -1195,6 +1238,41 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     Renderer->glBufferSubData(GL_ARRAY_BUFFER, GameState->Player->InstanceModelOffset, sizeof(mat4), GameState->Player->InstanceModel);
 
     Renderer->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, GameState->TotalDrawableObjectCount);
+
+    // 2nd render pass: now draw slightly scaled versions of the objects, this time disabling stencil writing.
+    Renderer->glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+    Renderer->glStencilMask(0x00);
+
+    Renderer->glUseProgram(GameState->DrawableEntitiesBorderShaderProgram);
+
+    f32 scale = 1.1f;
+
+    for (u32 DrawableEntityIndex = 0; DrawableEntityIndex < GameState->TotalDrawableObjectCount; ++DrawableEntityIndex)
+    {
+        entity *Entity = GameState->DrawableEntities + DrawableEntityIndex;
+
+        *Entity->InstanceModel = glm::translate(*Entity->InstanceModel, vec3(Entity->Size / 2.f, 1.f));
+        *Entity->InstanceModel = glm::scale(*Entity->InstanceModel, vec3(scale, scale, 1.f));
+        *Entity->InstanceModel = glm::translate(*Entity->InstanceModel, vec3(-Entity->Size / 2.f, 1.f));
+
+        Renderer->glBufferSubData(GL_ARRAY_BUFFER, Entity->InstanceModelOffset, sizeof(mat4), Entity->InstanceModel);
+    }
+
+    Renderer->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, GameState->TotalDrawableObjectCount);
+
+    for (u32 DrawableEntityIndex = 0; DrawableEntityIndex < GameState->TotalDrawableObjectCount; ++DrawableEntityIndex)
+    {
+        entity *Entity = GameState->DrawableEntities + DrawableEntityIndex;
+
+        *Entity->InstanceModel = glm::translate(*Entity->InstanceModel, vec3(Entity->Size / 2.f, 1.f));
+        *Entity->InstanceModel = glm::scale(*Entity->InstanceModel, vec3(1.f / scale, 1.f / scale, 1.f));
+        *Entity->InstanceModel = glm::translate(*Entity->InstanceModel, vec3(-Entity->Size / 2.f, 1.f));
+
+        Renderer->glBufferSubData(GL_ARRAY_BUFFER, Entity->InstanceModelOffset, sizeof(mat4), Entity->InstanceModel);
+    }
+    
+    Renderer->glStencilFunc(GL_ALWAYS, 1, 0xFF);
+    Renderer->glStencilMask(0xFF);
 
     // Draw collidable regions
     Renderer->glUseProgram(GameState->BoxesShaderProgram);

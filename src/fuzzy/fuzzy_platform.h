@@ -183,9 +183,25 @@ typedef GL_VIEWPORT_FUNC(gl_viewport);
 #define GL_ENABLE(name) void name(GLenum cap)
 typedef GL_ENABLE(gl_enable);
 
+#define GL_STENCIL_OP(name) void name(GLenum sfail, GLenum dpfail, GLenum dppass)
+typedef GL_STENCIL_OP(gl_stencil_op);
+
+#define GL_STENCIL_FUNC_FUNC(name) void name(GLenum func, GLint ref, GLuint mask)
+typedef GL_STENCIL_FUNC_FUNC(gl_stencil_func);
+
+#define GL_STENCIL_MASK(name) void name(GLuint mask)
+typedef GL_STENCIL_MASK(gl_stencil_mask);
+
+#define GL_DISABLE(name) void name(GLenum cap)
+typedef GL_DISABLE(gl_disable);
+
 #pragma endregion
 
 struct renderer_api {
+    gl_disable *glDisable;
+    gl_stencil_mask *glStencilMask;
+    gl_stencil_func *glStencilFunc;
+    gl_stencil_op *glStencilOp;
     gl_get_string *glGetString;
     gl_viewport *glViewport;
     gl_enable *glEnable;

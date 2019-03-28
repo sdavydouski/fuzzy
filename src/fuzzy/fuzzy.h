@@ -128,6 +128,7 @@ struct entity
     u32 BoxCount;
     aabb_info *Boxes;
    
+    // todo: do i need this?
     tile_meta_info *TileInfo;
 };
 
@@ -422,7 +423,9 @@ struct game_state
     u32 TotalBoxCount;
     u32 TotalTileCount;
     u32 TotalObjectCount;
+
     u32 TotalDrawableObjectCount;
+    entity *DrawableEntities;
 
     vertex_buffer BoxesVertexBuffer;
     vertex_buffer TilesVertexBuffer;
@@ -431,6 +434,7 @@ struct game_state
     u32 TilesShaderProgram;
     u32 BoxesShaderProgram;
     u32 DrawableEntitiesShaderProgram;
+    u32 DrawableEntitiesBorderShaderProgram;
 
     mat4 Projection;
     mat4 VP;
