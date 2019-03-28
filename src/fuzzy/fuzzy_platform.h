@@ -5,6 +5,8 @@
 
 #define EXPORT __declspec(dllexport)
 
+#define ArrayCount(arr) (sizeof(arr) / sizeof(arr[0]))
+
 #pragma region Platform API
 
 #define PLATFORM_PRINT_OUTPUT(name) void name(const char *Output)
@@ -172,9 +174,21 @@ typedef GL_GET_UNIFORM_BLOCK_INDEX(gl_get_uniform_block_index);
 #define GL_UNIFORM_BLOCK_BINDING_FUNC(name) void name(u32 program, u32 uniformBlockIndex, u32 uniformBlockBinding)
 typedef GL_UNIFORM_BLOCK_BINDING_FUNC(gl_uniform_block_binding);
 
+#define GL_GET_STRING(name) const GLubyte* name(GLenum name)
+typedef GL_GET_STRING(gl_get_string);
+
+#define GL_VIEWPORT_FUNC(name) void name(GLint x, GLint y, GLsizei width, GLsizei height)
+typedef GL_VIEWPORT_FUNC(gl_viewport);
+
+#define GL_ENABLE(name) void name(GLenum cap)
+typedef GL_ENABLE(gl_enable);
+
 #pragma endregion
 
 struct renderer_api {
+    gl_get_string *glGetString;
+    gl_viewport *glViewport;
+    gl_enable *glEnable;
     gl_draw_arrays *glDrawArrays;
     gl_polygon_mode *glPolygonMode;
     gl_create_shader *glCreateShader;
@@ -240,6 +254,8 @@ struct game_input {
     key_state Down;
     key_state Left;
     key_state Right;
+
+    key_state Jump;
 };
 
 struct game_params {

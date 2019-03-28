@@ -142,6 +142,9 @@ Win32InitOpenGLRenderer(game_memory *GameMemory)
     GameMemory->Renderer.glGetActiveUniform = glGetActiveUniform;
     GameMemory->Renderer.glGetUniformBlockIndex = glGetUniformBlockIndex;
     GameMemory->Renderer.glUniformBlockBinding = glUniformBlockBinding;
+    GameMemory->Renderer.glGetString = glGetString;
+    GameMemory->Renderer.glViewport = glViewport;
+    GameMemory->Renderer.glEnable = glEnable;
 }
 
 internal_function void
@@ -228,7 +231,7 @@ s32 main(s32 Argc, char *Argv[])
     //glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
     GLFWmonitor *Monitor = glfwGetPrimaryMonitor();
-    const GLFWvidmode* Vidmode = glfwGetVideoMode(Monitor);
+    const GLFWvidmode* VidMode = glfwGetVideoMode(Monitor);
 
     char *WindowTitle = "Fuzzy";
 
@@ -240,7 +243,7 @@ s32 main(s32 Argc, char *Argv[])
         return EXIT_FAILURE;
     }
 
-    glfwSetWindowPos(Window, (Vidmode->width - GameParams.ScreenWidth) / 2, (Vidmode->height - GameParams.ScreenHeight) / 2);
+    glfwSetWindowPos(Window, (VidMode->width - GameParams.ScreenWidth) / 2, (VidMode->height - GameParams.ScreenHeight) / 2);
 
     glfwSetKeyCallback(Window, [](GLFWwindow *Window, s32 Key, s32 Scancode, s32 Action, s32 Mods) 
     {
@@ -263,6 +266,9 @@ s32 main(s32 Argc, char *Argv[])
                 break;
             case GLFW_KEY_DOWN:
                 GameParams.Input.Down.isPressed = true;
+                break;
+            case GLFW_KEY_SPACE:
+                GameParams.Input.Jump.isPressed = true;
                 break;
             default:
                 break;
@@ -289,6 +295,9 @@ s32 main(s32 Argc, char *Argv[])
                 GameParams.Input.Down.isPressed = false;
                 GameParams.Input.Down.isProcessed = false;
                 break;
+            case GLFW_KEY_SPACE:
+                GameParams.Input.Jump.isPressed = false;
+                GameParams.Input.Jump.isProcessed = false;
             default:
                 break;
             }
@@ -297,12 +306,17 @@ s32 main(s32 Argc, char *Argv[])
 
     glfwSetFramebufferSizeCallback(Window, [](GLFWwindow *Window, s32 Width, s32 Height) 
     {
-        glViewport(0, 0, Width, Height);
+        GameParams.ScreenWidth = Width;
+        GameParams.ScreenHeight = Height;
     });
 
     glfwMakeContextCurrent(Window);
 
+#if 1
     glfwSwapInterval(1);
+#else
+    glfwSwapInterval(0);
+#endif
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) 
     {
@@ -310,15 +324,6 @@ s32 main(s32 Argc, char *Argv[])
         return EXIT_FAILURE;
     }
 
-    char *OpenGLVersion = (char*)glGetString(GL_VERSION);
-    OutputDebugStringA(OpenGLVersion);
-    OutputDebugStringA("\n");
-
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-    glViewport(0, 0, GameParams.ScreenWidth, GameParams.ScreenHeight);
-    
     glfwSetTime(0.f);
 
     f64 LastTime = glfwGetTime();

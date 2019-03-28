@@ -253,6 +253,13 @@ ProcessInput(game_state *GameState, game_input *Input, f32 Delta)
         GameState->Player->Acceleration.x = 12.f;
     }
 
+    if (Input->Jump.isPressed && !Input->Jump.isProcessed)
+    {
+        Input->Jump.isProcessed = true;
+        GameState->Player->Acceleration.y = 12.f;
+        GameState->Player->Velocity.y = 0.f;
+    }
+
     //if (GameState->Zoom < 0.1f) {
     //    GameState->Zoom = 0.1f;
     //}
@@ -429,6 +436,10 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         tileset *Tileset = &GameState->Map.Tilesets[0].Source;
         u32 TilesetFirstGID = GameState->Map.Tilesets[0].FirstGID;
 
+        char *OpenGLVersion = (char*)Renderer->glGetString(GL_VERSION);
+        Platform->PrintOutput(OpenGLVersion);
+        Platform->PrintOutput("\n");
+
         u32 texture;
         Renderer->glGenTextures(1, &texture);
         Renderer->glBindTexture(GL_TEXTURE_2D, texture);
@@ -498,14 +509,21 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Renderer->glBufferData(GL_UNIFORM_BUFFER, sizeof(mat4), NULL, GL_STREAM_DRAW);
         Renderer->glBindBufferBase(GL_UNIFORM_BUFFER, transformsBindingPoint, GameState->UBO);
 
-        // todo: put this into memory arena?
-        f32 QuadVertices[] = {
+        f32 QuadVerticesData[] = {
             // Pos     // UV
             0.f, 0.f,  0.f, 1.f,
             0.f, 1.f,  0.f, 0.f,
             1.f, 0.f,  1.f, 1.f,
             1.f, 1.f,  1.f, 0.f
         };
+
+        u32 QuadVerticesSize = ArrayCount(QuadVerticesData) * sizeof(f32);
+        f32 *QuadVertices = PushArray<f32>(&GameState->WorldArena, ArrayCount(QuadVerticesData));
+        for (u32 Index = 0; Index < ArrayCount(QuadVerticesData); ++Index)
+        {
+            f32 *QuadVertex = QuadVertices + Index;
+            *QuadVertex = QuadVerticesData[Index];
+        }
 
         // todo: in future all these counts will be in asset pack file 
         GameState->TotalTileCount = 0;
@@ -652,7 +670,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         vec2 *EntityInstanceUVOffsets01 = PushArray<vec2>(&GameState->WorldArena, GameState->TotalDrawableObjectCount);
 
         u32 EntityInstanceIndex = 0;
-        u32 BoxModelOffset = sizeof(QuadVertices);
+        u32 BoxModelOffset = QuadVerticesSize;
         for (u32 ObjectLayerIndex = 0; ObjectLayerIndex < GameState->Map.ObjectLayerCount; ++ObjectLayerIndex)
         {
             for (u32 ObjectIndex = 0; ObjectIndex < GameState->Map.ObjectLayers[ObjectLayerIndex].ObjectCount; ++ObjectIndex)
@@ -672,8 +690,8 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                 );
 
                 Entity->Type = Object->Type;
-                // todo: very fragile (deal with sizeof(QuadVertices) part)!
-                Entity->InstanceModelOffset = EntityInstanceIndex * sizeof(mat4) + sizeof(QuadVertices);
+                // todo: very fragile (deal with QuadVerticesSize part)!
+                Entity->InstanceModelOffset = EntityInstanceIndex * sizeof(mat4) + QuadVerticesSize;
 
                 BoxModelOffset += BoxIndex * sizeof(mat4);
                 Entity->BoxModelOffset = BoxModelOffset;
@@ -761,7 +779,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
         #pragma region Tiles
         GameState->TilesVertexBuffer = {};
-        GameState->TilesVertexBuffer.Size = sizeof(QuadVertices) + GameState->TotalTileCount * (sizeof(mat4) + sizeof(vec2));
+        GameState->TilesVertexBuffer.Size = QuadVerticesSize + GameState->TotalTileCount * (sizeof(mat4) + sizeof(vec2));
         GameState->TilesVertexBuffer.Usage = GL_STATIC_DRAW;
 
         GameState->TilesVertexBuffer.DataLayout = PushStruct<vertex_buffer_data_layout>(&GameState->WorldArena);
@@ -772,20 +790,20 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         {
             vertex_sub_buffer *SubBuffer = GameState->TilesVertexBuffer.DataLayout->SubBuffers + 0;
             SubBuffer->Offset = 0;
-            SubBuffer->Size = sizeof(QuadVertices);
+            SubBuffer->Size = QuadVerticesSize;
             SubBuffer->Data = QuadVertices;
         }
 
         {
             vertex_sub_buffer *SubBuffer = GameState->TilesVertexBuffer.DataLayout->SubBuffers + 1;
-            SubBuffer->Offset = sizeof(QuadVertices);
+            SubBuffer->Offset = QuadVerticesSize;
             SubBuffer->Size = GameState->TotalTileCount * sizeof(mat4);
             SubBuffer->Data = TileInstanceModels;
         }
 
         {
             vertex_sub_buffer *SubBuffer = GameState->TilesVertexBuffer.DataLayout->SubBuffers + 2;
-            SubBuffer->Offset = sizeof(QuadVertices) + GameState->TotalTileCount * sizeof(mat4);
+            SubBuffer->Offset = QuadVerticesSize + GameState->TotalTileCount * sizeof(mat4);
             SubBuffer->Size = GameState->TotalTileCount * sizeof(vec2);
             SubBuffer->Data = TileInstanceUVOffsets01;
         }
@@ -814,7 +832,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             Attribute->Normalized = GL_FALSE;
             Attribute->Stride = sizeof(mat4);
             Attribute->Divisor = 1;
-            Attribute->OffsetPointer = (void *)(sizeof(QuadVertices));
+            Attribute->OffsetPointer = (void *)((u64)QuadVerticesSize);
         }
 
         {
@@ -825,7 +843,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             Attribute->Normalized = GL_FALSE;
             Attribute->Stride = sizeof(mat4);
             Attribute->Divisor = 1;
-            Attribute->OffsetPointer = (void *)(sizeof(QuadVertices) + sizeof(vec4));
+            Attribute->OffsetPointer = (void *)(QuadVerticesSize + sizeof(vec4));
         }
 
         {
@@ -836,7 +854,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             Attribute->Normalized = GL_FALSE;
             Attribute->Stride = sizeof(mat4);
             Attribute->Divisor = 1;
-            Attribute->OffsetPointer = (void *)(sizeof(QuadVertices) + 2 * sizeof(vec4));
+            Attribute->OffsetPointer = (void *)(QuadVerticesSize + 2 * sizeof(vec4));
         }
 
         {
@@ -847,7 +865,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             Attribute->Normalized = GL_FALSE;
             Attribute->Stride = sizeof(mat4);
             Attribute->Divisor = 1;
-            Attribute->OffsetPointer = (void *)(sizeof(QuadVertices) + 3 * sizeof(vec4));
+            Attribute->OffsetPointer = (void *)(QuadVerticesSize + 3 * sizeof(vec4));
         }
 
         {
@@ -858,7 +876,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             Attribute->Normalized = GL_FALSE;
             Attribute->Stride = sizeof(vec2);
             Attribute->Divisor = 1;
-            Attribute->OffsetPointer = (void *)(sizeof(QuadVertices) + GameState->TotalTileCount * sizeof(mat4));
+            Attribute->OffsetPointer = (void *)(QuadVerticesSize + GameState->TotalTileCount * sizeof(mat4));
         }
 
         SetupVertexBuffer(Renderer, &GameState->TilesVertexBuffer);
@@ -866,7 +884,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
         #pragma region Tile Boxes
         GameState->BoxesVertexBuffer = {};
-        GameState->BoxesVertexBuffer.Size = sizeof(QuadVertices) + GameState->TotalBoxCount * sizeof(mat4);
+        GameState->BoxesVertexBuffer.Size = QuadVerticesSize + GameState->TotalBoxCount * sizeof(mat4);
         GameState->BoxesVertexBuffer.Usage = GL_STREAM_DRAW;
 
         GameState->BoxesVertexBuffer.DataLayout = PushStruct<vertex_buffer_data_layout>(&GameState->WorldArena);
@@ -877,13 +895,13 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         {
             vertex_sub_buffer *SubBuffer = GameState->BoxesVertexBuffer.DataLayout->SubBuffers + 0;
             SubBuffer->Offset = 0;
-            SubBuffer->Size = sizeof(QuadVertices);
+            SubBuffer->Size = QuadVerticesSize;
             SubBuffer->Data = QuadVertices;
         }
 
         {
             vertex_sub_buffer *SubBuffer = GameState->BoxesVertexBuffer.DataLayout->SubBuffers + 1;
-            SubBuffer->Offset = sizeof(QuadVertices);
+            SubBuffer->Offset = QuadVerticesSize;
             SubBuffer->Size = GameState->TotalBoxCount * sizeof(mat4);
             SubBuffer->Data = BoxInstanceModels;
         }
@@ -912,7 +930,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             Attribute->Normalized = GL_FALSE;
             Attribute->Stride = sizeof(mat4);
             Attribute->Divisor = 1;
-            Attribute->OffsetPointer = (void *)(sizeof(QuadVertices));
+            Attribute->OffsetPointer = (void *)((u64)QuadVerticesSize);
         }
 
         {
@@ -923,7 +941,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             Attribute->Normalized = GL_FALSE;
             Attribute->Stride = sizeof(mat4);
             Attribute->Divisor = 1;
-            Attribute->OffsetPointer = (void *)(sizeof(QuadVertices) + sizeof(vec4));
+            Attribute->OffsetPointer = (void *)(QuadVerticesSize + sizeof(vec4));
         }
 
         {
@@ -934,7 +952,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             Attribute->Normalized = GL_FALSE;
             Attribute->Stride = sizeof(mat4);
             Attribute->Divisor = 1;
-            Attribute->OffsetPointer = (void *)(sizeof(QuadVertices) + 2 * sizeof(vec4));
+            Attribute->OffsetPointer = (void *)(QuadVerticesSize + 2 * sizeof(vec4));
         }
 
         {
@@ -945,7 +963,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             Attribute->Normalized = GL_FALSE;
             Attribute->Stride = sizeof(mat4);
             Attribute->Divisor = 1;
-            Attribute->OffsetPointer = (void *)(sizeof(QuadVertices) + 3 * sizeof(vec4));
+            Attribute->OffsetPointer = (void *)(QuadVerticesSize + 3 * sizeof(vec4));
         }
 
         SetupVertexBuffer(Renderer, &GameState->BoxesVertexBuffer);
@@ -953,7 +971,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
         #pragma region Drawable Entities
         GameState->DrawableEntitiesVertexBuffer = {};
-        GameState->DrawableEntitiesVertexBuffer.Size = sizeof(QuadVertices) + GameState->TotalDrawableObjectCount * (sizeof(mat4) + sizeof(vec2));
+        GameState->DrawableEntitiesVertexBuffer.Size = QuadVerticesSize + GameState->TotalDrawableObjectCount * (sizeof(mat4) + sizeof(vec2));
         GameState->DrawableEntitiesVertexBuffer.Usage = GL_STREAM_DRAW;
 
         GameState->DrawableEntitiesVertexBuffer.DataLayout = PushStruct<vertex_buffer_data_layout>(&GameState->WorldArena);
@@ -964,20 +982,20 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         {
             vertex_sub_buffer *SubBuffer = GameState->DrawableEntitiesVertexBuffer.DataLayout->SubBuffers + 0;
             SubBuffer->Offset = 0;
-            SubBuffer->Size = sizeof(QuadVertices);
+            SubBuffer->Size = QuadVerticesSize;
             SubBuffer->Data = QuadVertices;
         }
 
         {
             vertex_sub_buffer *SubBuffer = GameState->DrawableEntitiesVertexBuffer.DataLayout->SubBuffers + 1;
-            SubBuffer->Offset = sizeof(QuadVertices);
+            SubBuffer->Offset = QuadVerticesSize;
             SubBuffer->Size = GameState->TotalObjectCount * sizeof(mat4);
             SubBuffer->Data = EntityInstanceModels;
         }
 
         {
             vertex_sub_buffer *SubBuffer = GameState->DrawableEntitiesVertexBuffer.DataLayout->SubBuffers + 2;
-            SubBuffer->Offset = sizeof(QuadVertices) + GameState->TotalObjectCount * sizeof(mat4);
+            SubBuffer->Offset = QuadVerticesSize + GameState->TotalObjectCount * sizeof(mat4);
             SubBuffer->Size = GameState->TotalObjectCount * sizeof(vec2);
             SubBuffer->Data = EntityInstanceUVOffsets01;
         }
@@ -1006,7 +1024,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             Attribute->Normalized = GL_FALSE;
             Attribute->Stride = sizeof(mat4);
             Attribute->Divisor = 1;
-            Attribute->OffsetPointer = (void *)(sizeof(QuadVertices));
+            Attribute->OffsetPointer = (void *)((u64)QuadVerticesSize);
         }
 
         {
@@ -1017,7 +1035,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             Attribute->Normalized = GL_FALSE;
             Attribute->Stride = sizeof(mat4);
             Attribute->Divisor = 1;
-            Attribute->OffsetPointer = (void *)(sizeof(QuadVertices) + sizeof(vec4));
+            Attribute->OffsetPointer = (void *)(QuadVerticesSize + sizeof(vec4));
         }
 
         {
@@ -1028,7 +1046,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             Attribute->Normalized = GL_FALSE;
             Attribute->Stride = sizeof(mat4);
             Attribute->Divisor = 1;
-            Attribute->OffsetPointer = (void *)(sizeof(QuadVertices) + 2 * sizeof(vec4));
+            Attribute->OffsetPointer = (void *)(QuadVerticesSize + 2 * sizeof(vec4));
         }
 
         {
@@ -1039,7 +1057,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             Attribute->Normalized = GL_FALSE;
             Attribute->Stride = sizeof(mat4);
             Attribute->Divisor = 1;
-            Attribute->OffsetPointer = (void *)(sizeof(QuadVertices) + 3 * sizeof(vec4));
+            Attribute->OffsetPointer = (void *)(QuadVerticesSize + 3 * sizeof(vec4));
         }
 
         {
@@ -1050,7 +1068,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             Attribute->Normalized = GL_FALSE;
             Attribute->Stride = sizeof(vec2);
             Attribute->Divisor = 1;
-            Attribute->OffsetPointer = (void *)(sizeof(QuadVertices) + GameState->TotalDrawableObjectCount * sizeof(mat4));
+            Attribute->OffsetPointer = (void *)(QuadVerticesSize + GameState->TotalDrawableObjectCount * sizeof(mat4));
         }
 
         SetupVertexBuffer(Renderer, &GameState->DrawableEntitiesVertexBuffer);
@@ -1059,15 +1077,19 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         GameState->UpdateRate = 0.01f;   // 10 ms
         GameState->Lag = 0.f;
 
-        //Renderer->glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-
-        Renderer->glClearColor(BackgroundColor.r, BackgroundColor.g, BackgroundColor.b, 1.f);
-
         GameState->CameraPosition.x = 1.f;
         GameState->Zoom = 1.f / 1.f;
 
+        Renderer->glEnable(GL_BLEND);
+        Renderer->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        Renderer->glClearColor(BackgroundColor.r, BackgroundColor.g, BackgroundColor.b, 1.f);
+        //Renderer->glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
         GameState->IsInitialized = true;
     }
+
+    Renderer->glViewport(0, 0, ScreenWidth, ScreenHeight);
 
     //std::cout << Params->Delta << std::endl;
     GameState->Lag += Params->Delta;
@@ -1090,23 +1112,19 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
         f32 Dt = 0.1f;
 
-        //GameState->Player->Acceleration.y = -0.01f;
-
         // friction imitation
         GameState->Player->Acceleration.x += -8.f * GameState->Player->Velocity.x;
-        GameState->Player->Velocity.x += GameState->Player->Acceleration.x * Dt;
-
         GameState->Player->Acceleration.y += -0.01f * GameState->Player->Velocity.y;
+
+        GameState->Player->Velocity.x += GameState->Player->Acceleration.x * Dt;
         GameState->Player->Velocity.y += GameState->Player->Acceleration.y * Dt;
 
         vec2 Move = 0.5f * GameState->Player->Acceleration * Dt * Dt + GameState->Player->Velocity * Dt;
 
-        // todo: collision detection
         vec2 CollisionTime = vec2(1.f);
 
         for (u32 BoxIndex = 0; BoxIndex < GameState->TotalBoxCount; ++BoxIndex)
         {
-            // todo: check only with player's boxes!
             aabb *Box = GameState->Boxes + BoxIndex;
 
             for (u32 PlayerBoxIndex = 0; PlayerBoxIndex < GameState->Player->BoxCount; ++PlayerBoxIndex)
@@ -1123,22 +1141,37 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             }
         }
 
-        std::cout << CollisionTime.x << " " << CollisionTime.y << std::endl;
+        // collisions!
+        if (CollisionTime.x < 1.f)
+        {
+            GameState->Player->Velocity.x = 0.f;
+        }
 
-        GameState->Player->Position += Move;
+        if (CollisionTime.y < 1.f)
+        {
+            GameState->Player->Velocity.y = 0.f;
+        }
+
+        vec2 UpdatedMove = Move * CollisionTime;
+        GameState->Player->Position += UpdatedMove;
+
         GameState->Player->Acceleration.x = 0.f;
+        // gravity
+        GameState->Player->Acceleration.y = -0.4f;
 
         // todo: store 1/size as well
         *GameState->Player->InstanceModel = glm::scale(*GameState->Player->InstanceModel, vec3(1.f / GameState->Player->Size, 1.f));
-        *GameState->Player->InstanceModel = glm::translate(*GameState->Player->InstanceModel, vec3(Move, 0.f));
+        *GameState->Player->InstanceModel = glm::translate(*GameState->Player->InstanceModel, vec3(UpdatedMove, 0.f));
         *GameState->Player->InstanceModel = glm::scale(*GameState->Player->InstanceModel, vec3(GameState->Player->Size, 1.f));
 
         for (u32 PlayerBoxModelIndex = 0; PlayerBoxModelIndex < GameState->Player->BoxCount; ++PlayerBoxModelIndex)
         {
             aabb_info *PlayerBox = GameState->Player->Boxes + PlayerBoxModelIndex;
 
+            PlayerBox->Box->Position += UpdatedMove;
+
             *PlayerBox->Model = glm::scale(*PlayerBox->Model, vec3(1.f / PlayerBox->Box->Size, 1.f));
-            *PlayerBox->Model = glm::translate(*PlayerBox->Model, vec3(Move, 0.f));
+            *PlayerBox->Model = glm::translate(*PlayerBox->Model, vec3(UpdatedMove, 0.f));
             *PlayerBox->Model = glm::scale(*PlayerBox->Model, vec3(PlayerBox->Box->Size, 1.f));
         }
     }
