@@ -169,28 +169,6 @@ IntersectAABB(const aabb& Box1, const aabb& Box2)
 //    return Result;
 //}
 
-internal_function u32
-FindFirstUnusedParticle(particle_emitter *Emitter)
-{
-    for (u32 i = Emitter->LastUsedParticle; i < Emitter->ParticlesCount; ++i)
-    {
-        if (Emitter->Particles[i].Lifespan <= 0.f)
-        {
-            return i;
-        }
-    }
-
-    for (u32 i = 0; i < Emitter->LastUsedParticle; ++i)
-    {
-        if (Emitter->Particles[i].Lifespan <= 0.f)
-        {
-            return i;
-        }
-    }
-
-    return 0;       // all particles are taken, override the first one
-}
-
 // basic Minkowski-based collision detection
 internal_function vec2
 SweptAABB(const vec2 Point, const vec2 Delta, const aabb& Box, const vec2 Padding)
@@ -677,6 +655,9 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             }
         }
 
+        // todo: construct animation_frame-s from tile_animation_frame-s
+
+
         // todo: i don't like the concept of entities and separate drawable entities
         // think about this
         entity *Entities = PushArray<entity>(&GameState->WorldArena, GameState->TotalObjectCount);
@@ -717,8 +698,6 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                 {
                     u32 TileID = Object->GID - TilesetFirstGID;
 
-                    Entity->TileInfo = GetTileMetaInfo(Tileset, TileID);
-
                     // EntityInstanceModel
                     mat4 *EntityInstanceModel = EntityInstanceModels + EntityInstanceIndex;
                     *EntityInstanceModel = mat4(1.f);
@@ -743,25 +722,27 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                         (f32)(TileY * (Tileset->TileHeightInPixels + Tileset->Spacing) + Tileset->Margin) / (f32)Tileset->Image.Height
                     );
 
-                    if (Entity->TileInfo)
+                    tile_meta_info *EntityTileInfo = GetTileMetaInfo(Tileset, TileID);
+
+                    if (EntityTileInfo)
                     {
-                        Entity->BoxCount = Entity->TileInfo->BoxCount;
+                        Entity->BoxCount = EntityTileInfo->BoxCount;
                         Entity->Boxes = PushArray<aabb_info>(&GameState->WorldArena, Entity->BoxCount);
 
                         // Box
-                        for (u32 CurrentBoxIndex = 0; CurrentBoxIndex < Entity->TileInfo->BoxCount; ++CurrentBoxIndex)
+                        for (u32 CurrentBoxIndex = 0; CurrentBoxIndex < EntityTileInfo->BoxCount; ++CurrentBoxIndex)
                         {
                             aabb *Box = GameState->Boxes + BoxIndex;
 
                             Box->Position.x = EntityWorldXInMeters +
-                                Entity->TileInfo->Boxes[CurrentBoxIndex].Position.x * Tileset->TilesetWidthPixelsToMeters;
+                                EntityTileInfo->Boxes[CurrentBoxIndex].Position.x * Tileset->TilesetWidthPixelsToMeters;
                             Box->Position.y = EntityWorldYInMeters +
                                 ((Tileset->TileHeightInPixels -
-                                    Entity->TileInfo->Boxes[CurrentBoxIndex].Position.y -
-                                    Entity->TileInfo->Boxes[CurrentBoxIndex].Size.y) * Tileset->TilesetHeightPixelsToMeters);
+                                    EntityTileInfo->Boxes[CurrentBoxIndex].Position.y -
+                                    EntityTileInfo->Boxes[CurrentBoxIndex].Size.y) * Tileset->TilesetHeightPixelsToMeters);
 
-                            Box->Size.x = Entity->TileInfo->Boxes[CurrentBoxIndex].Size.x * Tileset->TilesetWidthPixelsToMeters;
-                            Box->Size.y = Entity->TileInfo->Boxes[CurrentBoxIndex].Size.y * Tileset->TilesetHeightPixelsToMeters;
+                            Box->Size.x = EntityTileInfo->Boxes[CurrentBoxIndex].Size.x * Tileset->TilesetWidthPixelsToMeters;
+                            Box->Size.y = EntityTileInfo->Boxes[CurrentBoxIndex].Size.y * Tileset->TilesetHeightPixelsToMeters;
 
                             mat4 *BoxInstanceModel = BoxInstanceModels + BoxIndex;
                             *BoxInstanceModel = mat4(1.f);

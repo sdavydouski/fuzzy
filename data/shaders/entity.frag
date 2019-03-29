@@ -12,5 +12,5 @@ uniform sampler2D u_TilesetImage;
 
 void main()
 {
-    out_Color = texture(u_TilesetImage, uv + instanceUVOffset); //* vec4(0.5f, 1.f, 0.5f, 1.f);
+    out_Color = texture(u_TilesetImage, uv + instanceUVOffset);
 }

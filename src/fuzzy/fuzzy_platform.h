@@ -329,3 +329,9 @@ ConcatenateStrings(const char *SourceA, const char *SourceB, char *Dest) {
 
     *Dest++ = 0;
 }
+
+inline void
+CopyString(const char *Source, char *Dest, u32 DestLength)
+{
+    strcpy_s(Dest, DestLength * sizeof(char), Source);
+}

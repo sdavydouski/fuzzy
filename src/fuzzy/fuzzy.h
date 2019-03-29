@@ -54,7 +54,7 @@ enum class direction
 {
     TOP, LEFT, BOTTOM, RIGHT
 };
-
+/*
 struct animation
 {
     s32 X;
@@ -72,7 +72,7 @@ struct animation
         return !(*this == Other);
     }
 };
-
+*/
 enum class entity_type
 {
     UNKNOWN,
@@ -82,25 +82,29 @@ enum class entity_type
     PLATFORM
 };
 
-struct animation_frame
+enum animation_type
 {
-    u32 Duration;
-    u32 TileId;
+    ANIMATION_PLAYER_IDLE,
+    ANIMATION_PLAYER_RUN,
+
+    ANIMATION_COUNT
 };
 
-struct tile_meta_info
+struct animation_frame
 {
-    u32 Id;
+    f32 XOffset01;
+    f32 YOffset01;
 
-    char *Type;
+    f32 Width01;
+    f32 Height01;
 
-    u32 BoxCount;
-    aabb *Boxes;
+    u32 Duration;
+};
 
+struct animation
+{
     u32 AnimationFrameCount;
     animation_frame *AnimationFrames;
-
-    tile_meta_info *Next;
 };
 
 struct aabb_info
@@ -120,47 +124,46 @@ struct entity
     vec2 Size;
     entity_type Type;
 
+    // todo: all this low-level rendering stuff shouldn't be here
     u32 InstanceModelOffset;
     u32 BoxModelOffset;
-    // todo: ???
     mat4 *InstanceModel;
 
     u32 BoxCount;
     aabb_info *Boxes;
-   
-    // todo: do i need this?
-    tile_meta_info *TileInfo;
+
+    animation *CurrentAnimation;
 };
 
-//todo: store in VBO only the ones that are actually used in shaders
-//todo: rework concept of drawable entities (allow creation and removal)
-struct drawable_entity
+struct tile_animation_frame
+{
+    u32 Duration;
+    u32 TileId;
+};
+
+struct tile_custom_property
+{
+    char *Name;
+    char *Type;
+    void *Value;
+};
+
+struct tile_meta_info
 {
     u32 Id;
-    vec2 Position;
-    aabb Box;
 
-    vec2 UV;
-    f32 Rotation;
+    char *Type;
 
-    u32 Flipped;
+    u32 BoxCount;
+    aabb *Boxes;
 
-    vec2 SpriteScale;
-    // todo: manage it somehow
-    u32 ShouldRender;
-    b32 Collides;
-    b32 UnderEffect;
-    b32 IsRotating;
+    u32 AnimationFrameCount;
+    tile_animation_frame *AnimationFrames;
 
-    b32 IsColliding;
+    u32 CustomPropertiesCount;
+    tile_custom_property *CustomProperties;
 
-    u32 Offset;
-
-    f32 StartAnimationDelay;
-    f32 StartAnimationDelayTimer;
-    animation *CurrentAnimation;
-    f32 XAnimationOffset;
-    f32 FrameTime;
+    tile_meta_info *Next;
 };
 
 struct tileset
@@ -207,8 +210,9 @@ GetTileMetaInfo(tileset *Tileset, u32 Id) {
 
 const u32 UNINITIALIZED_TILE_ID = 0;
 
-inline tile_meta_info*
-CreateTileMetaInfo(tileset *Tileset, u32 Id, memory_arena *Arena) {
+inline tile_meta_info *
+CreateTileMetaInfo(tileset *Tileset, u32 Id, memory_arena *Arena)
+{
     tile_meta_info *Result = nullptr;
 
     u32 HashValue = Hash(Id) % Tileset->TileCount;
@@ -217,13 +221,15 @@ CreateTileMetaInfo(tileset *Tileset, u32 Id, memory_arena *Arena) {
     tile_meta_info *Tile = Tileset->Tiles + HashValue;
 
     do {
-        if (Tile->Id == UNINITIALIZED_TILE_ID) {
+        if (Tile->Id == UNINITIALIZED_TILE_ID)
+        {
             Result = Tile;
             Result->Id = Id;
             break;
         }
 
-        if (Tile->Id != UNINITIALIZED_TILE_ID && !Tile->Next) {
+        if (Tile->Id != UNINITIALIZED_TILE_ID && !Tile->Next)
+        {
             // todo: potentially dangerous operation
             Tile->Next = PushStruct<tile_meta_info>(Arena);
             Tile->Next->Id = UNINITIALIZED_TILE_ID;
@@ -296,55 +302,6 @@ struct tilemap
     tileset_source *Tilesets;
 };
 
-struct sprite
-{
-    u32 AnimationsCount;
-    animation *Animations;
-
-    animation CurrentAnimation;
-
-    f32 XAnimationOffset;
-    f32 FrameTime;
-    u32 Flipped;
-
-    vec2 Position;
-    aabb Box;
-    vec2 Velocity;
-    vec2 Acceleration;
-
-    b32 ShouldRender;
-};
-
-struct particle
-{
-    vec2 Position;
-    vec2 Size;
-    vec2 Velocity;
-    vec2 Acceleration;
-    vec2 UV;
-    f32 Lifespan;
-    f32 Alpha;
-};
-
-struct particle_emitter
-{
-    u32 LastUsedParticle;
-    u32 NewParticlesCount;
-    f32 Dt;
-
-    u32 ParticlesCount;
-    particle *Particles;
-    
-    vec2 Position;
-    aabb Box;
-    vec2 Velocity;
-
-    b32 StopProcessingCollision;
-    s32 ReflectorIndex;
-    b32 IsFading;
-    f32 TimeLeft;
-};
-
 struct vertex_buffer_attribute
 {
     u32 Index;
@@ -391,25 +348,6 @@ struct game_state
     b32 IsInitialized;
 
     memory_arena WorldArena;
-
-    //sprite Bob;
-    //sprite Swoosh;
-    //sprite Lamp;
-    //sprite Platform;
-    //sprite Enemy;
-
-    //u32 EntitiesCount;
-    //entity *Entities;
-    //
-    //u32 DrawableEntitiesCount;
-    //drawable_entity *DrawableEntities;
-
-    //u32 ParticleEmittersIndex;
-    //u32 ParticleEmittersMaxCount;
-    //particle_emitter *ParticleEmitters;
-
-    //u32 TilesCount;
-    //tile *Tiles;
 
     // top-left corner <-- is it?
     vec2 CameraPosition;

@@ -164,15 +164,66 @@ LoadTileset(tileset *Tileset, const char *Json, memory_arena *Arena, platform_ap
                 assert(Animation.IsArray());
 
                 TileInfo->AnimationFrameCount = Animation.Size();
-                TileInfo->AnimationFrames = PushArray<animation_frame>(Arena, TileInfo->AnimationFrameCount);
+                TileInfo->AnimationFrames = PushArray<tile_animation_frame>(Arena, TileInfo->AnimationFrameCount);
 
                 for (SizeType AnimationFrameIndex = 0; AnimationFrameIndex < Animation.Size(); ++AnimationFrameIndex) 
                 {
                     const Value& Frame = Animation[AnimationFrameIndex];
 
-                    animation_frame *AnimationFrame = TileInfo->AnimationFrames + AnimationFrameIndex;
+                    tile_animation_frame *AnimationFrame = TileInfo->AnimationFrames + AnimationFrameIndex;
                     AnimationFrame->Duration = Frame["duration"].GetUint();
                     AnimationFrame->TileId = Frame["tileid"].GetUint();
+                }
+            }
+
+            if (Tile.HasMember("properties"))
+            {
+                const Value& CustomTileProperties = Tile["properties"];
+
+                assert(CustomTileProperties.IsArray());
+
+                TileInfo->CustomPropertiesCount = CustomTileProperties.Size();
+                TileInfo->CustomProperties = PushArray<tile_custom_property>(Arena, TileInfo->CustomPropertiesCount);
+
+                if (CustomTileProperties.IsArray())
+                {
+                    for (SizeType CustomTilePropertyIndex = 0; CustomTilePropertyIndex < CustomTileProperties.Size(); ++CustomTilePropertyIndex)
+                    {
+                        const Value& CustomTilePropertyValue = CustomTileProperties[CustomTilePropertyIndex];
+
+                        tile_custom_property *CustomTileProperty = TileInfo->CustomProperties + CustomTilePropertyIndex;
+
+                        *CustomTileProperty = {};
+                        CustomTileProperty->Name = const_cast<char*>(CustomTilePropertyValue["name"].GetString());
+                        CustomTileProperty->Type = const_cast<char*>(CustomTilePropertyValue["type"].GetString());
+
+                        if (StringEquals(CustomTileProperty->Type, "string"))
+                        {
+                            u32 StringLength = CustomTilePropertyValue["value"].GetStringLength() + 1;
+                            CustomTileProperty->Value = PushString(Arena, StringLength);
+                            CopyString(CustomTilePropertyValue["value"].GetString(), (char *)CustomTileProperty->Value, StringLength);
+                        }
+                        else if (StringEquals(CustomTileProperty->Type, "float"))
+                        {
+                            CustomTileProperty->Value = PushSize(Arena, sizeof(f32));
+                            *(f32 *)CustomTileProperty->Value = CustomTilePropertyValue["value"].GetFloat();
+                        }
+                        else if (StringEquals(CustomTileProperty->Type, "int"))
+                        {
+                            CustomTileProperty->Value = PushSize(Arena, sizeof(s32));
+                            *(s32 *)CustomTileProperty->Value = CustomTilePropertyValue["value"].GetInt();
+                        }
+                        else if (StringEquals(CustomTileProperty->Type, "bool"))
+                        {
+                            CustomTileProperty->Value = PushSize(Arena, sizeof(b32));
+                            *(b32 *)CustomTileProperty->Value = CustomTilePropertyValue["value"].GetBool();
+                        }
+                        else
+                        {
+                            // not supported property type
+                            InvalidCodePath;
+                        }
+                    }
                 }
             }
         }

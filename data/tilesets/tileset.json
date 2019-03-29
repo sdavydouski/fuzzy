@@ -676,7 +676,33 @@
              "visible":true,
              "x":0,
              "y":0
-            }
+            },
+         "properties":[
+                {
+                 "name":"AnimationIdle",
+                 "type":"int",
+                 "value":512
+                }, 
+                {
+                 "name":"AnimationRun",
+                 "type":"int",
+                 "value":544
+                }, 
+                {
+                 "name":"TestPropertyBool",
+                 "type":"bool",
+                 "value":true
+                }, 
+                {
+                 "name":"TestPropertyFloat",
+                 "type":"float",
+                 "value":4.42
+                }, 
+                {
+                 "name":"TestPropertyString",
+                 "type":"string",
+                 "value":"some value"
+                }]
         }, 
         {
          "animation":[
