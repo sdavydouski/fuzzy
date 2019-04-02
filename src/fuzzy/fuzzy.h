@@ -84,6 +84,8 @@ enum class entity_type
 
 enum animation_type
 {
+    ANIMATION_UNKNOWN,
+
     ANIMATION_PLAYER_IDLE,
     ANIMATION_PLAYER_RUN,
 
@@ -384,4 +386,7 @@ struct game_state
 
     entity *Player;
     aabb *Boxes;
+
+    u32 AnimationCount;
+    animation *Animations;
 };

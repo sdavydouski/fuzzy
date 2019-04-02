@@ -351,6 +351,27 @@ ProcessInput(game_state *GameState, game_input *Input, f32 Delta)
 //    Entity->FrameTime = 0.f;
 //}
 
+internal_function animation_type
+GetAnimationTypeFromString(const char *String)
+{
+    animation_type Result;
+
+    if (StringEquals(String, "PLAYER_IDLE"))
+    {
+        Result = ANIMATION_PLAYER_IDLE;
+    }
+    else if (StringEquals(String, "PLAYER_RUN"))
+    {
+        Result = ANIMATION_PLAYER_RUN;
+    }
+    else
+    {
+        Result = ANIMATION_UNKNOWN;
+    }
+
+    return Result;
+}
+
 internal_function void
 SetupVertexBuffer(renderer_api *Renderer, vertex_buffer *Buffer)
 {
@@ -569,6 +590,81 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             }
         }
 
+        // account for unknown animation
+        GameState->AnimationCount = 1;
+
+        for (u32 TilesetIndex = 0; TilesetIndex < GameState->Map.TilesetCount; ++TilesetIndex)
+        {
+            tileset_source *TilesetSource = GameState->Map.Tilesets + TilesetIndex;
+            tileset Tileset = TilesetSource->Source;
+
+            for (u32 TileIndex = 0; TileIndex < Tileset.TileCount; ++TileIndex)
+            {
+                tile_meta_info *Tile = Tileset.Tiles + TileIndex;
+                
+                if (Tile->AnimationFrameCount > 0)
+                {
+                    ++GameState->AnimationCount;
+                }
+            }
+        }
+
+        GameState->Animations = PushArray<animation>(&GameState->WorldArena, GameState->AnimationCount);
+
+        for (u32 TilesetIndex = 0; TilesetIndex < GameState->Map.TilesetCount; ++TilesetIndex)
+        {
+            tileset_source *TilesetSource = GameState->Map.Tilesets + TilesetIndex;
+            tileset Tileset = TilesetSource->Source;
+
+            for (u32 TileIndex = 0; TileIndex < Tileset.TileCount; ++TileIndex)
+            {
+                tile_meta_info *Tile = Tileset.Tiles + TileIndex;
+
+                if (Tile->AnimationFrameCount > 0)
+                {
+                    char *AnimationTypeString = nullptr;
+
+                    for (u32 CustomPropertyIndex = 0; CustomPropertyIndex < Tile->CustomPropertiesCount; ++CustomPropertyIndex)
+                    {
+                        tile_custom_property *CustomProperty = Tile->CustomProperties + CustomPropertyIndex;
+
+                        if (StringEquals(CustomProperty->Name, "AnimationType"))
+                        {
+                            AnimationTypeString = (char *)CustomProperty->Value;
+                            break;
+                        }
+                    }
+
+                    assert(AnimationTypeString);
+
+                    animation_type AnimationType = GetAnimationTypeFromString(AnimationTypeString);
+                    animation *Animation = &GameState->Animations[AnimationType];
+
+                    Animation->AnimationFrameCount = Tile->AnimationFrameCount;
+                    Animation->AnimationFrames = PushArray<animation_frame>(&GameState->WorldArena, Animation->AnimationFrameCount);
+
+                    for (u32 AnimationFrameIndex = 0; AnimationFrameIndex < Tile->AnimationFrameCount; ++AnimationFrameIndex)
+                    {
+                        tile_animation_frame *TileAnimationFrame = Tile->AnimationFrames + AnimationFrameIndex;
+                        animation_frame *AnimationFrame = Animation->AnimationFrames + AnimationFrameIndex;
+
+                        AnimationFrame->Duration = TileAnimationFrame->Duration;
+                        AnimationFrame->Width01 = (f32)Tileset.TileWidthInPixels / (f32)Tileset.Image.Width;
+                        AnimationFrame->Height01 = (f32)Tileset.TileHeightInPixels / (f32)Tileset.Image.Height;
+
+                        s32 TileX = TileAnimationFrame->TileId % Tileset.Columns;
+                        s32 TileY = TileAnimationFrame->TileId / Tileset.Columns;
+
+                        AnimationFrame->XOffset01 = 
+                            (f32)(TileX * (Tileset.TileWidthInPixels + Tileset.Spacing) + Tileset.Margin) / (f32)Tileset.Image.Width;
+                        AnimationFrame->YOffset01 = 
+                            (f32)(TileY * (Tileset.TileHeightInPixels + Tileset.Spacing) + Tileset.Margin) / (f32)Tileset.Image.Height;
+                    }
+                }
+            }
+        }
+
+
         vec2 ScreenCenterInMeters = vec2(
             GameState->ScreenWidthInMeters / 2.f,
             GameState->ScreenHeightInMeters / 2.f
@@ -767,6 +863,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                     if (DrawableEntity->Type == entity_type::PLAYER)
                     {
                         GameState->Player = DrawableEntity;
+                        GameState->Player->CurrentAnimation = &GameState->Animations[ANIMATION_PLAYER_IDLE];
                     }
 
                     ++EntityInstanceIndex;

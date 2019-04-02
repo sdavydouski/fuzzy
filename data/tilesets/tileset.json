@@ -679,14 +679,9 @@
             },
          "properties":[
                 {
-                 "name":"AnimationIdle",
-                 "type":"int",
-                 "value":512
-                }, 
-                {
-                 "name":"AnimationRun",
-                 "type":"int",
-                 "value":544
+                 "name":"AnimationType",
+                 "type":"string",
+                 "value":"PLAYER_IDLE"
                 }, 
                 {
                  "name":"TestPropertyBool",
@@ -702,7 +697,8 @@
                  "name":"TestPropertyString",
                  "type":"string",
                  "value":"some value"
-                }]
+                }],
+         "type":"player"
         }, 
         {
          "animation":[
@@ -738,7 +734,13 @@
                  "duration":100,
                  "tileid":551
                 }],
-         "id":544
+         "id":544,
+         "properties":[
+                {
+                 "name":"AnimationType",
+                 "type":"string",
+                 "value":"PLAYER_RUN"
+                }]
         }, 
         {
          "id":692,
