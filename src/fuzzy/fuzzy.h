@@ -84,8 +84,6 @@ enum class entity_type
 
 enum animation_type
 {
-    ANIMATION_UNKNOWN,
-
     ANIMATION_PLAYER_IDLE,
     ANIMATION_PLAYER_RUN,
 
@@ -100,6 +98,9 @@ struct animation_frame
     f32 Width01;
     f32 Height01;
 
+    f32 CurrentXOffset01;
+    f32 CurrentYOffset01;
+
     u32 Duration;
 };
 
@@ -107,7 +108,17 @@ struct animation
 {
     u32 AnimationFrameCount;
     animation_frame *AnimationFrames;
+
+    u32 CurrentFrameIndex;
+    f32 CurrentTime;
 };
+
+inline animation_frame *
+GetCurrentAnimationFrame(animation *Animation)
+{
+    animation_frame *Result = Animation->AnimationFrames + Animation->CurrentFrameIndex;
+    return Result;
+}
 
 struct aabb_info
 {
@@ -128,13 +139,18 @@ struct entity
 
     // todo: all this low-level rendering stuff shouldn't be here
     u32 InstanceModelOffset;
-    u32 BoxModelOffset;
     mat4 *InstanceModel;
+
+    u32 BoxModelOffset;
+
+    u32 InstanceUVOffset01Offset;
+    vec2 *InstanceUVOffset01;
 
     u32 BoxCount;
     aabb_info *Boxes;
 
     animation *CurrentAnimation;
+    b32 Flipped;
 };
 
 struct tile_animation_frame

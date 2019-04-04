@@ -219,16 +219,51 @@ SweptAABB(const vec2 Point, const vec2 Delta, const aabb& Box, const vec2 Paddin
 global_variable const vec3 BackgroundColor = NormalizeRGB(29, 33, 45);
 
 internal_function void
+ChangeAnimation(game_state *GameState, entity *Entity, animation_type AnimationType)
+{
+    animation *Animation = GameState->Animations + AnimationType;
+
+    if (Entity->CurrentAnimation != Animation)
+    {
+        Animation->CurrentFrameIndex = 0;
+
+        animation_frame *CurrentFrame = GetCurrentAnimationFrame(Animation);
+        CurrentFrame = Animation->AnimationFrames + Animation->CurrentFrameIndex;
+        CurrentFrame->CurrentXOffset01 = CurrentFrame->XOffset01;
+        CurrentFrame->CurrentYOffset01 = CurrentFrame->YOffset01;
+        Animation->CurrentTime = 0.f;
+
+        Entity->CurrentAnimation = Animation;
+    }
+}
+
+internal_function void
 ProcessInput(game_state *GameState, game_input *Input, f32 Delta)
 {
     if (Input->Left.isPressed)
     {
-        GameState->Player->Acceleration.x = -12.f;
+        GameState->Player->Acceleration.x = -8.f;
+        GameState->Player->Flipped = true;
+        ChangeAnimation(GameState, GameState->Player, ANIMATION_PLAYER_RUN);
     }
 
     if (Input->Right.isPressed)
     {
-        GameState->Player->Acceleration.x = 12.f;
+        GameState->Player->Acceleration.x = 8.f;
+        GameState->Player->Flipped = false;
+        ChangeAnimation(GameState, GameState->Player, ANIMATION_PLAYER_RUN);
+    }
+
+    if (!Input->Left.isPressed && !Input->Left.isProcessed)
+    {
+        Input->Left.isProcessed = true;
+        ChangeAnimation(GameState, GameState->Player, ANIMATION_PLAYER_IDLE);
+    }
+
+    if (!Input->Right.isPressed && !Input->Right.isProcessed)
+    {
+        Input->Right.isProcessed = true;
+        ChangeAnimation(GameState, GameState->Player, ANIMATION_PLAYER_IDLE);
     }
 
     if (Input->Jump.isPressed && !Input->Jump.isProcessed)
@@ -366,7 +401,7 @@ GetAnimationTypeFromString(const char *String)
     }
     else
     {
-        Result = ANIMATION_UNKNOWN;
+        InvalidCodePath;
     }
 
     return Result;
@@ -590,8 +625,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             }
         }
 
-        // account for unknown animation
-        GameState->AnimationCount = 1;
+        GameState->AnimationCount = 0;
 
         for (u32 TilesetIndex = 0; TilesetIndex < GameState->Map.TilesetCount; ++TilesetIndex)
         {
@@ -638,8 +672,9 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                     assert(AnimationTypeString);
 
                     animation_type AnimationType = GetAnimationTypeFromString(AnimationTypeString);
-                    animation *Animation = &GameState->Animations[AnimationType];
+                    animation *Animation = GameState->Animations + AnimationType;
 
+                    *Animation = {};
                     Animation->AnimationFrameCount = Tile->AnimationFrameCount;
                     Animation->AnimationFrames = PushArray<animation_frame>(&GameState->WorldArena, Animation->AnimationFrameCount);
 
@@ -659,7 +694,12 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                             (f32)(TileX * (Tileset.TileWidthInPixels + Tileset.Spacing) + Tileset.Margin) / (f32)Tileset.Image.Width;
                         AnimationFrame->YOffset01 = 
                             (f32)(TileY * (Tileset.TileHeightInPixels + Tileset.Spacing) + Tileset.Margin) / (f32)Tileset.Image.Height;
+
+                        AnimationFrame->CurrentXOffset01 = AnimationFrame->XOffset01;
+                        AnimationFrame->CurrentYOffset01 = AnimationFrame->YOffset01;
                     }
+
+                    Animation->CurrentFrameIndex = 0;
                 }
             }
         }
@@ -751,9 +791,6 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             }
         }
 
-        // todo: construct animation_frame-s from tile_animation_frame-s
-
-
         // todo: i don't like the concept of entities and separate drawable entities
         // think about this
         entity *Entities = PushArray<entity>(&GameState->WorldArena, GameState->TotalObjectCount);
@@ -772,6 +809,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                 map_object *Object = GameState->Map.ObjectLayers[ObjectLayerIndex].Objects + ObjectIndex;
                 entity *Entity = Entities + EntityInstanceIndex;
 
+                *Entity = {};
                 Entity->ID = Object->ID;
                 // tile objects have their position at bottom-left (https://github.com/bjorn/tiled/issues/91)
                 Entity->Position = vec2(
@@ -818,6 +856,11 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                         (f32)(TileY * (Tileset->TileHeightInPixels + Tileset->Spacing) + Tileset->Margin) / (f32)Tileset->Image.Height
                     );
 
+                    // todo:
+                    Entity->InstanceUVOffset01 = EntityInstanceUVOffset01;
+                    Entity->InstanceUVOffset01Offset = EntityInstanceIndex * sizeof(vec2) + 
+                        (GameState->TotalDrawableObjectCount * sizeof(mat4) + QuadVerticesSize);
+
                     tile_meta_info *EntityTileInfo = GetTileMetaInfo(Tileset, TileID);
 
                     if (EntityTileInfo)
@@ -863,7 +906,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                     if (DrawableEntity->Type == entity_type::PLAYER)
                     {
                         GameState->Player = DrawableEntity;
-                        GameState->Player->CurrentAnimation = &GameState->Animations[ANIMATION_PLAYER_IDLE];
+                        ChangeAnimation(GameState, GameState->Player, ANIMATION_PLAYER_IDLE);
                     }
 
                     ++EntityInstanceIndex;
@@ -1204,6 +1247,9 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     //std::cout << Params->Delta << std::endl;
     GameState->Lag += Params->Delta;
 
+    // todo: hack
+    //ChangeAnimation(GameState, GameState->Player, ANIMATION_PLAYER_IDLE);
+
     ProcessInput(GameState, &Params->Input, Params->Delta);
 
     while (GameState->Lag >= GameState->UpdateRate)
@@ -1312,6 +1358,38 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     Renderer->glUseProgram(GameState->DrawableEntitiesShaderProgram);
     Renderer->glBindVertexArray(GameState->DrawableEntitiesVertexBuffer.VAO);
     Renderer->glBindBuffer(GL_ARRAY_BUFFER, GameState->DrawableEntitiesVertexBuffer.VBO);
+
+    // animations
+    for (u32 EntityIndex = 0; EntityIndex < GameState->TotalDrawableObjectCount; ++EntityIndex)
+    {
+        entity *Entity = GameState->DrawableEntities + EntityIndex;
+
+        if (Entity->CurrentAnimation)
+        {
+            animation *Animation = Entity->CurrentAnimation;
+            animation_frame *CurrentFrame = GetCurrentAnimationFrame(Animation);
+
+            // todo: ms to sec
+            f32 AnimationFrameDuration = CurrentFrame->Duration / 1000.f;
+
+            if (Animation->CurrentTime >= AnimationFrameDuration)
+            {
+                Animation->CurrentFrameIndex = (Animation->CurrentFrameIndex + 1) % Animation->AnimationFrameCount;
+                CurrentFrame = GetCurrentAnimationFrame(Animation);
+
+                CurrentFrame->CurrentXOffset01 = CurrentFrame->XOffset01;
+                CurrentFrame->CurrentYOffset01 = CurrentFrame->YOffset01;
+
+                Animation->CurrentTime = 0.f;
+            }
+
+            Entity->InstanceUVOffset01->x = CurrentFrame->CurrentXOffset01;
+            Entity->InstanceUVOffset01->y = CurrentFrame->CurrentYOffset01;
+            Renderer->glBufferSubData(GL_ARRAY_BUFFER, Entity->InstanceUVOffset01Offset, sizeof(vec2), Entity->InstanceUVOffset01);
+
+            Animation->CurrentTime += Params->Delta;
+        }
+    }
 
     Renderer->glBufferSubData(GL_ARRAY_BUFFER, GameState->Player->InstanceModelOffset, sizeof(mat4), GameState->Player->InstanceModel);
 
