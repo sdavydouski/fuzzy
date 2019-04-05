@@ -243,14 +243,15 @@ ProcessInput(game_state *GameState, game_input *Input, f32 Delta)
     if (Input->Left.isPressed)
     {
         GameState->Player->Acceleration.x = -8.f;
-        GameState->Player->Flipped = true;
+        // todo: in future handle flipped vertically/diagonally
+        GameState->Player->RenderInfo->Flipped = true;
         ChangeAnimation(GameState, GameState->Player, ANIMATION_PLAYER_RUN);
     }
 
     if (Input->Right.isPressed)
     {
         GameState->Player->Acceleration.x = 8.f;
-        GameState->Player->Flipped = false;
+        GameState->Player->RenderInfo->Flipped = false;
         ChangeAnimation(GameState, GameState->Player, ANIMATION_PLAYER_RUN);
     }
 
@@ -429,8 +430,16 @@ SetupVertexBuffer(renderer_api *Renderer, vertex_buffer *Buffer)
         vertex_buffer_attribute *VertexAttribute = Buffer->AttributesLayout->Attributes + VertexAttributeIndex;
 
         Renderer->glEnableVertexAttribArray(VertexAttribute->Index);
-        Renderer->glVertexAttribPointer(VertexAttribute->Index, VertexAttribute->Size, 
-            VertexAttribute->Type, VertexAttribute->Normalized, VertexAttribute->Stride, VertexAttribute->OffsetPointer);
+        if (VertexAttribute->Type == GL_UNSIGNED_INT)
+        {
+            Renderer->glVertexAttribIPointer(VertexAttribute->Index, VertexAttribute->Size,
+                VertexAttribute->Type, VertexAttribute->Stride, VertexAttribute->OffsetPointer);
+        }
+        else 
+        {
+            Renderer->glVertexAttribPointer(VertexAttribute->Index, VertexAttribute->Size,
+                VertexAttribute->Type, VertexAttribute->Normalized, VertexAttribute->Stride, VertexAttribute->OffsetPointer);
+        }
         Renderer->glVertexAttribDivisor(VertexAttribute->Index, VertexAttribute->Divisor);
     }
 }
@@ -795,8 +804,8 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         // think about this
         entity *Entities = PushArray<entity>(&GameState->WorldArena, GameState->TotalObjectCount);
 
-        mat4 *EntityInstanceModels = PushArray<mat4>(&GameState->WorldArena, GameState->TotalDrawableObjectCount);
-        vec2 *EntityInstanceUVOffsets01 = PushArray<vec2>(&GameState->WorldArena, GameState->TotalDrawableObjectCount);
+        GameState->EntityRenderInfoCount = GameState->TotalDrawableObjectCount;
+        GameState->EntityRenderInfos = PushArray<entity_render_info>(&GameState->WorldArena, GameState->EntityRenderInfoCount);
 
         GameState->DrawableEntities = PushArray<entity>(&GameState->WorldArena, GameState->TotalDrawableObjectCount);
 
@@ -822,44 +831,37 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                 );
 
                 Entity->Type = Object->Type;
+
+                entity_render_info *EntityRenderInfo = GameState->EntityRenderInfos + EntityInstanceIndex;
                 // todo: very fragile (deal with QuadVerticesSize part)!
-                Entity->InstanceModelOffset = EntityInstanceIndex * sizeof(mat4) + QuadVerticesSize;
+                EntityRenderInfo->Offset = EntityInstanceIndex * sizeof(entity_render_info) + QuadVerticesSize;
 
                 BoxModelOffset += BoxIndex * sizeof(mat4);
-                Entity->BoxModelOffset = BoxModelOffset;
+                EntityRenderInfo->BoxModelOffset = BoxModelOffset;
 
                 if (Object->GID)
                 {
                     u32 TileID = Object->GID - TilesetFirstGID;
 
                     // EntityInstanceModel
-                    mat4 *EntityInstanceModel = EntityInstanceModels + EntityInstanceIndex;
-                    *EntityInstanceModel = mat4(1.f);
+                    EntityRenderInfo->InstanceModel = mat4(1.f);
 
                     f32 EntityWorldXInMeters = ScreenCenterInMeters.x + Entity->Position.x;
                     f32 EntityWorldYInMeters = ScreenCenterInMeters.y - Entity->Position.y;
 
-                    *EntityInstanceModel = glm::translate(*EntityInstanceModel, vec3(EntityWorldXInMeters, EntityWorldYInMeters, 0.f));
-                    *EntityInstanceModel = glm::scale(*EntityInstanceModel,
+                    EntityRenderInfo->InstanceModel = glm::translate(EntityRenderInfo->InstanceModel, 
+                        vec3(EntityWorldXInMeters, EntityWorldYInMeters, 0.f));
+                    EntityRenderInfo->InstanceModel = glm::scale(EntityRenderInfo->InstanceModel,
                         vec3(Entity->Size.x, Entity->Size.y, 0.f));
 
-                    Entity->InstanceModel = EntityInstanceModel;
-
                     // EntityInstanceUVOffset01
-                    vec2 *EntityInstanceUVOffset01 = EntityInstanceUVOffsets01 + EntityInstanceIndex;
-
                     s32 TileX = TileID % Tileset->Columns;
                     s32 TileY = TileID / Tileset->Columns;
 
-                    *EntityInstanceUVOffset01 = vec2(
+                    EntityRenderInfo->InstanceUVOffset01 = vec2(
                         (f32)(TileX * (Tileset->TileWidthInPixels + Tileset->Spacing) + Tileset->Margin) / (f32)Tileset->Image.Width,
                         (f32)(TileY * (Tileset->TileHeightInPixels + Tileset->Spacing) + Tileset->Margin) / (f32)Tileset->Image.Height
                     );
-
-                    // todo:
-                    Entity->InstanceUVOffset01 = EntityInstanceUVOffset01;
-                    Entity->InstanceUVOffset01Offset = EntityInstanceIndex * sizeof(vec2) + 
-                        (GameState->TotalDrawableObjectCount * sizeof(mat4) + QuadVerticesSize);
 
                     tile_meta_info *EntityTileInfo = GetTileMetaInfo(Tileset, TileID);
 
@@ -897,6 +899,8 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                             ++BoxIndex;
                         }
                     }
+
+                    Entity->RenderInfo = EntityRenderInfo;
 
                     // DrawableEntity
                     entity *DrawableEntity = GameState->DrawableEntities + EntityInstanceIndex;
@@ -1119,11 +1123,11 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
         #pragma region Drawable Entities
         GameState->DrawableEntitiesVertexBuffer = {};
-        GameState->DrawableEntitiesVertexBuffer.Size = QuadVerticesSize + GameState->TotalDrawableObjectCount * (sizeof(mat4) + sizeof(vec2));
+        GameState->DrawableEntitiesVertexBuffer.Size = QuadVerticesSize + GameState->EntityRenderInfoCount * sizeof(entity_render_info);
         GameState->DrawableEntitiesVertexBuffer.Usage = GL_STREAM_DRAW;
 
         GameState->DrawableEntitiesVertexBuffer.DataLayout = PushStruct<vertex_buffer_data_layout>(&GameState->WorldArena);
-        GameState->DrawableEntitiesVertexBuffer.DataLayout->SubBufferCount = 3;
+        GameState->DrawableEntitiesVertexBuffer.DataLayout->SubBufferCount = 2;
         GameState->DrawableEntitiesVertexBuffer.DataLayout->SubBuffers = PushArray<vertex_sub_buffer>(
             &GameState->WorldArena, GameState->DrawableEntitiesVertexBuffer.DataLayout->SubBufferCount);
 
@@ -1137,19 +1141,12 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         {
             vertex_sub_buffer *SubBuffer = GameState->DrawableEntitiesVertexBuffer.DataLayout->SubBuffers + 1;
             SubBuffer->Offset = QuadVerticesSize;
-            SubBuffer->Size = GameState->TotalObjectCount * sizeof(mat4);
-            SubBuffer->Data = EntityInstanceModels;
-        }
-
-        {
-            vertex_sub_buffer *SubBuffer = GameState->DrawableEntitiesVertexBuffer.DataLayout->SubBuffers + 2;
-            SubBuffer->Offset = QuadVerticesSize + GameState->TotalObjectCount * sizeof(mat4);
-            SubBuffer->Size = GameState->TotalObjectCount * sizeof(vec2);
-            SubBuffer->Data = EntityInstanceUVOffsets01;
+            SubBuffer->Size = GameState->EntityRenderInfoCount * sizeof(entity_render_info);
+            SubBuffer->Data = GameState->EntityRenderInfos;
         }
 
         GameState->DrawableEntitiesVertexBuffer.AttributesLayout = PushStruct<vertex_buffer_attributes_layout>(&GameState->WorldArena);
-        GameState->DrawableEntitiesVertexBuffer.AttributesLayout->AttributeCount = 6;
+        GameState->DrawableEntitiesVertexBuffer.AttributesLayout->AttributeCount = 7;
         GameState->DrawableEntitiesVertexBuffer.AttributesLayout->Attributes = PushArray<vertex_buffer_attribute>(
             &GameState->WorldArena, GameState->DrawableEntitiesVertexBuffer.AttributesLayout->AttributeCount);
 
@@ -1170,9 +1167,10 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             Attribute->Size = 4;
             Attribute->Type = GL_FLOAT;
             Attribute->Normalized = GL_FALSE;
-            Attribute->Stride = sizeof(mat4);
+            Attribute->Stride = sizeof(entity_render_info);
             Attribute->Divisor = 1;
-            Attribute->OffsetPointer = (void *)((u64)QuadVerticesSize);
+            // todo: really need to deal with this offset thing, man
+            Attribute->OffsetPointer = (void *)((u64)QuadVerticesSize + Offset(entity_render_info, InstanceModel));
         }
 
         {
@@ -1181,9 +1179,9 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             Attribute->Size = 4;
             Attribute->Type = GL_FLOAT;
             Attribute->Normalized = GL_FALSE;
-            Attribute->Stride = sizeof(mat4);
+            Attribute->Stride = sizeof(entity_render_info);
             Attribute->Divisor = 1;
-            Attribute->OffsetPointer = (void *)(QuadVerticesSize + sizeof(vec4));
+            Attribute->OffsetPointer = (void *)(QuadVerticesSize + Offset(entity_render_info, InstanceModel) + sizeof(vec4));
         }
 
         {
@@ -1192,9 +1190,9 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             Attribute->Size = 4;
             Attribute->Type = GL_FLOAT;
             Attribute->Normalized = GL_FALSE;
-            Attribute->Stride = sizeof(mat4);
+            Attribute->Stride = sizeof(entity_render_info);
             Attribute->Divisor = 1;
-            Attribute->OffsetPointer = (void *)(QuadVerticesSize + 2 * sizeof(vec4));
+            Attribute->OffsetPointer = (void *)(QuadVerticesSize + Offset(entity_render_info, InstanceModel) + 2 * sizeof(vec4));
         }
 
         {
@@ -1203,9 +1201,9 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             Attribute->Size = 4;
             Attribute->Type = GL_FLOAT;
             Attribute->Normalized = GL_FALSE;
-            Attribute->Stride = sizeof(mat4);
+            Attribute->Stride = sizeof(entity_render_info);
             Attribute->Divisor = 1;
-            Attribute->OffsetPointer = (void *)(QuadVerticesSize + 3 * sizeof(vec4));
+            Attribute->OffsetPointer = (void *)(QuadVerticesSize + Offset(entity_render_info, InstanceModel) + 3 * sizeof(vec4));
         }
 
         {
@@ -1214,9 +1212,19 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             Attribute->Size = 2;
             Attribute->Type = GL_FLOAT;
             Attribute->Normalized = GL_FALSE;
-            Attribute->Stride = sizeof(vec2);
+            Attribute->Stride = sizeof(entity_render_info);
             Attribute->Divisor = 1;
-            Attribute->OffsetPointer = (void *)(QuadVerticesSize + GameState->TotalDrawableObjectCount * sizeof(mat4));
+            Attribute->OffsetPointer = (void *)((u64)QuadVerticesSize + Offset(entity_render_info, InstanceUVOffset01));
+        }
+
+        {
+            vertex_buffer_attribute *Attribute = GameState->DrawableEntitiesVertexBuffer.AttributesLayout->Attributes + 6;
+            Attribute->Index = 6;
+            Attribute->Size = 1;
+            Attribute->Type = GL_UNSIGNED_INT;
+            Attribute->Stride = sizeof(u32);
+            Attribute->Divisor = 1;
+            Attribute->OffsetPointer = (void *)((u64)QuadVerticesSize + Offset(entity_render_info, Flipped));
         }
 
         SetupVertexBuffer(Renderer, &GameState->DrawableEntitiesVertexBuffer);
@@ -1234,8 +1242,6 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Renderer->glEnable(GL_STENCIL_TEST);
         Renderer->glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
 
-        //Renderer->glEnable(GL_DEPTH_TEST);
-
         Renderer->glClearColor(BackgroundColor.r, BackgroundColor.g, BackgroundColor.b, 1.f);
         //Renderer->glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
@@ -1244,11 +1250,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     Renderer->glViewport(0, 0, ScreenWidth, ScreenHeight);
 
-    //std::cout << Params->Delta << std::endl;
     GameState->Lag += Params->Delta;
-
-    // todo: hack
-    //ChangeAnimation(GameState, GameState->Player, ANIMATION_PLAYER_IDLE);
 
     ProcessInput(GameState, &Params->Input, Params->Delta);
 
@@ -1321,9 +1323,18 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         GameState->Player->Acceleration.y = -0.4f;
 
         // todo: store 1/size as well
-        *GameState->Player->InstanceModel = glm::scale(*GameState->Player->InstanceModel, vec3(1.f / GameState->Player->Size, 1.f));
-        *GameState->Player->InstanceModel = glm::translate(*GameState->Player->InstanceModel, vec3(UpdatedMove, 0.f));
-        *GameState->Player->InstanceModel = glm::scale(*GameState->Player->InstanceModel, vec3(GameState->Player->Size, 1.f));
+        GameState->Player->RenderInfo->InstanceModel = glm::scale(
+            GameState->Player->RenderInfo->InstanceModel, 
+            vec3(1.f / GameState->Player->Size, 1.f)
+        );
+        GameState->Player->RenderInfo->InstanceModel = glm::translate(
+            GameState->Player->RenderInfo->InstanceModel, 
+            vec3(UpdatedMove, 0.f)
+        );
+        GameState->Player->RenderInfo->InstanceModel = glm::scale(
+            GameState->Player->RenderInfo->InstanceModel, 
+            vec3(GameState->Player->Size, 1.f)
+        );
 
         for (u32 PlayerBoxModelIndex = 0; PlayerBoxModelIndex < GameState->Player->BoxCount; ++PlayerBoxModelIndex)
         {
@@ -1383,15 +1394,14 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                 Animation->CurrentTime = 0.f;
             }
 
-            Entity->InstanceUVOffset01->x = CurrentFrame->CurrentXOffset01;
-            Entity->InstanceUVOffset01->y = CurrentFrame->CurrentYOffset01;
-            Renderer->glBufferSubData(GL_ARRAY_BUFFER, Entity->InstanceUVOffset01Offset, sizeof(vec2), Entity->InstanceUVOffset01);
+            Entity->RenderInfo->InstanceUVOffset01.x = CurrentFrame->CurrentXOffset01;
+            Entity->RenderInfo->InstanceUVOffset01.y = CurrentFrame->CurrentYOffset01;
 
             Animation->CurrentTime += Params->Delta;
         }
     }
 
-    Renderer->glBufferSubData(GL_ARRAY_BUFFER, GameState->Player->InstanceModelOffset, sizeof(mat4), GameState->Player->InstanceModel);
+    Renderer->glBufferSubData(GL_ARRAY_BUFFER, GameState->Player->RenderInfo->Offset, sizeof(entity_render_info), GameState->Player->RenderInfo);
 
     Renderer->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, GameState->TotalDrawableObjectCount);
 
@@ -1407,11 +1417,14 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     {
         entity *Entity = GameState->DrawableEntities + DrawableEntityIndex;
 
-        *Entity->InstanceModel = glm::translate(*Entity->InstanceModel, vec3(Entity->Size / 2.f, 1.f));
-        *Entity->InstanceModel = glm::scale(*Entity->InstanceModel, vec3(scale, scale, 1.f));
-        *Entity->InstanceModel = glm::translate(*Entity->InstanceModel, vec3(-Entity->Size / 2.f, 1.f));
+        Entity->RenderInfo->InstanceModel = glm::translate(Entity->RenderInfo->InstanceModel, vec3(Entity->Size / 2.f, 1.f));
+        Entity->RenderInfo->InstanceModel = glm::scale(Entity->RenderInfo->InstanceModel, vec3(scale, scale, 1.f));
+        Entity->RenderInfo->InstanceModel = glm::translate(Entity->RenderInfo->InstanceModel, vec3(-Entity->Size / 2.f, 1.f));
 
-        Renderer->glBufferSubData(GL_ARRAY_BUFFER, Entity->InstanceModelOffset, sizeof(mat4), Entity->InstanceModel);
+        Renderer->glBufferSubData(
+            GL_ARRAY_BUFFER, Entity->RenderInfo->Offset + Offset(entity_render_info, InstanceModel), 
+            sizeof(mat4), &Entity->RenderInfo->InstanceModel
+        );
     }
 
     Renderer->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, GameState->TotalDrawableObjectCount);
@@ -1420,13 +1433,16 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     {
         entity *Entity = GameState->DrawableEntities + DrawableEntityIndex;
 
-        *Entity->InstanceModel = glm::translate(*Entity->InstanceModel, vec3(Entity->Size / 2.f, 1.f));
-        *Entity->InstanceModel = glm::scale(*Entity->InstanceModel, vec3(1.f / scale, 1.f / scale, 1.f));
-        *Entity->InstanceModel = glm::translate(*Entity->InstanceModel, vec3(-Entity->Size / 2.f, 1.f));
+        Entity->RenderInfo->InstanceModel = glm::translate(Entity->RenderInfo->InstanceModel, vec3(Entity->Size / 2.f, 1.f));
+        Entity->RenderInfo->InstanceModel = glm::scale(Entity->RenderInfo->InstanceModel, vec3(1.f / scale, 1.f / scale, 1.f));
+        Entity->RenderInfo->InstanceModel = glm::translate(Entity->RenderInfo->InstanceModel, vec3(-Entity->Size / 2.f, 1.f));
 
-        Renderer->glBufferSubData(GL_ARRAY_BUFFER, Entity->InstanceModelOffset, sizeof(mat4), Entity->InstanceModel);
+        Renderer->glBufferSubData(
+            GL_ARRAY_BUFFER, Entity->RenderInfo->Offset + Offset(entity_render_info, InstanceModel),
+            sizeof(mat4), &Entity->RenderInfo->InstanceModel
+        );
     }
-    
+
     Renderer->glStencilFunc(GL_ALWAYS, 1, 0xFF);
     Renderer->glStencilMask(0xFF);
 
@@ -1439,9 +1455,10 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     {
         aabb_info *PlayerBox = GameState->Player->Boxes + PlayerBoxModelIndex;
 
-        Renderer->glBufferSubData(GL_ARRAY_BUFFER, 
-            GameState->Player->BoxModelOffset + PlayerBoxModelIndex * sizeof(mat4), 
-            sizeof(mat4), PlayerBox->Model);
+        Renderer->glBufferSubData(
+            GL_ARRAY_BUFFER, GameState->Player->RenderInfo->BoxModelOffset + PlayerBoxModelIndex * sizeof(mat4), 
+            sizeof(mat4), PlayerBox->Model
+        );
     }
 
     Renderer->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, GameState->TotalBoxCount);

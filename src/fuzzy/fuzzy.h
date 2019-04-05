@@ -126,6 +126,18 @@ struct aabb_info
     mat4 *Model;
 };
 
+struct entity_render_info
+{
+    u32 Offset;
+
+    mat4 InstanceModel;
+    vec2 InstanceUVOffset01;
+    u32 Flipped;
+
+    // todo:
+    u32 BoxModelOffset;
+};
+
 struct entity
 {
     u32 ID;
@@ -137,20 +149,12 @@ struct entity
     vec2 Size;
     entity_type Type;
 
-    // todo: all this low-level rendering stuff shouldn't be here
-    u32 InstanceModelOffset;
-    mat4 *InstanceModel;
-
-    u32 BoxModelOffset;
-
-    u32 InstanceUVOffset01Offset;
-    vec2 *InstanceUVOffset01;
+    entity_render_info *RenderInfo;
 
     u32 BoxCount;
     aabb_info *Boxes;
 
     animation *CurrentAnimation;
-    b32 Flipped;
 };
 
 struct tile_animation_frame
@@ -405,4 +409,9 @@ struct game_state
 
     u32 AnimationCount;
     animation *Animations;
+
+    // todo: merge with TotalDrawableObjectCount?
+    u32 EntityRenderInfoCount;
+    // todo: maybe store in in entity directly?
+    entity_render_info *EntityRenderInfos;
 };

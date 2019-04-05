@@ -7,6 +7,7 @@
 layout(location = 0) in vec4 in_Vertex;
 layout(location = 1) in mat4 in_InstanceModel;
 layout(location = 5) in vec2 in_InstanceUVOffset;
+layout(location = 6) in uint in_InstanceFlipped;
 
 out vec2 uv;
 out vec2 instanceUVOffset;
@@ -23,6 +24,12 @@ void main()
 {
     // getting correct uv from texture atlas
     uv = in_Vertex.zw * u_TileSize;
+
+    if (bool(in_InstanceFlipped))
+    {
+        uv.x = u_TileSize.x - uv.x;
+    }
+
     instanceUVOffset = in_InstanceUVOffset;
 
     vec2 position = in_Vertex.xy;
