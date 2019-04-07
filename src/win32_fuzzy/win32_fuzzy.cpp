@@ -308,6 +308,12 @@ s32 main(s32 Argc, char *Argv[])
         }
     });
 
+    glfwSetScrollCallback(Window, [](GLFWwindow* window, f64 XOffset, f64 YOffset)
+    {
+        GameParams.Input.ScrollX += (f32)XOffset;
+        GameParams.Input.ScrollY += (f32)YOffset;
+    });
+
     glfwSetFramebufferSizeCallback(Window, [](GLFWwindow *Window, s32 Width, s32 Height) 
     {
         GameParams.ScreenWidth = Width;

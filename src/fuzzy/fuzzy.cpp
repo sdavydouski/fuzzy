@@ -150,25 +150,6 @@ IntersectAABB(const aabb& Box1, const aabb& Box2)
     return XCollision && YCollision;
 }
 
-// todo: replace with smth more performant
-//inline drawable_entity *
-//GetEntityById(game_state *GameState, u32 Id) {
-//    drawable_entity *Result = nullptr;
-//
-//    for (u32 DrawableEntityIndex = 0; DrawableEntityIndex < GameState->DrawableEntitiesCount; ++DrawableEntityIndex) {
-//        drawable_entity *Entity = &GameState->DrawableEntities[DrawableEntityIndex];
-//
-//        if (Entity->Id == Id) {
-//            Result = Entity;
-//            break;
-//        }
-//    }
-//
-//    assert(Result);
-//
-//    return Result;
-//}
-
 // basic Minkowski-based collision detection
 internal_function vec2
 SweptAABB(const vec2 Point, const vec2 Delta, const aabb& Box, const vec2 Padding)
@@ -313,12 +294,23 @@ ProcessInput(game_state *GameState, game_input *Input, f32 Delta)
         GameState->Player->Velocity.y = 0.f;
     }
 
-    //if (GameState->Zoom < 0.1f) {
-    //    GameState->Zoom = 0.1f;
-    //}
+    f32 ZoomScale = 0.2f;
 
-    //sprite *Bob = &GameState->Bob;
-    //sprite *Swoosh = &GameState->Swoosh;
+    // todo: float precision!
+    if (Input->ScrollY == 0.f)
+    {
+        GameState->Zoom = 1.f;
+    }
+    else if (Input->ScrollY > 0.f)
+    {
+        GameState->Zoom = 1.f / (1.f + Input->ScrollY * ZoomScale);
+    }
+    else if (Input->ScrollY < 0.f)
+    {
+        GameState->Zoom = 1.f + abs(Input->ScrollY) * ZoomScale;
+    }
+
+    GameState->Zoom = Clamp(GameState->Zoom, 0.1f, 4.f);
 
     //if (Input->Keys[KEY_LEFT] == KEY_PRESS) {
     //    if (
@@ -1283,8 +1275,9 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         GameState->UpdateRate = 0.01f;   // 10 ms
         GameState->Lag = 0.f;
 
-        GameState->CameraPosition.x = 1.f;
         GameState->Zoom = 1.f / 1.f;
+        GameState->Camera = GameState->Player->Position;
+        //GameState->Camera = vec2(0.f);
 
         Renderer->glEnable(GL_BLEND);
         Renderer->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -1307,16 +1300,6 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     while (GameState->Lag >= GameState->UpdateRate)
     {
         GameState->Lag -= GameState->UpdateRate;
-
-        GameState->Projection = glm::ortho(
-            -GameState->ScreenWidthInMeters / 2.f * GameState->Zoom, GameState->ScreenWidthInMeters / 2.f * GameState->Zoom,
-            -GameState->ScreenHeightInMeters / 2.f * GameState->Zoom, GameState->ScreenHeightInMeters / 2.f * GameState->Zoom
-        );
-
-        mat4 View = mat4(1.f);
-        View = glm::translate(View, vec3(-GameState->ScreenWidthInMeters / 2.f, -GameState->ScreenHeightInMeters / 2.f, 0.f));
-
-        GameState->VP = GameState->Projection * View;
 
         f32 Dt = 0.1f;
 
@@ -1420,6 +1403,40 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             *PlayerBox->Model = glm::translate(*PlayerBox->Model, vec3(UpdatedMove, 0.f));
             *PlayerBox->Model = glm::scale(*PlayerBox->Model, vec3(PlayerBox->Box->Size, 1.f));
         }
+
+        // camera
+        vec2 IdleArea = {2.f, 1.f};
+
+        GameState->Camera += UpdatedMove;
+        
+       //GameState->Camera.x = GameState->Camera.x > 0.f ? GameState->Camera.x : 0.f;
+       //GameState->Camera.y = GameState->Camera.y > 0.f ? GameState->Camera.y : 0.f;
+
+   //    //if (TILE_SIZE.x * GameState->Map.Width - ScreenWidth >= 0) {
+   //    //    GameState->Camera.x = clamp(GameState->Camera.x, 0.f, (f32)TILE_SIZE.x * GameState->Map.Width - ScreenWidth);
+   //    //}
+   //    //if (TILE_SIZE.y * GameState->Map.Height - ScreenHeight >= 0) {
+   //    //    GameState->Camera.y = clamp(GameState->Camera.y, 0.f, (f32)TILE_SIZE.y * GameState->Map.Height - ScreenHeight);
+   //    //}
+
+        GameState->Projection = glm::ortho(
+            -GameState->ScreenWidthInMeters / 2.f * GameState->Zoom, GameState->ScreenWidthInMeters / 2.f * GameState->Zoom,
+            -GameState->ScreenHeightInMeters / 2.f * GameState->Zoom, GameState->ScreenHeightInMeters / 2.f * GameState->Zoom
+        );
+
+        //GameState->Projection = glm::ortho(
+        //    0.f, GameState->ScreenWidthInMeters * GameState->Zoom,
+        //    0.f, GameState->ScreenHeightInMeters * GameState->Zoom
+        //);
+
+        mat4 View = mat4(1.f);
+        View = glm::translate(View, vec3(-GameState->ScreenWidthInMeters / 2.f, -GameState->ScreenHeightInMeters / 2.f, 0.f));
+        //View = glm::translate(View, vec3(GameState->ScreenWidthInMeters / 2.f, GameState->ScreenHeightInMeters / 2.f, 0.f));
+        //View = glm::translate(View, vec3(GameState->Player->Position, 0.f));
+        View = glm::translate(View, vec3(-GameState->Camera, 0.f));
+        //View = glm::translate(View, vec3(0.f, 0.f, 0.f));
+
+        GameState->VP = GameState->Projection * View;
     }
 
     Renderer->glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);

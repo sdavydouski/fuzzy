@@ -370,7 +370,7 @@ struct game_state
     memory_arena WorldArena;
 
     // top-left corner <-- is it?
-    vec2 CameraPosition;
+    vec2 Camera;
     f32 Zoom;
 
     tilemap Map;

@@ -272,6 +272,9 @@ struct game_input {
     key_state Right;
 
     key_state Jump;
+
+    f32 ScrollX;
+    f32 ScrollY;
 };
 
 struct game_params {
