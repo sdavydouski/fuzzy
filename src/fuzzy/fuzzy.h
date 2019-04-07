@@ -86,6 +86,9 @@ enum animation_type
 {
     ANIMATION_PLAYER_IDLE,
     ANIMATION_PLAYER_RUN,
+    ANIMATION_PLAYER_JUMP_UP,
+    ANIMATION_PLAYER_JUMP_DOWN,
+    ANIMATION_PLAYER_SQUASH,
 
     ANIMATION_COUNT
 };
@@ -111,14 +114,9 @@ struct animation
 
     u32 CurrentFrameIndex;
     f32 CurrentTime;
-};
 
-inline animation_frame *
-GetCurrentAnimationFrame(animation *Animation)
-{
-    animation_frame *Result = Animation->AnimationFrames + Animation->CurrentFrameIndex;
-    return Result;
-}
+    animation *Next;
+};
 
 struct aabb_info
 {

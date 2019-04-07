@@ -703,6 +703,36 @@
         {
          "animation":[
                 {
+                 "duration":50,
+                 "tileid":515
+                }, 
+                {
+                 "duration":50,
+                 "tileid":516
+                }, 
+                {
+                 "duration":50,
+                 "tileid":517
+                }, 
+                {
+                 "duration":50,
+                 "tileid":518
+                }, 
+                {
+                 "duration":50,
+                 "tileid":519
+                }],
+         "id":515,
+         "properties":[
+                {
+                 "name":"AnimationType",
+                 "type":"string",
+                 "value":"PLAYER_SQUASH"
+                }]
+        }, 
+        {
+         "animation":[
+                {
                  "duration":100,
                  "tileid":544
                 }, 
@@ -740,6 +770,34 @@
                  "name":"AnimationType",
                  "type":"string",
                  "value":"PLAYER_RUN"
+                }]
+        }, 
+        {
+         "animation":[
+                {
+                 "duration":100,
+                 "tileid":545
+                }],
+         "id":545,
+         "properties":[
+                {
+                 "name":"AnimationType",
+                 "type":"string",
+                 "value":"PLAYER_JUMP_UP"
+                }]
+        }, 
+        {
+         "animation":[
+                {
+                 "duration":100,
+                 "tileid":546
+                }],
+         "id":546,
+         "properties":[
+                {
+                 "name":"AnimationType",
+                 "type":"string",
+                 "value":"PLAYER_JUMP_DOWN"
                 }]
         }, 
         {

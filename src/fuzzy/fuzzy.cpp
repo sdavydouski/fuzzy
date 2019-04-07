@@ -218,23 +218,44 @@ SweptAABB(const vec2 Point, const vec2 Delta, const aabb& Box, const vec2 Paddin
 
 global_variable const vec3 BackgroundColor = NormalizeRGB(29, 33, 45);
 
-internal_function void
-ChangeAnimation(game_state *GameState, entity *Entity, animation_type AnimationType)
+internal_function inline animation_frame *
+GetCurrentAnimationFrame(animation *Animation)
 {
-    animation *Animation = GameState->Animations + AnimationType;
+    animation_frame *Result = Animation->AnimationFrames + Animation->CurrentFrameIndex;
+    return Result;
+}
 
-    if (Entity->CurrentAnimation != Animation)
+internal_function inline animation *
+GetAnimation(game_state *GameState, animation_type Type)
+{
+    animation *Result = GameState->Animations + Type;
+    return Result;
+}
+
+internal_function void
+ChangeAnimation(game_state *GameState, entity *Entity, animation *Animation, b32 Loop = true)
+{
+    Animation->CurrentFrameIndex = 0;
+    animation_frame *CurrentFrame = GetCurrentAnimationFrame(Animation);
+
+    CurrentFrame = Animation->AnimationFrames + Animation->CurrentFrameIndex;
+    CurrentFrame->CurrentXOffset01 = CurrentFrame->XOffset01;
+    CurrentFrame->CurrentYOffset01 = CurrentFrame->YOffset01;
+    Animation->CurrentTime = 0.f;
+
+    if (Loop)
     {
-        Animation->CurrentFrameIndex = 0;
-
-        animation_frame *CurrentFrame = GetCurrentAnimationFrame(Animation);
-        CurrentFrame = Animation->AnimationFrames + Animation->CurrentFrameIndex;
-        CurrentFrame->CurrentXOffset01 = CurrentFrame->XOffset01;
-        CurrentFrame->CurrentYOffset01 = CurrentFrame->YOffset01;
-        Animation->CurrentTime = 0.f;
-
-        Entity->CurrentAnimation = Animation;
+        Animation->Next = Animation;
     }
+
+    Entity->CurrentAnimation = Animation;
+}
+
+internal_function void
+ChangeAnimation(game_state *GameState, entity *Entity, animation_type Type, b32 Loop = true)
+{
+    animation *Animation = GetAnimation(GameState, Type);
+    ChangeAnimation(GameState, Entity, Animation, Loop);
 }
 
 internal_function void
@@ -243,28 +264,46 @@ ProcessInput(game_state *GameState, game_input *Input, f32 Delta)
     if (Input->Left.isPressed)
     {
         GameState->Player->Acceleration.x = -8.f;
+
         // todo: in future handle flipped vertically/diagonally
         GameState->Player->RenderInfo->Flipped = true;
-        ChangeAnimation(GameState, GameState->Player, ANIMATION_PLAYER_RUN);
+
+        if (GameState->Player->CurrentAnimation != GetAnimation(GameState, ANIMATION_PLAYER_RUN) &&
+            GameState->Player->CurrentAnimation != GetAnimation(GameState, ANIMATION_PLAYER_SQUASH))
+        {
+            ChangeAnimation(GameState, GameState->Player, ANIMATION_PLAYER_RUN);
+        }
     }
 
     if (Input->Right.isPressed)
     {
         GameState->Player->Acceleration.x = 8.f;
+
         GameState->Player->RenderInfo->Flipped = false;
-        ChangeAnimation(GameState, GameState->Player, ANIMATION_PLAYER_RUN);
+
+        if (GameState->Player->CurrentAnimation != GetAnimation(GameState, ANIMATION_PLAYER_RUN) &&
+            GameState->Player->CurrentAnimation != GetAnimation(GameState, ANIMATION_PLAYER_SQUASH))
+        {
+            ChangeAnimation(GameState, GameState->Player, ANIMATION_PLAYER_RUN);
+        }
     }
 
     if (!Input->Left.isPressed && !Input->Left.isProcessed)
     {
         Input->Left.isProcessed = true;
-        ChangeAnimation(GameState, GameState->Player, ANIMATION_PLAYER_IDLE);
+        if (GameState->Player->CurrentAnimation != GetAnimation(GameState, ANIMATION_PLAYER_IDLE))
+        {
+            ChangeAnimation(GameState, GameState->Player, ANIMATION_PLAYER_IDLE);
+        }
     }
 
     if (!Input->Right.isPressed && !Input->Right.isProcessed)
     {
         Input->Right.isProcessed = true;
-        ChangeAnimation(GameState, GameState->Player, ANIMATION_PLAYER_IDLE);
+        if (GameState->Player->CurrentAnimation != GetAnimation(GameState, ANIMATION_PLAYER_IDLE))
+        {
+            ChangeAnimation(GameState, GameState->Player, ANIMATION_PLAYER_IDLE);
+        }
     }
 
     if (Input->Jump.isPressed && !Input->Jump.isProcessed)
@@ -399,6 +438,18 @@ GetAnimationTypeFromString(const char *String)
     else if (StringEquals(String, "PLAYER_RUN"))
     {
         Result = ANIMATION_PLAYER_RUN;
+    }
+    else if (StringEquals(String, "PLAYER_JUMP_UP"))
+    {
+        Result = ANIMATION_PLAYER_JUMP_UP;
+    }
+    else if (StringEquals(String, "PLAYER_JUMP_DOWN"))
+    {
+        Result = ANIMATION_PLAYER_JUMP_DOWN;
+    }
+    else if (StringEquals(String, "PLAYER_SQUASH"))
+    {
+        Result = ANIMATION_PLAYER_SQUASH;
     }
     else
     {
@@ -684,6 +735,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                     animation *Animation = GameState->Animations + AnimationType;
 
                     *Animation = {};
+                    Animation->CurrentFrameIndex = 0;
                     Animation->AnimationFrameCount = Tile->AnimationFrameCount;
                     Animation->AnimationFrames = PushArray<animation_frame>(&GameState->WorldArena, Animation->AnimationFrameCount);
 
@@ -707,8 +759,6 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                         AnimationFrame->CurrentXOffset01 = AnimationFrame->XOffset01;
                         AnimationFrame->CurrentYOffset01 = AnimationFrame->YOffset01;
                     }
-
-                    Animation->CurrentFrameIndex = 0;
                 }
             }
         }
@@ -1304,6 +1354,13 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             }
         }
 
+        vec2 UpdatedMove = Move * CollisionTime;
+        GameState->Player->Position += UpdatedMove;
+
+        GameState->Player->Acceleration.x = 0.f;
+        // gravity
+        GameState->Player->Acceleration.y = -0.4f;
+
         // collisions!
         if (CollisionTime.x < 1.f)
         {
@@ -1313,14 +1370,31 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         if (CollisionTime.y < 1.f)
         {
             GameState->Player->Velocity.y = 0.f;
+
+            if (UpdatedMove.y < 0.f)
+            {
+                animation *SquashAnimation = GetAnimation(GameState, ANIMATION_PLAYER_SQUASH);
+                SquashAnimation->Next = GetAnimation(GameState, ANIMATION_PLAYER_IDLE);
+
+                ChangeAnimation(GameState, GameState->Player, SquashAnimation, false);
+            }
         }
 
-        vec2 UpdatedMove = Move * CollisionTime;
-        GameState->Player->Position += UpdatedMove;
-
-        GameState->Player->Acceleration.x = 0.f;
-        // gravity
-        GameState->Player->Acceleration.y = -0.4f;
+        if (GameState->Player->Velocity.y > 0.f)
+        {
+            // todo: deal with ifs
+            if (GameState->Player->CurrentAnimation != GetAnimation(GameState, ANIMATION_PLAYER_JUMP_UP))
+            {
+                ChangeAnimation(GameState, GameState->Player, ANIMATION_PLAYER_JUMP_UP);
+            }
+        }
+        else if (GameState->Player->Velocity.y < 0.f)
+        {
+            if (GameState->Player->CurrentAnimation != GetAnimation(GameState, ANIMATION_PLAYER_JUMP_DOWN))
+            {
+                ChangeAnimation(GameState, GameState->Player, ANIMATION_PLAYER_JUMP_DOWN);
+            }
+        }
 
         // todo: store 1/size as well
         GameState->Player->RenderInfo->InstanceModel = glm::scale(
@@ -1385,7 +1459,20 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
             if (Animation->CurrentTime >= AnimationFrameDuration)
             {
-                Animation->CurrentFrameIndex = (Animation->CurrentFrameIndex + 1) % Animation->AnimationFrameCount;
+                Animation->CurrentFrameIndex++;
+
+                if (Animation->CurrentFrameIndex >= Animation->AnimationFrameCount)
+                {
+                    if (Entity->CurrentAnimation->Next)
+                    {
+                        ChangeAnimation(GameState, Entity, Entity->CurrentAnimation->Next);
+                    }
+                    else
+                    {
+                        Entity->CurrentAnimation = nullptr;
+                    }
+                }
+
                 CurrentFrame = GetCurrentAnimationFrame(Animation);
 
                 CurrentFrame->CurrentXOffset01 = CurrentFrame->XOffset01;
