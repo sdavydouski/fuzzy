@@ -310,7 +310,7 @@ ProcessInput(game_state *GameState, game_input *Input, f32 Delta)
         GameState->Zoom = 1.f + abs(Input->ScrollY) * ZoomScale;
     }
 
-    GameState->Zoom = Clamp(GameState->Zoom, 0.1f, 4.f);
+    //GameState->Zoom = Clamp(GameState->Zoom, 0.1f, 4.f);
 
     //if (Input->Keys[KEY_LEFT] == KEY_PRESS) {
     //    if (
@@ -1338,7 +1338,8 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         }
 
         vec2 UpdatedMove = Move * CollisionTime;
-        GameState->Player->Position += UpdatedMove;
+        GameState->Player->Position.x += UpdatedMove.x;
+        GameState->Player->Position.y -= UpdatedMove.y;
 
         GameState->Player->Acceleration.x = 0.f;
         // gravity
@@ -1405,36 +1406,38 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         }
 
         // camera
-        vec2 IdleArea = {2.f, 1.f};
+        vec2 IdleArea = {1.f, 1.f};
 
-        GameState->Camera += UpdatedMove;
-        
-       //GameState->Camera.x = GameState->Camera.x > 0.f ? GameState->Camera.x : 0.f;
-       //GameState->Camera.y = GameState->Camera.y > 0.f ? GameState->Camera.y : 0.f;
+        if (UpdatedMove.x > 0.f)
+        {
+            if (GameState->Player->Position.x + GameState->Player->Size.x > GameState->Camera.x + IdleArea.x)
+            {
+                GameState->Camera.x += UpdatedMove.x;
+            }
+        }
+        else if (UpdatedMove.x < 0.f)
+        {
+            if (GameState->Player->Position.x < GameState->Camera.x - IdleArea.x)
+            {
+                GameState->Camera.x += UpdatedMove.x;
+            }
+        }
 
-   //    //if (TILE_SIZE.x * GameState->Map.Width - ScreenWidth >= 0) {
-   //    //    GameState->Camera.x = clamp(GameState->Camera.x, 0.f, (f32)TILE_SIZE.x * GameState->Map.Width - ScreenWidth);
-   //    //}
-   //    //if (TILE_SIZE.y * GameState->Map.Height - ScreenHeight >= 0) {
-   //    //    GameState->Camera.y = clamp(GameState->Camera.y, 0.f, (f32)TILE_SIZE.y * GameState->Map.Height - ScreenHeight);
-   //    //}
+        GameState->Camera.y -= UpdatedMove.y;
+
+        //std::cout << "Player->Position: " << GameState->Player->Position.x << ", " << GameState->Player->Position.y << std::endl;
+        //std::cout << "Camera: " << GameState->Camera.x << ", " << GameState->Camera.y << std::endl;
 
         GameState->Projection = glm::ortho(
-            -GameState->ScreenWidthInMeters / 2.f * GameState->Zoom, GameState->ScreenWidthInMeters / 2.f * GameState->Zoom,
-            -GameState->ScreenHeightInMeters / 2.f * GameState->Zoom, GameState->ScreenHeightInMeters / 2.f * GameState->Zoom
+            -GameState->ScreenWidthInMeters / 2.f * GameState->Zoom, 
+            GameState->ScreenWidthInMeters / 2.f * GameState->Zoom,
+           -GameState->ScreenHeightInMeters / 2.f * GameState->Zoom,
+            GameState->ScreenHeightInMeters / 2.f * GameState->Zoom
         );
 
-        //GameState->Projection = glm::ortho(
-        //    0.f, GameState->ScreenWidthInMeters * GameState->Zoom,
-        //    0.f, GameState->ScreenHeightInMeters * GameState->Zoom
-        //);
-
         mat4 View = mat4(1.f);
+        View = glm::translate(View, vec3(-GameState->Camera.x, GameState->Camera.y, 0.f));
         View = glm::translate(View, vec3(-GameState->ScreenWidthInMeters / 2.f, -GameState->ScreenHeightInMeters / 2.f, 0.f));
-        //View = glm::translate(View, vec3(GameState->ScreenWidthInMeters / 2.f, GameState->ScreenHeightInMeters / 2.f, 0.f));
-        //View = glm::translate(View, vec3(GameState->Player->Position, 0.f));
-        View = glm::translate(View, vec3(-GameState->Camera, 0.f));
-        //View = glm::translate(View, vec3(0.f, 0.f, 0.f));
 
         GameState->VP = GameState->Projection * View;
     }
