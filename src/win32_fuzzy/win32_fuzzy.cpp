@@ -112,6 +112,8 @@ Win32InitOpenGLRenderer(game_memory *GameMemory)
     GameMemory->Renderer.glUniform1i = glUniform1i;
     GameMemory->Renderer.glUniform1f = glUniform1f;
     GameMemory->Renderer.glUniform2f = glUniform2f;
+    GameMemory->Renderer.glUniform3f = glUniform3f;
+    GameMemory->Renderer.glUniform4f = glUniform4f;
     GameMemory->Renderer.glUniformMatrix4fv = glUniformMatrix4fv;
     GameMemory->Renderer.glGenTextures = glGenTextures;
     GameMemory->Renderer.glBindTexture = glBindTexture;

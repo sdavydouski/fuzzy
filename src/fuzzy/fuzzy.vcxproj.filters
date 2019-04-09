@@ -8,8 +8,10 @@
     <ClInclude Include="fuzzy_platform.h" />
     <ClInclude Include="fuzzy_memory.h" />
     <ClInclude Include="fuzzy_types.h" />
+    <ClInclude Include="fuzzy_graphics.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="tiled.cpp" />
+    <None Include="fuzzy_graphics.cpp" />
   </ItemGroup>
 </Project>

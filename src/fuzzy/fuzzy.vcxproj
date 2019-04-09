@@ -192,11 +192,13 @@
     </BuildLog>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <None Include="fuzzy_graphics.cpp" />
     <None Include="tiled.cpp" />
     <ClCompile Include="fuzzy.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="fuzzy.h" />
+    <ClInclude Include="fuzzy_graphics.h" />
     <ClInclude Include="fuzzy_platform.h" />
     <ClInclude Include="fuzzy_memory.h" />
     <ClInclude Include="fuzzy_types.h" />

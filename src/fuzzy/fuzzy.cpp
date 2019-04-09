@@ -2,7 +2,6 @@
 #include "glad/glad.h"
 
 #include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
 
 #include <fstream>
 #include <iostream>
@@ -10,6 +9,7 @@
 #include "fuzzy_types.h"
 #include "fuzzy_platform.h"
 #include "tiled.cpp"
+#include "fuzzy_graphics.cpp"
 #include "fuzzy.h"
 
 global_variable const u32 FLIPPED_HORIZONTALLY_FLAG = 0x80000000;
@@ -21,100 +21,6 @@ NormalizeRGB(u32 Red, u32 Green, u32 Blue)
 {
     const f32 MAX = 255.f;
     return vec3(Red / MAX, Green / MAX, Blue / MAX);
-}
-
-internal_function u32
-CreateShader(game_memory *Memory, game_state *GameState, GLenum Type, char *Source)
-{
-    u32 Shader = Memory->Renderer.glCreateShader(Type);
-    Memory->Renderer.glShaderSource(Shader, 1, &Source, NULL);
-    Memory->Renderer.glCompileShader(Shader);
-
-    s32 IsShaderCompiled;
-    Memory->Renderer.glGetShaderiv(Shader, GL_COMPILE_STATUS, &IsShaderCompiled);
-    if (!IsShaderCompiled)
-    {
-        s32 LogLength;
-        Memory->Renderer.glGetShaderiv(Shader, GL_INFO_LOG_LENGTH, &LogLength);
-
-        // todo: use temporary memory
-        char *ErrorLog = PushString(&GameState->WorldArena, LogLength);
-
-        Memory->Renderer.glGetShaderInfoLog(Shader, LogLength, NULL, ErrorLog);
-
-        char Output[1024];
-        snprintf(Output, sizeof(Output), "%s%s%s", "Shader compilation failed:\n", ErrorLog, "\n");
-        Memory->Platform.PrintOutput(Output);
-
-        Memory->Renderer.glDeleteShader(Shader);
-    }
-    assert(IsShaderCompiled);
-
-    return Shader;
-}
-
-internal_function u32
-CreateProgram(game_memory *Memory, game_state *GameState, u32 VertexShader, u32 FragmentShader)
-{
-    u32 Program = Memory->Renderer.glCreateProgram();
-    Memory->Renderer.glAttachShader(Program, VertexShader);
-    Memory->Renderer.glAttachShader(Program, FragmentShader);
-    Memory->Renderer.glLinkProgram(Program);
-    Memory->Renderer.glDeleteShader(VertexShader);
-    Memory->Renderer.glDeleteShader(FragmentShader);
-
-    s32 IsProgramLinked;
-    Memory->Renderer.glGetProgramiv(Program, GL_LINK_STATUS, &IsProgramLinked);
-
-    if (!IsProgramLinked)
-    {
-        s32 LogLength;
-        Memory->Renderer.glGetProgramiv(Program, GL_INFO_LOG_LENGTH, &LogLength);
-
-        // todo: use temporary memory
-        char *ErrorLog = PushString(&GameState->WorldArena, LogLength);
-
-        Memory->Renderer.glGetProgramInfoLog(Program, LogLength, nullptr, ErrorLog);
-
-        char Output[1024];
-        snprintf(Output, sizeof(Output), "%s%s%s", "Shader program linkage failed:\n", ErrorLog, "\n");
-        Memory->Platform.PrintOutput(Output);
-    }
-    assert(IsProgramLinked);
-
-    return Program;
-}
-
-internal_function inline s32
-GetUniformLocation(game_memory *Memory, u32 ShaderProgram, const char *Name)
-{
-    s32 UniformLocation = Memory->Renderer.glGetUniformLocation(ShaderProgram, Name);
-    //assert(uniformLocation != -1);
-    return UniformLocation;
-}
-
-internal_function inline void
-SetShaderUniform(game_memory *Memory, s32 Location, s32 Value)
-{
-    Memory->Renderer.glUniform1i(Location, Value);
-}
-
-internal_function inline void
-SetShaderUniform(game_memory *Memory, s32 Location, f32 Value)
-{
-    Memory->Renderer.glUniform1f(Location, Value);
-}
-
-internal_function inline void
-SetShaderUniform(game_memory *Memory, s32 Location, vec2 Value)
-{
-    Memory->Renderer.glUniform2f(Location, Value.x, Value.y);
-}
-
-internal_function inline void
-SetShaderUniform(game_memory *Memory, s32 Location, const mat4& Value)
-{
-    Memory->Renderer.glUniformMatrix4fv(Location, 1, GL_FALSE, glm::value_ptr(Value));
 }
 
 // todo: write more efficient functions
@@ -250,7 +156,9 @@ ProcessInput(game_state *GameState, game_input *Input, f32 Delta)
         GameState->Player->RenderInfo->Flipped = true;
 
         if (GameState->Player->CurrentAnimation != GetAnimation(GameState, ANIMATION_PLAYER_RUN) &&
-            GameState->Player->CurrentAnimation != GetAnimation(GameState, ANIMATION_PLAYER_SQUASH))
+            GameState->Player->CurrentAnimation != GetAnimation(GameState, ANIMATION_PLAYER_SQUASH) &&
+            GameState->Player->CurrentAnimation != GetAnimation(GameState, ANIMATION_PLAYER_JUMP_UP) &&
+            GameState->Player->CurrentAnimation != GetAnimation(GameState, ANIMATION_PLAYER_JUMP_DOWN))
         {
             ChangeAnimation(GameState, GameState->Player, ANIMATION_PLAYER_RUN);
         }
@@ -263,7 +171,9 @@ ProcessInput(game_state *GameState, game_input *Input, f32 Delta)
         GameState->Player->RenderInfo->Flipped = false;
 
         if (GameState->Player->CurrentAnimation != GetAnimation(GameState, ANIMATION_PLAYER_RUN) &&
-            GameState->Player->CurrentAnimation != GetAnimation(GameState, ANIMATION_PLAYER_SQUASH))
+            GameState->Player->CurrentAnimation != GetAnimation(GameState, ANIMATION_PLAYER_SQUASH) &&
+            GameState->Player->CurrentAnimation != GetAnimation(GameState, ANIMATION_PLAYER_JUMP_UP) &&
+            GameState->Player->CurrentAnimation != GetAnimation(GameState, ANIMATION_PLAYER_JUMP_DOWN))
         {
             ChangeAnimation(GameState, GameState->Player, ANIMATION_PLAYER_RUN);
         }
@@ -388,36 +298,6 @@ ProcessInput(game_state *GameState, game_input *Input, f32 Delta)
     //}
 }
 
-//inline void
-//AssignAnimationsToEntity(game_state *GameState, json *AnimationsConfig, u32 Index, sprite *Entity) {
-//    auto EntityConfig = (*AnimationsConfig)["sprites"][Index];
-//    auto EntityAnimations = EntityConfig["animations"];
-//
-//    Entity->AnimationsCount = (u32)EntityAnimations.size();
-//    Entity->Animations = PushArray<animation>(&GameState->WorldArena, Entity->AnimationsCount);
-//
-//    u32 EntityAnimationsIndex = 0;
-//    for (auto Animation : EntityAnimations) {
-//        Entity->Animations[EntityAnimationsIndex] = {
-//            Animation["x"], Animation["y"], Animation["frames"], Animation["delay"], Animation["size"]
-//        };
-//
-//        string AnimationDirection = Animation["direction"];
-//        if (AnimationDirection == "right") {
-//            Entity->Animations[EntityAnimationsIndex].Direction = direction::RIGHT;
-//        }
-//        else if (AnimationDirection == "left") {
-//            Entity->Animations[EntityAnimationsIndex].Direction = direction::LEFT;
-//        }
-//
-//        ++EntityAnimationsIndex;
-//    }
-//
-//    Entity->CurrentAnimation = Entity->Animations[0];
-//    Entity->XAnimationOffset = 0.f;
-//    Entity->FrameTime = 0.f;
-//}
-
 internal_function animation_type
 GetAnimationTypeFromString(const char *String)
 {
@@ -449,42 +329,6 @@ GetAnimationTypeFromString(const char *String)
     }
 
     return Result;
-}
-
-internal_function void
-SetupVertexBuffer(renderer_api *Renderer, vertex_buffer *Buffer)
-{
-    Renderer->glGenVertexArrays(1, &Buffer->VAO);
-    Renderer->glBindVertexArray(Buffer->VAO);
-
-    Renderer->glGenBuffers(1, &Buffer->VBO);
-    Renderer->glBindBuffer(GL_ARRAY_BUFFER, Buffer->VBO);
-    Renderer->glBufferData(GL_ARRAY_BUFFER, Buffer->Size, NULL, Buffer->Usage);
-
-    for (u32 VertexSubBufferIndex = 0; VertexSubBufferIndex < Buffer->DataLayout->SubBufferCount; ++VertexSubBufferIndex)
-    {
-        vertex_sub_buffer *VertexSubBuffer = Buffer->DataLayout->SubBuffers + VertexSubBufferIndex;
-
-        Renderer->glBufferSubData(GL_ARRAY_BUFFER, VertexSubBuffer->Offset, VertexSubBuffer->Size, VertexSubBuffer->Data);
-    }
-
-    for (u32 VertexAttributeIndex = 0; VertexAttributeIndex < Buffer->AttributesLayout->AttributeCount; ++VertexAttributeIndex)
-    {
-        vertex_buffer_attribute *VertexAttribute = Buffer->AttributesLayout->Attributes + VertexAttributeIndex;
-
-        Renderer->glEnableVertexAttribArray(VertexAttribute->Index);
-        if (VertexAttribute->Type == GL_UNSIGNED_INT)
-        {
-            Renderer->glVertexAttribIPointer(VertexAttribute->Index, VertexAttribute->Size,
-                VertexAttribute->Type, VertexAttribute->Stride, VertexAttribute->OffsetPointer);
-        }
-        else 
-        {
-            Renderer->glVertexAttribPointer(VertexAttribute->Index, VertexAttribute->Size,
-                VertexAttribute->Type, VertexAttribute->Normalized, VertexAttribute->Stride, VertexAttribute->OffsetPointer);
-        }
-        Renderer->glVertexAttribDivisor(VertexAttribute->Index, VertexAttribute->Divisor);
-    }
 }
 
 extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
@@ -545,11 +389,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         const u32 transformsBindingPoint = 0;
 
         {
-            char *VertexShaderSource = (char*)Memory->Platform.ReadFile("shaders/tile.vert").Contents;
-            char *FragmentShaderSource = (char*)Memory->Platform.ReadFile("shaders/tile.frag").Contents;
-            u32 VertexShader = CreateShader(Memory, GameState, GL_VERTEX_SHADER, &VertexShaderSource[0]);
-            u32 FragmentShader = CreateShader(Memory, GameState, GL_FRAGMENT_SHADER, &FragmentShaderSource[0]);
-            GameState->TilesShaderProgram = CreateProgram(Memory, GameState, VertexShader, FragmentShader);
+            GameState->TilesShaderProgram = CreateShaderProgram(Memory, GameState, "shaders/tile.vert", "shaders/tile.frag");
 
             u32 transformsUniformBlockIndex = Renderer->glGetUniformBlockIndex(GameState->TilesShaderProgram, "transforms");
             Renderer->glUniformBlockBinding(GameState->TilesShaderProgram, transformsUniformBlockIndex, transformsBindingPoint);
@@ -561,27 +401,17 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         }
 
         {
-            char *VertexShaderSource = (char*)Memory->Platform.ReadFile("shaders/box.vert").Contents;
-            char *FragmentShaderSource = (char*)Memory->Platform.ReadFile("shaders/box.frag").Contents;
-            u32 VertexShader = CreateShader(Memory, GameState, GL_VERTEX_SHADER, &VertexShaderSource[0]);
-            u32 FragmentShader = CreateShader(Memory, GameState, GL_FRAGMENT_SHADER, &FragmentShaderSource[0]);
-            GameState->BoxesShaderProgram = CreateProgram(Memory, GameState, VertexShader, FragmentShader);
+            GameState->BoxesShaderProgram = CreateShaderProgram(Memory, GameState, "shaders/box.vert", "shaders/box.frag");
 
             u32 transformsUniformBlockIndex = Renderer->glGetUniformBlockIndex(GameState->BoxesShaderProgram, "transforms");
             Renderer->glUniformBlockBinding(GameState->BoxesShaderProgram, transformsUniformBlockIndex, transformsBindingPoint);
-
-            Renderer->glUseProgram(GameState->BoxesShaderProgram);
         }
 
         {
-            char *VertexShaderSource = (char*)Memory->Platform.ReadFile("shaders/entity.vert").Contents;
-            char *FragmentShaderSource = (char*)Memory->Platform.ReadFile("shaders/entity.frag").Contents;
-            u32 VertexShader = CreateShader(Memory, GameState, GL_VERTEX_SHADER, &VertexShaderSource[0]);
-            u32 FragmentShader = CreateShader(Memory, GameState, GL_FRAGMENT_SHADER, &FragmentShaderSource[0]);
-            GameState->DrawableEntitiesShaderProgram = CreateProgram(Memory, GameState, VertexShader, FragmentShader);
+            GameState->DrawableEntitiesShaderProgram = CreateShaderProgram(Memory, GameState, "shaders/entity.vert", "shaders/entity.frag");;
 
             u32 transformsUniformBlockIndex = Renderer->glGetUniformBlockIndex(GameState->DrawableEntitiesShaderProgram, "transforms");
-            Renderer->glUniformBlockBinding(GameState->TilesShaderProgram, transformsUniformBlockIndex, transformsBindingPoint);
+            Renderer->glUniformBlockBinding(GameState->DrawableEntitiesShaderProgram, transformsUniformBlockIndex, transformsBindingPoint);
 
             Renderer->glUseProgram(GameState->DrawableEntitiesShaderProgram);
 
@@ -590,19 +420,23 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         }
 
         {
-            char *VertexShaderSource = (char*)Memory->Platform.ReadFile("shaders/entity.vert").Contents;
-            char *FragmentShaderSource = (char*)Memory->Platform.ReadFile("shaders/border.frag").Contents;
-            u32 VertexShader = CreateShader(Memory, GameState, GL_VERTEX_SHADER, &VertexShaderSource[0]);
-            u32 FragmentShader = CreateShader(Memory, GameState, GL_FRAGMENT_SHADER, &FragmentShaderSource[0]);
-            GameState->DrawableEntitiesBorderShaderProgram = CreateProgram(Memory, GameState, VertexShader, FragmentShader);
+            // todo: use different fragment shader
+            GameState->DrawableEntitiesBorderShaderProgram = CreateShaderProgram(Memory, GameState, "shaders/entity.vert", "shaders/border.frag");;
 
             u32 transformsUniformBlockIndex = Renderer->glGetUniformBlockIndex(GameState->DrawableEntitiesBorderShaderProgram, "transforms");
-            Renderer->glUniformBlockBinding(GameState->TilesShaderProgram, transformsUniformBlockIndex, transformsBindingPoint);
+            Renderer->glUniformBlockBinding(GameState->DrawableEntitiesBorderShaderProgram, transformsUniformBlockIndex, transformsBindingPoint);
 
             Renderer->glUseProgram(GameState->DrawableEntitiesBorderShaderProgram);
 
             s32 TileSizeUniformLocation = GetUniformLocation(Memory, GameState->DrawableEntitiesBorderShaderProgram, "u_TileSize");
             SetShaderUniform(Memory, TileSizeUniformLocation, TileSize01);
+        }
+
+        {
+            GameState->BorderShaderProgram = CreateShaderProgram(Memory, GameState, "shaders/border.vert", "shaders/border.frag");;
+
+            u32 transformsUniformBlockIndex = Renderer->glGetUniformBlockIndex(GameState->DrawableEntitiesBorderShaderProgram, "transforms");
+            Renderer->glUniformBlockBinding(GameState->BorderShaderProgram, transformsUniformBlockIndex, transformsBindingPoint);
         }
 
 
@@ -1272,12 +1106,49 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         SetupVertexBuffer(Renderer, &GameState->DrawableEntitiesVertexBuffer);
         #pragma endregion
 
+
+        #pragma region Border
+
+        GameState->BorderVertexBuffer = {};
+        GameState->BorderVertexBuffer.Size = QuadVerticesSize;
+        GameState->BorderVertexBuffer.Usage = GL_STATIC_DRAW;
+
+        GameState->BorderVertexBuffer.DataLayout = PushStruct<vertex_buffer_data_layout>(&GameState->WorldArena);
+        GameState->BorderVertexBuffer.DataLayout->SubBufferCount = 1;
+        GameState->BorderVertexBuffer.DataLayout->SubBuffers = PushArray<vertex_sub_buffer>(
+            &GameState->WorldArena, GameState->BorderVertexBuffer.DataLayout->SubBufferCount);
+
+        {
+            vertex_sub_buffer *SubBuffer = GameState->BorderVertexBuffer.DataLayout->SubBuffers + 0;
+            SubBuffer->Offset = 0;
+            SubBuffer->Size = QuadVerticesSize;
+            SubBuffer->Data = QuadVertices;
+        }
+
+        GameState->BorderVertexBuffer.AttributesLayout = PushStruct<vertex_buffer_attributes_layout>(&GameState->WorldArena);
+        GameState->BorderVertexBuffer.AttributesLayout->AttributeCount = 1;
+        GameState->BorderVertexBuffer.AttributesLayout->Attributes = PushArray<vertex_buffer_attribute>(
+            &GameState->WorldArena, GameState->BorderVertexBuffer.AttributesLayout->AttributeCount);
+
+        {
+            vertex_buffer_attribute *Attribute = GameState->BorderVertexBuffer.AttributesLayout->Attributes + 0;
+            Attribute->Index = 0;
+            Attribute->Size = 4;
+            Attribute->Type = GL_FLOAT;
+            Attribute->Normalized = GL_FALSE;
+            Attribute->Stride = sizeof(vec4);
+            Attribute->Divisor = 0;
+            Attribute->OffsetPointer = (void *)0;
+        }
+
+        SetupVertexBuffer(Renderer, &GameState->BorderVertexBuffer);
+        #pragma endregion
+
         GameState->UpdateRate = 0.01f;   // 10 ms
         GameState->Lag = 0.f;
 
         GameState->Zoom = 1.f / 1.f;
         GameState->Camera = GameState->Player->Position;
-        //GameState->Camera = vec2(0.f);
 
         Renderer->glEnable(GL_BLEND);
         Renderer->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -1286,7 +1157,6 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Renderer->glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
 
         Renderer->glClearColor(BackgroundColor.r, BackgroundColor.g, BackgroundColor.b, 1.f);
-        //Renderer->glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
         GameState->IsInitialized = true;
     }
@@ -1518,6 +1388,13 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     Renderer->glUseProgram(GameState->DrawableEntitiesBorderShaderProgram);
 
+    {
+        s32 ColorUniformLocation = GetUniformLocation(Memory, GameState->DrawableEntitiesBorderShaderProgram, "u_Color");
+        
+        vec4 Color = vec4(0.f, 0.f, 1.f, 1.f);
+        SetShaderUniform(Memory, ColorUniformLocation, Color);
+    }
+
     f32 scale = 1.1f;
 
     for (u32 DrawableEntityIndex = 0; DrawableEntityIndex < GameState->TotalDrawableObjectCount; ++DrawableEntityIndex)
@@ -1569,6 +1446,28 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
 
     Renderer->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, GameState->TotalBoxCount);
+
+    Renderer->glUseProgram(GameState->BorderShaderProgram);
+    Renderer->glBindVertexArray(GameState->BorderVertexBuffer.VAO);
+    Renderer->glBindBuffer(GL_ARRAY_BUFFER, GameState->BorderVertexBuffer.VBO);
+
+    {
+        // todo: move out
+        s32 ModelUniformLocation = GetUniformLocation(Memory, GameState->BorderShaderProgram, "u_Model");
+        s32 ColorUniformLocation = GetUniformLocation(Memory, GameState->BorderShaderProgram, "u_Color");
+
+        mat4 Model = mat4(1.f);
+
+        Model = glm::translate(Model, vec3(8.f, 4.f, 0.f));
+        Model = glm::scale(Model, vec3(16.f, 6.f, 0.f));
+
+        SetShaderUniform(Memory, ModelUniformLocation, Model);
+
+        vec4 Color = vec4(0.f, 1.f, 0.f, 1.f);
+        SetShaderUniform(Memory, ColorUniformLocation, Color);
+    }
+
+    Renderer->glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
     //while (GameState->Lag >= GameState->UpdateRate) {
     //    Renderer->glBindBuffer(GL_ARRAY_BUFFER, GameState->VBOEntities);

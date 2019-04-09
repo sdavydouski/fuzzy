@@ -74,6 +74,12 @@ typedef GL_UNIFORM_1F(gl_uniform_1f);
 #define GL_UNIFORM_2F(name) void name(s32 Location, f32 V0, f32 V1)
 typedef GL_UNIFORM_2F(gl_uniform_2f);
 
+#define GL_UNIFORM_3F(name) void name(s32 Location, f32 V0, f32 V1, f32 V2)
+typedef GL_UNIFORM_3F(gl_uniform_3f);
+
+#define GL_UNIFORM_4F(name) void name(s32 Location, f32 V0, f32 V1, f32 V2, f32 V3)
+typedef GL_UNIFORM_4F(gl_uniform_4f);
+
 #define GL_UNIFORM_MATRIX_4FV(name) void name(s32 Location, GLsizei Count, GLboolean Transpose, const f32 *Value)
 typedef GL_UNIFORM_MATRIX_4FV(gl_uniform_matrix_4fv);
 
@@ -217,6 +223,8 @@ struct renderer_api {
     gl_uniform_1i *glUniform1i;
     gl_uniform_1f *glUniform1f;
     gl_uniform_2f *glUniform2f;
+    gl_uniform_3f *glUniform3f;
+    gl_uniform_4f *glUniform4f;
     gl_uniform_matrix_4fv *glUniformMatrix4fv;
     gl_gen_textures *glGenTextures;
     gl_bind_texture *glBindTexture;
