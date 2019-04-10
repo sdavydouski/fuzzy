@@ -408,7 +408,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         }
 
         {
-            GameState->DrawableEntitiesShaderProgram = CreateShaderProgram(Memory, GameState, "shaders/entity.vert", "shaders/entity.frag");;
+            GameState->DrawableEntitiesShaderProgram = CreateShaderProgram(Memory, GameState, "shaders/entity.vert", "shaders/entity.frag");
 
             u32 transformsUniformBlockIndex = Renderer->glGetUniformBlockIndex(GameState->DrawableEntitiesShaderProgram, "transforms");
             Renderer->glUniformBlockBinding(GameState->DrawableEntitiesShaderProgram, transformsUniformBlockIndex, transformsBindingPoint);
@@ -420,8 +420,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         }
 
         {
-            // todo: use different fragment shader
-            GameState->DrawableEntitiesBorderShaderProgram = CreateShaderProgram(Memory, GameState, "shaders/entity.vert", "shaders/border.frag");;
+            GameState->DrawableEntitiesBorderShaderProgram = CreateShaderProgram(Memory, GameState, "shaders/entity.vert", "shaders/color.frag");
 
             u32 transformsUniformBlockIndex = Renderer->glGetUniformBlockIndex(GameState->DrawableEntitiesBorderShaderProgram, "transforms");
             Renderer->glUniformBlockBinding(GameState->DrawableEntitiesBorderShaderProgram, transformsUniformBlockIndex, transformsBindingPoint);
@@ -433,7 +432,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         }
 
         {
-            GameState->BorderShaderProgram = CreateShaderProgram(Memory, GameState, "shaders/border.vert", "shaders/border.frag");;
+            GameState->BorderShaderProgram = CreateShaderProgram(Memory, GameState, "shaders/border.vert", "shaders/border.frag");
 
             u32 transformsUniformBlockIndex = Renderer->glGetUniformBlockIndex(GameState->DrawableEntitiesBorderShaderProgram, "transforms");
             Renderer->glUniformBlockBinding(GameState->BorderShaderProgram, transformsUniformBlockIndex, transformsBindingPoint);
@@ -1455,19 +1454,28 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         // todo: move out
         s32 ModelUniformLocation = GetUniformLocation(Memory, GameState->BorderShaderProgram, "u_Model");
         s32 ColorUniformLocation = GetUniformLocation(Memory, GameState->BorderShaderProgram, "u_Color");
+        s32 BorderWidthUniformLocation = GetUniformLocation(Memory, GameState->BorderShaderProgram, "u_BorderWidth");
+        s32 WidthOverHeightUniformLocation = GetUniformLocation(Memory, GameState->BorderShaderProgram, "u_WidthOverHeight");
+        
+        vec2 BorderSize = vec2(GameState->ScreenWidthInMeters, GameState->ScreenHeightInMeters);
+        SetShaderUniform(Memory, WidthOverHeightUniformLocation, BorderSize.x / BorderSize.y);
 
         mat4 Model = mat4(1.f);
 
-        Model = glm::translate(Model, vec3(8.f, 4.f, 0.f));
-        Model = glm::scale(Model, vec3(16.f, 6.f, 0.f));
+        Model = glm::translate(Model, vec3(GameState->Camera.x, -GameState->Camera.y, 0.f));
+        Model = glm::scale(Model, vec3(BorderSize, 0.f));
 
         SetShaderUniform(Memory, ModelUniformLocation, Model);
 
         vec4 Color = vec4(0.f, 1.f, 0.f, 1.f);
         SetShaderUniform(Memory, ColorUniformLocation, Color);
-    }
 
-    Renderer->glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        // todo: border in meters
+        f32 BorderWidth = 0.01f;
+        SetShaderUniform(Memory, BorderWidthUniformLocation, BorderWidth);
+
+        Renderer->glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    }
 
     //while (GameState->Lag >= GameState->UpdateRate) {
     //    Renderer->glBindBuffer(GL_ARRAY_BUFFER, GameState->VBOEntities);

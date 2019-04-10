@@ -32,6 +32,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "shaders", "shaders", "{849D
 		data\shaders\border.vert = data\shaders\border.vert
 		data\shaders\box.frag = data\shaders\box.frag
 		data\shaders\box.vert = data\shaders\box.vert
+		data\shaders\color.frag = data\shaders\color.frag
 		data\shaders\entity.frag = data\shaders\entity.frag
 		data\shaders\entity.vert = data\shaders\entity.vert
 		data\shaders\tile.frag = data\shaders\tile.frag

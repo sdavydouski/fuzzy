@@ -95,6 +95,12 @@ SetShaderUniform(game_memory *Memory, s32 Location, vec2 Value)
 }
 
 inline void
+SetShaderUniform(game_memory *Memory, s32 Location, vec3 Value)
+{
+    Memory->Renderer.glUniform3f(Location, Value.x, Value.y, Value.z);
+}
+
+inline void
 SetShaderUniform(game_memory *Memory, s32 Location, vec4 Value)
 {
     Memory->Renderer.glUniform4f(Location, Value.x, Value.y, Value.z, Value.w);

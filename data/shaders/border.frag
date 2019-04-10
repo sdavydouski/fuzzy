@@ -8,12 +8,17 @@ in vec2 uv;
 out vec4 out_Color;
 
 uniform vec4 u_Color;
+uniform float u_BorderWidth;
+uniform float u_WidthOverHeight;
 
 void main()
 {
-    float width = 0.1f;
+    float MinX = u_BorderWidth;
+    float MaxX = 1.f - u_BorderWidth;
+    float MinY = u_BorderWidth * u_WidthOverHeight;
+    float MaxY = 1.f - MinY;
 
-    if (uv.x >= width && uv.x <= 1.f - width && uv.y >= width && uv.y <= 1.f - width)
+    if (uv.x > MinX && uv.x < MaxX && uv.y > MinY && uv.y < MaxY)
     {
         discard;
     }
@@ -21,7 +26,4 @@ void main()
     {
         out_Color = u_Color;
     }
-
-    //out_Color = u_Color;
-    //out_Color = vec4(0.f, 0.f, 1.f, 1.f);
 }
