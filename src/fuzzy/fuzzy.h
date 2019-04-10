@@ -23,19 +23,6 @@ u32 Hash(u32 Value)
     return Hash;
 }
 
-// from https://stackoverflow.com/questions/7666509/
-u32 Hash(char *Value)
-{
-    u32 Hash = 5381;
-    s32 C;
-
-    while (C = *Value++) {
-        Hash = ((Hash << 5) + Hash) + C;
-    }
-
-    return Hash;
-}
-
 struct bitmap
 {
     s32 Width;
@@ -51,29 +38,6 @@ struct aabb
     vec2 Size;
 };
 
-enum class direction
-{
-    TOP, LEFT, BOTTOM, RIGHT
-};
-/*
-struct animation
-{
-    s32 X;
-    s32 Y;
-    s32 Frames;
-    f32 Delay;
-    s32 Size;
-    direction Direction = direction::RIGHT;
-
-    b32 operator==(const animation& Other) const {
-        return X == Other.X && Y == Other.Y;
-    }
-
-    b32 operator!=(const animation& Other) const {
-        return !(*this == Other);
-    }
-};
-*/
 enum class entity_type
 {
     UNKNOWN,
@@ -350,11 +314,11 @@ struct game_state
     vertex_buffer DrawableEntitiesVertexBuffer;
     vertex_buffer BorderVertexBuffer;
 
-    u32 TilesShaderProgram;
-    u32 BoxesShaderProgram;
-    u32 DrawableEntitiesShaderProgram;
-    u32 DrawableEntitiesBorderShaderProgram;
-    u32 BorderShaderProgram;
+    shader_program TilesShaderProgram;
+    shader_program BoxesShaderProgram;
+    shader_program DrawableEntitiesShaderProgram;
+    shader_program DrawableEntitiesBorderShaderProgram;
+    shader_program BorderShaderProgram;
 
     mat4 Projection;
     mat4 VP;

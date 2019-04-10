@@ -112,15 +112,39 @@ SetShaderUniform(game_memory *Memory, s32 Location, const mat4& Value)
     Memory->Renderer.glUniformMatrix4fv(Location, 1, GL_FALSE, glm::value_ptr(Value));
 }
 
-u32
+shader_program
 CreateShaderProgram(game_memory *Memory, game_state *GameState, char *VertexShaderFileName, char *FragmentShaderFileName)
 {
+    shader_program Result = {};
+
     char *VertexShaderSource = (char *)Memory->Platform.ReadFile(VertexShaderFileName).Contents;
     char *FragmentShaderSource = (char *)Memory->Platform.ReadFile(FragmentShaderFileName).Contents;
     u32 VertexShader = CreateShader(Memory, GameState, GL_VERTEX_SHADER, &VertexShaderSource[0]);
     u32 FragmentShader = CreateShader(Memory, GameState, GL_FRAGMENT_SHADER, &FragmentShaderSource[0]);
 
-    u32 Result = CreateProgram(Memory, GameState, VertexShader, FragmentShader);
+    Result.ProgramHandle = CreateProgram(Memory, GameState, VertexShader, FragmentShader);
+
+    s32 UniformCount;
+    Memory->Renderer.glGetProgramiv(Result.ProgramHandle, GL_ACTIVE_UNIFORMS, &UniformCount);
+
+    Result.UniformCount = (u32)UniformCount;
+    Result.Uniforms = PushArray<shader_uniform>(&GameState->WorldArena, Result.UniformCount);
+
+    s32 MaxUniformLength;
+    Memory->Renderer.glGetProgramiv(Result.ProgramHandle, GL_ACTIVE_UNIFORM_MAX_LENGTH, &MaxUniformLength);
+
+    for (s32 UniformIndex = 0; UniformIndex < UniformCount; ++UniformIndex)
+    {
+        GLsizei Length;
+        s32 Size;
+        GLenum Type;
+        char *Name = PushString(&GameState->WorldArena, MaxUniformLength);
+        Memory->Renderer.glGetActiveUniform(Result.ProgramHandle, UniformIndex, MaxUniformLength, &Length, &Size, &Type, Name);
+        
+        shader_uniform *Uniform = CreateUniform(&Result, Name, &GameState->WorldArena);
+        Uniform->Location = GetUniformLocation(Memory, Result.ProgramHandle, Uniform->Name);
+    }
+
     return Result;
 }
 
