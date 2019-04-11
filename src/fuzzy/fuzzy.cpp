@@ -8,9 +8,12 @@
 
 #include "fuzzy_types.h"
 #include "fuzzy_platform.h"
+#include "fuzzy.h"
+
+#include "fuzzy_math.cpp"
 #include "fuzzy_tiled.cpp"
 #include "fuzzy_graphics.cpp"
-#include "fuzzy.h"
+#include "fuzzy_animations.cpp"
 
 global_variable const u32 FLIPPED_HORIZONTALLY_FLAG = 0x80000000;
 global_variable const u32 FLIPPED_VERTICALLY_FLAG = 0x40000000;
@@ -32,12 +35,6 @@ Clamp(f32 Value, f32 Min, f32 Max)
 
     return Value;
 }
-
-//inline f32 abs(f32 value) {
-//    if (value < 0.f) return -value;
-//
-//    return value;
-//}
 
 internal_function inline f32
 GetRandomInRange(f32 Min, f32 Max)
@@ -105,46 +102,6 @@ SweptAABB(const vec2 Point, const vec2 Delta, const aabb& Box, const vec2 Paddin
 
 global_variable const vec3 BackgroundColor = NormalizeRGB(29, 33, 45);
 
-internal_function inline animation_frame *
-GetCurrentAnimationFrame(animation *Animation)
-{
-    animation_frame *Result = Animation->AnimationFrames + Animation->CurrentFrameIndex;
-    return Result;
-}
-
-internal_function inline animation *
-GetAnimation(game_state *GameState, animation_type Type)
-{
-    animation *Result = GameState->Animations + Type;
-    return Result;
-}
-
-internal_function void
-ChangeAnimation(game_state *GameState, entity *Entity, animation *Animation, b32 Loop = true)
-{
-    Animation->CurrentFrameIndex = 0;
-    animation_frame *CurrentFrame = GetCurrentAnimationFrame(Animation);
-
-    CurrentFrame = Animation->AnimationFrames + Animation->CurrentFrameIndex;
-    CurrentFrame->CurrentXOffset01 = CurrentFrame->XOffset01;
-    CurrentFrame->CurrentYOffset01 = CurrentFrame->YOffset01;
-    Animation->CurrentTime = 0.f;
-
-    if (Loop)
-    {
-        Animation->Next = Animation;
-    }
-
-    Entity->CurrentAnimation = Animation;
-}
-
-internal_function void
-ChangeAnimation(game_state *GameState, entity *Entity, animation_type Type, b32 Loop = true)
-{
-    animation *Animation = GetAnimation(GameState, Type);
-    ChangeAnimation(GameState, Entity, Animation, Loop);
-}
-
 internal_function void
 ProcessInput(game_state *GameState, game_input *Input, f32 Delta)
 {
@@ -155,10 +112,10 @@ ProcessInput(game_state *GameState, game_input *Input, f32 Delta)
         // todo: in future handle flipped vertically/diagonally
         GameState->Player->RenderInfo->Flipped = true;
 
-        if (GameState->Player->CurrentAnimation != GetAnimation(GameState, ANIMATION_PLAYER_RUN) &&
-            GameState->Player->CurrentAnimation != GetAnimation(GameState, ANIMATION_PLAYER_SQUASH) &&
-            GameState->Player->CurrentAnimation != GetAnimation(GameState, ANIMATION_PLAYER_JUMP_UP) &&
-            GameState->Player->CurrentAnimation != GetAnimation(GameState, ANIMATION_PLAYER_JUMP_DOWN))
+        if (GameState->Player->CurrentAnimation->Type != ANIMATION_PLAYER_RUN &&
+            GameState->Player->CurrentAnimation->Type != ANIMATION_PLAYER_SQUASH &&
+            GameState->Player->CurrentAnimation->Type != ANIMATION_PLAYER_JUMP_UP &&
+            GameState->Player->CurrentAnimation->Type != ANIMATION_PLAYER_JUMP_DOWN)
         {
             ChangeAnimation(GameState, GameState->Player, ANIMATION_PLAYER_RUN);
         }
@@ -170,10 +127,10 @@ ProcessInput(game_state *GameState, game_input *Input, f32 Delta)
 
         GameState->Player->RenderInfo->Flipped = false;
 
-        if (GameState->Player->CurrentAnimation != GetAnimation(GameState, ANIMATION_PLAYER_RUN) &&
-            GameState->Player->CurrentAnimation != GetAnimation(GameState, ANIMATION_PLAYER_SQUASH) &&
-            GameState->Player->CurrentAnimation != GetAnimation(GameState, ANIMATION_PLAYER_JUMP_UP) &&
-            GameState->Player->CurrentAnimation != GetAnimation(GameState, ANIMATION_PLAYER_JUMP_DOWN))
+        if (GameState->Player->CurrentAnimation->Type != ANIMATION_PLAYER_RUN &&
+            GameState->Player->CurrentAnimation->Type != ANIMATION_PLAYER_SQUASH &&
+            GameState->Player->CurrentAnimation->Type != ANIMATION_PLAYER_JUMP_UP &&
+            GameState->Player->CurrentAnimation->Type != ANIMATION_PLAYER_JUMP_DOWN)
         {
             ChangeAnimation(GameState, GameState->Player, ANIMATION_PLAYER_RUN);
         }
@@ -184,7 +141,12 @@ ProcessInput(game_state *GameState, game_input *Input, f32 Delta)
         Input->Left.isProcessed = true;
         if (GameState->Player->CurrentAnimation != GetAnimation(GameState, ANIMATION_PLAYER_IDLE))
         {
-            ChangeAnimation(GameState, GameState->Player, ANIMATION_PLAYER_IDLE);
+            if (GameState->Player->CurrentAnimation->Type != ANIMATION_PLAYER_IDLE &&
+                GameState->Player->CurrentAnimation->Type != ANIMATION_PLAYER_JUMP_UP &&
+                GameState->Player->CurrentAnimation->Type != ANIMATION_PLAYER_JUMP_DOWN)
+            {
+                ChangeAnimation(GameState, GameState->Player, ANIMATION_PLAYER_IDLE);
+            }
         }
     }
 
@@ -193,7 +155,12 @@ ProcessInput(game_state *GameState, game_input *Input, f32 Delta)
         Input->Right.isProcessed = true;
         if (GameState->Player->CurrentAnimation != GetAnimation(GameState, ANIMATION_PLAYER_IDLE))
         {
-            ChangeAnimation(GameState, GameState->Player, ANIMATION_PLAYER_IDLE);
+            if (GameState->Player->CurrentAnimation->Type != ANIMATION_PLAYER_IDLE &&
+                GameState->Player->CurrentAnimation->Type != ANIMATION_PLAYER_JUMP_UP &&
+                GameState->Player->CurrentAnimation->Type != ANIMATION_PLAYER_JUMP_DOWN)
+            {
+                ChangeAnimation(GameState, GameState->Player, ANIMATION_PLAYER_IDLE);
+            }
         }
     }
 
@@ -219,116 +186,6 @@ ProcessInput(game_state *GameState, game_input *Input, f32 Delta)
     {
         GameState->Zoom = 1.f + abs(Input->ScrollY) * ZoomScale;
     }
-
-    //GameState->Zoom = Clamp(GameState->Zoom, 0.1f, 4.f);
-
-    //if (Input->Keys[KEY_LEFT] == KEY_PRESS) {
-    //    if (
-    //        Bob->CurrentAnimation != Bob->Animations[2] &&
-    //        Bob->CurrentAnimation != Bob->Animations[1] &&
-    //        Bob->CurrentAnimation != Bob->Animations[3]
-    //        ) {
-    //        Bob->CurrentAnimation = Bob->Animations[2];
-    //    }
-    //    Bob->Acceleration.x = -12.f;
-    //    Bob->Flipped |= FLIPPED_HORIZONTALLY_FLAG;
-    //}
-
-    //if (Input->Keys[KEY_RIGHT] == KEY_PRESS) {
-    //    if (
-    //        Bob->CurrentAnimation != Bob->Animations[2] &&
-    //        Bob->CurrentAnimation != Bob->Animations[1] &&
-    //        Bob->CurrentAnimation != Bob->Animations[3]
-    //        ) {
-    //        Bob->CurrentAnimation = Bob->Animations[2];
-    //    }
-    //    Bob->Acceleration.x = 12.f;
-    //    Bob->Flipped &= 0;
-    //}
-
-    //if (Input->Keys[KEY_LEFT] == KEY_RELEASE && !Input->ProcessedKeys[KEY_LEFT]) {
-    //    Input->ProcessedKeys[KEY_LEFT] = true;
-    //    if (Bob->CurrentAnimation != Bob->Animations[0]) {
-    //        Bob->CurrentAnimation = Bob->Animations[0];
-    //        Bob->XAnimationOffset = 0.f;
-    //        Bob->Flipped |= FLIPPED_HORIZONTALLY_FLAG;
-    //    }
-    //}
-
-    //if (Input->Keys[KEY_RIGHT] == KEY_RELEASE && !Input->ProcessedKeys[KEY_RIGHT]) {
-    //    Input->ProcessedKeys[KEY_RIGHT] = true;
-    //    if (Bob->CurrentAnimation != Bob->Animations[0]) {
-    //        Bob->CurrentAnimation = Bob->Animations[0];
-    //        Bob->XAnimationOffset = 0.f;
-    //        Bob->Flipped &= 0;
-    //    }
-    //}
-
-    //if (Input->Keys[KEY_SPACE] == KEY_PRESS && !Input->ProcessedKeys[KEY_SPACE]) {
-    //    Input->ProcessedKeys[KEY_SPACE] = true;
-    //    Bob->Acceleration.y = -350.f;
-    //    Bob->Velocity.y = 0.f;
-    //}
-
-    //if (Input->Keys[KEY_S] == KEY_PRESS && !Input->ProcessedKeys[KEY_S]) {
-    //    Input->ProcessedKeys[KEY_S] = true;
-    //    Bob->CurrentAnimation = Bob->Animations[3];
-    //    Bob->XAnimationOffset = 0.f;
-
-    //    Swoosh->ShouldRender = true;
-    //    Swoosh->XAnimationOffset = 0.f;
-    //    Swoosh->Flipped = Bob->Flipped;
-
-    //    // todo: make it better
-    //    for (u32 DrawableEntityIndex = 0; DrawableEntityIndex < GameState->DrawableEntitiesCount; ++DrawableEntityIndex) {
-    //        drawable_entity *Entity = &GameState->DrawableEntities[DrawableEntityIndex];
-    //        if (Entity->Type == tile_type::REFLECTOR) {
-    //            Entity->UnderEffect = false;
-    //        }
-    //    }
-
-    //    if (Swoosh->Flipped & FLIPPED_HORIZONTALLY_FLAG) {
-    //        Swoosh->Position = { Bob->Box.Position.x - 2 * TILE_SIZE.x, Bob->Box.Position.y };
-    //        Swoosh->Box.Position = { Bob->Box.Position.x - 2 * TILE_SIZE.x, Bob->Box.Position.y };
-    //    }
-    //    else {
-    //        Swoosh->Position = { Bob->Box.Position.x + TILE_SIZE.x, Bob->Box.Position.y };
-    //        Swoosh->Box.Position = { Bob->Box.Position.x + TILE_SIZE.x, Bob->Box.Position.y };
-    //    }
-    //}
-}
-
-internal_function animation_type
-GetAnimationTypeFromString(const char *String)
-{
-    animation_type Result;
-
-    if (StringEquals(String, "PLAYER_IDLE"))
-    {
-        Result = ANIMATION_PLAYER_IDLE;
-    }
-    else if (StringEquals(String, "PLAYER_RUN"))
-    {
-        Result = ANIMATION_PLAYER_RUN;
-    }
-    else if (StringEquals(String, "PLAYER_JUMP_UP"))
-    {
-        Result = ANIMATION_PLAYER_JUMP_UP;
-    }
-    else if (StringEquals(String, "PLAYER_JUMP_DOWN"))
-    {
-        Result = ANIMATION_PLAYER_JUMP_DOWN;
-    }
-    else if (StringEquals(String, "PLAYER_SQUASH"))
-    {
-        Result = ANIMATION_PLAYER_SQUASH;
-    }
-    else
-    {
-        InvalidCodePath;
-    }
-
-    return Result;
 }
 
 extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
@@ -567,6 +424,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                     animation *Animation = GameState->Animations + AnimationType;
 
                     *Animation = {};
+                    Animation->Type = AnimationType;
                     Animation->CurrentFrameIndex = 0;
                     Animation->AnimationFrameCount = Tile->AnimationFrameCount;
                     Animation->AnimationFrames = PushArray<animation_frame>(&GameState->WorldArena, Animation->AnimationFrameCount);
@@ -576,7 +434,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                         tile_animation_frame *TileAnimationFrame = Tile->AnimationFrames + AnimationFrameIndex;
                         animation_frame *AnimationFrame = Animation->AnimationFrames + AnimationFrameIndex;
 
-                        AnimationFrame->Duration = TileAnimationFrame->Duration;
+                        AnimationFrame->Duration = TileAnimationFrame->Duration / 1000.f;
                         AnimationFrame->Width01 = (f32)Tileset.TileWidthInPixels / (f32)Tileset.Image.Width;
                         AnimationFrame->Height01 = (f32)Tileset.TileHeightInPixels / (f32)Tileset.Image.Height;
 
@@ -1063,7 +921,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             Attribute->Stride = sizeof(entity_render_info);
             Attribute->Divisor = 1;
             // todo: really need to deal with this offset thing, man
-            Attribute->OffsetPointer = (void *)((u64)QuadVerticesSize + Offset(entity_render_info, InstanceModel));
+            Attribute->OffsetPointer = (void *)((u64)QuadVerticesSize + StructOffset(entity_render_info, InstanceModel));
         }
 
         {
@@ -1074,7 +932,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             Attribute->Normalized = GL_FALSE;
             Attribute->Stride = sizeof(entity_render_info);
             Attribute->Divisor = 1;
-            Attribute->OffsetPointer = (void *)(QuadVerticesSize + Offset(entity_render_info, InstanceModel) + sizeof(vec4));
+            Attribute->OffsetPointer = (void *)(QuadVerticesSize + StructOffset(entity_render_info, InstanceModel) + sizeof(vec4));
         }
 
         {
@@ -1085,7 +943,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             Attribute->Normalized = GL_FALSE;
             Attribute->Stride = sizeof(entity_render_info);
             Attribute->Divisor = 1;
-            Attribute->OffsetPointer = (void *)(QuadVerticesSize + Offset(entity_render_info, InstanceModel) + 2 * sizeof(vec4));
+            Attribute->OffsetPointer = (void *)(QuadVerticesSize + StructOffset(entity_render_info, InstanceModel) + 2 * sizeof(vec4));
         }
 
         {
@@ -1096,7 +954,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             Attribute->Normalized = GL_FALSE;
             Attribute->Stride = sizeof(entity_render_info);
             Attribute->Divisor = 1;
-            Attribute->OffsetPointer = (void *)(QuadVerticesSize + Offset(entity_render_info, InstanceModel) + 3 * sizeof(vec4));
+            Attribute->OffsetPointer = (void *)(QuadVerticesSize + StructOffset(entity_render_info, InstanceModel) + 3 * sizeof(vec4));
         }
 
         {
@@ -1107,7 +965,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             Attribute->Normalized = GL_FALSE;
             Attribute->Stride = sizeof(entity_render_info);
             Attribute->Divisor = 1;
-            Attribute->OffsetPointer = (void *)((u64)QuadVerticesSize + Offset(entity_render_info, InstanceUVOffset01));
+            Attribute->OffsetPointer = (void *)((u64)QuadVerticesSize + StructOffset(entity_render_info, InstanceUVOffset01));
         }
 
         {
@@ -1117,7 +975,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             Attribute->Type = GL_UNSIGNED_INT;
             Attribute->Stride = sizeof(u32);
             Attribute->Divisor = 1;
-            Attribute->OffsetPointer = (void *)((u64)QuadVerticesSize + Offset(entity_render_info, Flipped));
+            Attribute->OffsetPointer = (void *)((u64)QuadVerticesSize + StructOffset(entity_render_info, Flipped));
         }
 
         SetupVertexBuffer(Renderer, &GameState->DrawableEntitiesVertexBuffer);
@@ -1253,14 +1111,14 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         if (GameState->Player->Velocity.y > 0.f)
         {
             // todo: deal with ifs
-            if (GameState->Player->CurrentAnimation != GetAnimation(GameState, ANIMATION_PLAYER_JUMP_UP))
+            if (GameState->Player->CurrentAnimation->Type != ANIMATION_PLAYER_JUMP_UP)
             {
                 ChangeAnimation(GameState, GameState->Player, ANIMATION_PLAYER_JUMP_UP);
             }
         }
         else if (GameState->Player->Velocity.y < 0.f)
         {
-            if (GameState->Player->CurrentAnimation != GetAnimation(GameState, ANIMATION_PLAYER_JUMP_DOWN))
+            if (GameState->Player->CurrentAnimation->Type != ANIMATION_PLAYER_JUMP_DOWN)
             {
                 ChangeAnimation(GameState, GameState->Player, ANIMATION_PLAYER_JUMP_DOWN);
             }
@@ -1358,10 +1216,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             animation *Animation = Entity->CurrentAnimation;
             animation_frame *CurrentFrame = GetCurrentAnimationFrame(Animation);
 
-            // todo: ms to sec
-            f32 AnimationFrameDuration = CurrentFrame->Duration / 1000.f;
-
-            if (Animation->CurrentTime >= AnimationFrameDuration)
+            if (Animation->CurrentTime >= CurrentFrame->Duration)
             {
                 Animation->CurrentFrameIndex++;
 
@@ -1420,7 +1275,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Entity->RenderInfo->InstanceModel = glm::translate(Entity->RenderInfo->InstanceModel, vec3(-Entity->Size / 2.f, 1.f));
 
         Renderer->glBufferSubData(
-            GL_ARRAY_BUFFER, Entity->RenderInfo->Offset + Offset(entity_render_info, InstanceModel), 
+            GL_ARRAY_BUFFER, Entity->RenderInfo->Offset + StructOffset(entity_render_info, InstanceModel), 
             sizeof(mat4), &Entity->RenderInfo->InstanceModel
         );
     }
@@ -1436,7 +1291,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Entity->RenderInfo->InstanceModel = glm::translate(Entity->RenderInfo->InstanceModel, vec3(-Entity->Size / 2.f, 1.f));
 
         Renderer->glBufferSubData(
-            GL_ARRAY_BUFFER, Entity->RenderInfo->Offset + Offset(entity_render_info, InstanceModel),
+            GL_ARRAY_BUFFER, Entity->RenderInfo->Offset + StructOffset(entity_render_info, InstanceModel),
             sizeof(mat4), &Entity->RenderInfo->InstanceModel
         );
     }

@@ -32,8 +32,6 @@ using u32 = GLuint;
 using u64 = GLuint64;
 
 using b32 = s32;
-//using c8 = GLchar;
-//using e32 = GLenum;
 
 using f32 = GLfloat;
 using f64 = GLdouble;

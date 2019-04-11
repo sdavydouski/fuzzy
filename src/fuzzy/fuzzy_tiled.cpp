@@ -1,10 +1,11 @@
 #include "rapidjson/document.h"
-#include "fuzzy.h"
+#include "fuzzy_tiled.h"
 #include "fuzzy_platform.h"
+#include "fuzzy.h"
 
 using namespace rapidjson;
 
-internal_function entity_type
+entity_type
 GetEntityTypeFromString(const char *String)
 {
     entity_type Result;
@@ -28,9 +29,63 @@ GetEntityTypeFromString(const char *String)
     return Result;
 }
 
+tile_meta_info *
+GetTileMetaInfo(tileset *Tileset, u32 Id) {
+    tile_meta_info *Result = nullptr;
+
+    u32 HashValue = Hash(Id) % Tileset->TileCount;
+    assert(HashValue < Tileset->TileCount);
+
+    tile_meta_info *Tile = Tileset->Tiles + HashValue;
+
+    do {
+        if (Tile->Id == Id) {
+            Result = Tile;
+            break;
+        }
+
+        Tile = Tile->Next;
+    } while (Tile);
+
+    return Result;
+}
+
+global_variable const u32 UNINITIALIZED_TILE_ID = 0;
+
+tile_meta_info *
+CreateTileMetaInfo(tileset *Tileset, u32 Id, memory_arena *Arena)
+{
+    tile_meta_info *Result = nullptr;
+
+    u32 HashValue = Hash(Id) % Tileset->TileCount;
+    assert(HashValue < Tileset->TileCount);
+
+    tile_meta_info *Tile = Tileset->Tiles + HashValue;
+
+    do {
+        if (Tile->Id == UNINITIALIZED_TILE_ID)
+        {
+            Result = Tile;
+            Result->Id = Id;
+            break;
+        }
+
+        if (Tile->Id != UNINITIALIZED_TILE_ID && !Tile->Next)
+        {
+            // todo: potentially dangerous operation
+            Tile->Next = PushStruct<tile_meta_info>(Arena);
+            Tile->Next->Id = UNINITIALIZED_TILE_ID;
+        }
+
+        Tile = Tile->Next;
+    } while (Tile);
+
+    return Result;
+}
+
 typedef GenericDocument<UTF8<>, MemoryPoolAllocator<>, MemoryPoolAllocator<>> DocumentType;
 
-internal_function DocumentType
+DocumentType
 ParseJSON(const char *Json, u64 ValueBufferSize, u64 ParseBufferSize, memory_arena *Region) 
 {
     // todo: temporary memory for document storage
@@ -46,7 +101,7 @@ ParseJSON(const char *Json, u64 ValueBufferSize, u64 ParseBufferSize, memory_are
     return Document;
 }
 
-internal_function void
+void
 LoadTileset(tileset *Tileset, const char *Json, memory_arena *Arena, platform_api *Platform) 
 {
     // todo: think more about the sizes
