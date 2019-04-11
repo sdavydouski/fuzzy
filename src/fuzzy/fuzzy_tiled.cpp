@@ -1,5 +1,6 @@
 #include "rapidjson/document.h"
 #include "fuzzy.h"
+#include "fuzzy_platform.h"
 
 using namespace rapidjson;
 
@@ -12,28 +13,16 @@ GetEntityTypeFromString(const char *String)
     {
         if (StringEquals(String, "player"))
         {
-            Result = entity_type::PLAYER;
-        }
-        else if (StringEquals(String, "reflector"))
-        {
-            Result = entity_type::REFLECTOR;
-        }
-        else if (StringEquals(String, "lamp"))
-        {
-            Result = entity_type::LAMP;
-        }
-        else if (StringEquals(String, "platform"))
-        {
-            Result = entity_type::PLATFORM;
+            Result = ENTITY_PLAYER;
         }
         else
         {
-            Result = entity_type::UNKNOWN;
+            Result = ENTITY_UNKNOWN;
         }
     }
     else
     {
-        Result = entity_type::UNKNOWN;
+        Result = ENTITY_UNKNOWN;
     }
 
     return Result;
@@ -61,8 +50,8 @@ internal_function void
 LoadTileset(tileset *Tileset, const char *Json, memory_arena *Arena, platform_api *Platform) 
 {
     // todo: think more about the sizes
-    u64 ValueBufferSize = Kilobytes(512);
-    u64 ParseBufferSize = Kilobytes(32);
+    constexpr u64 ValueBufferSize = Kilobytes(512);
+    constexpr u64 ParseBufferSize = Kilobytes(32);
     DocumentType Document = ParseJSON(Json, ValueBufferSize, ParseBufferSize, Arena);
 
     const char *ImagePath = Document["image"].GetString();
@@ -237,8 +226,8 @@ void
 LoadMap(tilemap *Map, const char *Json, memory_arena *Arena, platform_api *Platform) 
 {
     // todo: think more about the sizes
-    u64 ValueBufferSize = Megabytes(32);
-    u64 ParseBufferSize = Megabytes(1);
+    constexpr u64 ValueBufferSize = Megabytes(32);
+    constexpr u64 ParseBufferSize = Megabytes(1);
     DocumentType Document = ParseJSON(Json, ValueBufferSize, ParseBufferSize, Arena);
 
     assert(Document.HasMember("tilesets"));
@@ -310,6 +299,8 @@ LoadMap(tilemap *Map, const char *Json, memory_arena *Arena, platform_api *Platf
             TileLayer->Width = Layer["width"].GetUint();
             TileLayer->Height = Layer["height"].GetUint();
 
+            TileLayer->Visible = Layer["visible"].GetBool();
+
             const Value& Chunks = Layer["chunks"];
             assert(Chunks.IsArray());
 
@@ -346,6 +337,8 @@ LoadMap(tilemap *Map, const char *Json, memory_arena *Arena, platform_api *Platf
         {
             object_layer *ObjectLayer = Map->ObjectLayers + ObjectLayerIndex;
 
+            ObjectLayer->Visible = Layer["visible"].GetBool();
+
             const Value& Objects = Layer["objects"];
             assert(Objects.IsArray());
 
@@ -367,7 +360,7 @@ LoadMap(tilemap *Map, const char *Json, memory_arena *Arena, platform_api *Platf
                 MapObject->GID = Object["gid"].GetUint();
 
                 entity_type ObjectType = GetEntityTypeFromString(Object["type"].GetString());
-                if (ObjectType != entity_type::UNKNOWN)
+                if (ObjectType != ENTITY_UNKNOWN)
                 {
                     MapObject->Type = ObjectType;
                 }

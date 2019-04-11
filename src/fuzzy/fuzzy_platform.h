@@ -299,12 +299,13 @@ typedef GAME_UPDATE_AND_RENDER(game_update_and_render);
 
 inline b32
 StringEquals(const char *Str1, const char *Str2) {
-    return strcmp(Str1, Str2) == 0;
+    b32 Result = strcmp(Str1, Str2) == 0;
+    return Result;
 }
 
-inline char*
+inline char *
 GetLastAfterDelimiter(char *String, const char Delimiter) {
-    char* Result = String;
+    char *Result = String;
 
     for (char *Scan = String; *Scan; ++Scan) {
         if (*Scan == Delimiter) {
@@ -317,13 +318,9 @@ GetLastAfterDelimiter(char *String, const char Delimiter) {
 
 inline s32 
 StringLength(const char *String) {
-    s32 Length = 0;
+    u32 Result = (u32)strlen(String);
 
-    while (*String++) {
-        ++Length;
-    }
-
-    return Length;
+    return Result;
 }
 
 inline void 

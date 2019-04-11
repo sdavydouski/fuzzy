@@ -192,8 +192,8 @@
     </BuildLog>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <None Include="fuzzy_tiled.cpp" />
     <None Include="fuzzy_graphics.cpp" />
-    <None Include="tiled.cpp" />
     <ClCompile Include="fuzzy.cpp" />
   </ItemGroup>
   <ItemGroup>

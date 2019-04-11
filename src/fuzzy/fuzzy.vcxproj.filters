@@ -11,7 +11,7 @@
     <ClInclude Include="fuzzy_graphics.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="tiled.cpp" />
     <None Include="fuzzy_graphics.cpp" />
+    <None Include="fuzzy_tiled.cpp" />
   </ItemGroup>
 </Project>

@@ -38,13 +38,10 @@ struct aabb
     vec2 Size;
 };
 
-enum class entity_type
+enum entity_type
 {
-    UNKNOWN,
-    PLAYER,
-    REFLECTOR,
-    LAMP,
-    PLATFORM
+    ENTITY_UNKNOWN,
+    ENTITY_PLAYER
 };
 
 enum animation_type
@@ -247,6 +244,8 @@ struct tile_layer
 
     u32 ChunkCount;
     map_chunk *Chunks;
+
+    b32 Visible;
 };
 
 struct map_object
@@ -267,6 +266,8 @@ struct object_layer
 {
     u32 ObjectCount;
     map_object *Objects;
+
+    b32 Visible;
 };
 
 struct tileset_source
