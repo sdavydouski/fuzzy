@@ -20,7 +20,8 @@ struct aabb
 enum entity_type
 {
     ENTITY_UNKNOWN,
-    ENTITY_PLAYER
+    ENTITY_PLAYER,
+    ENTITY_SIREN
 };
 
 struct tile_animation_frame

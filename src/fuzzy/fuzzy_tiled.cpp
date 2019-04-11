@@ -16,6 +16,10 @@ GetEntityTypeFromString(const char *String)
         {
             Result = ENTITY_PLAYER;
         }
+        else if (StringEquals(String, "siren"))
+        {
+            Result = ENTITY_SIREN;
+        }
         else
         {
             Result = ENTITY_UNKNOWN;

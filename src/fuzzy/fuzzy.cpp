@@ -171,6 +171,27 @@ ProcessInput(game_state *GameState, game_input *Input, f32 Delta)
         GameState->Player->Velocity.y = 0.f;
     }
 
+    if (Input->Attack.isPressed && !Input->Attack.isProcessed)
+    {
+        Input->Attack.isProcessed = true;
+
+        // todo: this is super janky
+        if (GameState->Player->CurrentAnimation->Type != ANIMATION_PLAYER_ATTACK)
+        {
+            animation *PrevAnimation = GameState->Player->CurrentAnimation;
+
+            if (PrevAnimation->Type == ANIMATION_PLAYER_SQUASH)
+            {
+                PrevAnimation = GetAnimation(GameState, ANIMATION_PLAYER_IDLE);
+            }
+
+            animation *AttackAnimation = GetAnimation(GameState, ANIMATION_PLAYER_ATTACK);
+            AttackAnimation->Next = PrevAnimation;
+
+            ChangeAnimation(GameState, GameState->Player, AttackAnimation, false);
+        }
+    }
+
     f32 ZoomScale = 0.2f;
 
     // todo: float precision!
@@ -661,6 +682,11 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                         {
                             GameState->Player = DrawableEntity;
                             ChangeAnimation(GameState, GameState->Player, ANIMATION_PLAYER_IDLE);
+                        }
+
+                        if (DrawableEntity->Type == ENTITY_SIREN)
+                        {
+                            ChangeAnimation(GameState, DrawableEntity, ANIMATION_SIREN);
                         }
 
                         ++EntityInstanceIndex;
@@ -1247,7 +1273,12 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         }
     }
 
-    Renderer->glBufferSubData(GL_ARRAY_BUFFER, GameState->Player->RenderInfo->Offset, sizeof(entity_render_info), GameState->Player->RenderInfo);
+    for (u32 EntityIndex = 0; EntityIndex < GameState->TotalDrawableObjectCount; ++EntityIndex)
+    {
+        entity *Entity = GameState->DrawableEntities + EntityIndex;
+
+        Renderer->glBufferSubData(GL_ARRAY_BUFFER, Entity->RenderInfo->Offset, sizeof(entity_render_info), Entity->RenderInfo);
+    }
 
     Renderer->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, GameState->TotalDrawableObjectCount);
 

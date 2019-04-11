@@ -280,6 +280,7 @@ struct game_input {
     key_state Right;
 
     key_state Jump;
+    key_state Attack;
 
     f32 ScrollX;
     f32 ScrollY;

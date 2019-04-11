@@ -27,6 +27,14 @@ GetAnimationTypeFromString(const char *String)
     {
         Result = ANIMATION_PLAYER_SQUASH;
     }
+    else if (StringEquals(String, "PLAYER_ATTACK"))
+    {
+        Result = ANIMATION_PLAYER_ATTACK;
+    }
+    else if (StringEquals(String, "SIREN"))
+    {
+        Result = ANIMATION_SIREN;
+    }
     else
     {
         InvalidCodePath;

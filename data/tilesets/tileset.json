@@ -17,7 +17,7 @@
         }],
  "spacing":0,
  "tilecount":1024,
- "tiledversion":"1.2.2",
+ "tiledversion":"1.2.3",
  "tileheight":16,
  "tiles":[
         {
@@ -615,6 +615,37 @@
             }
         }, 
         {
+         "animation":[
+                {
+                 "duration":100,
+                 "tileid":293
+                }, 
+                {
+                 "duration":100,
+                 "tileid":294
+                }, 
+                {
+                 "duration":100,
+                 "tileid":295
+                }, 
+                {
+                 "duration":100,
+                 "tileid":296
+                }, 
+                {
+                 "duration":100,
+                 "tileid":297
+                }],
+         "id":293,
+         "properties":[
+                {
+                 "name":"AnimationType",
+                 "type":"string",
+                 "value":"SIREN"
+                }],
+         "type":"siren"
+        }, 
+        {
          "id":352,
          "objectgroup":
             {
@@ -798,6 +829,32 @@
                  "name":"AnimationType",
                  "type":"string",
                  "value":"PLAYER_JUMP_DOWN"
+                }]
+        }, 
+        {
+         "animation":[
+                {
+                 "duration":100,
+                 "tileid":608
+                }, 
+                {
+                 "duration":100,
+                 "tileid":609
+                }, 
+                {
+                 "duration":100,
+                 "tileid":610
+                }, 
+                {
+                 "duration":100,
+                 "tileid":611
+                }],
+         "id":608,
+         "properties":[
+                {
+                 "name":"AnimationType",
+                 "type":"string",
+                 "value":"PLAYER_ATTACK"
                 }]
         }, 
         {

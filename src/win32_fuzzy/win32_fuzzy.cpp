@@ -276,6 +276,9 @@ s32 main(s32 Argc, char *Argv[])
             case GLFW_KEY_SPACE:
                 GameParams.Input.Jump.isPressed = true;
                 break;
+            case GLFW_KEY_S:
+                GameParams.Input.Attack.isPressed = true;
+                break;
             default:
                 break;
             }
@@ -304,6 +307,10 @@ s32 main(s32 Argc, char *Argv[])
             case GLFW_KEY_SPACE:
                 GameParams.Input.Jump.isPressed = false;
                 GameParams.Input.Jump.isProcessed = false;
+            case GLFW_KEY_S:
+                GameParams.Input.Attack.isPressed = false;
+                GameParams.Input.Attack.isProcessed = false;
+                break;
             default:
                 break;
             }
