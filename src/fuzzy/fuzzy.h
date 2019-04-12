@@ -11,7 +11,7 @@
 #pragma warning(disable:4302)
 #pragma warning(disable:4311)
 
-#define StructOffset(StructType, StructMember) ((u32)(&(((StructType *)0)->StructMember)))
+#define StructOffset(StructType, StructMember) ((u64)(&(((StructType *)0)->StructMember)))
 
 struct aabb_info
 {
@@ -21,7 +21,7 @@ struct aabb_info
 
 struct entity_render_info
 {
-    u32 Offset;
+    u64 Offset;
 
     mat4 InstanceModel;
     vec2 InstanceUVOffset01;

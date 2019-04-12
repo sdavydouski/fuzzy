@@ -5,6 +5,7 @@
 
 using namespace rapidjson;
 
+// todo: not scalable
 entity_type
 GetEntityTypeFromString(const char *String)
 {

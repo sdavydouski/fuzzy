@@ -1250,7 +1250,8 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                 {
                     if (Entity->CurrentAnimation->Next)
                     {
-                        ChangeAnimation(GameState, Entity, Entity->CurrentAnimation->Next);
+                        Animation = Entity->CurrentAnimation->Next;
+                        ChangeAnimation(GameState, Entity, Animation);
                     }
                     else
                     {
@@ -1279,6 +1280,8 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
         Renderer->glBufferSubData(GL_ARRAY_BUFFER, Entity->RenderInfo->Offset, sizeof(entity_render_info), Entity->RenderInfo);
     }
+
+    Renderer->glBufferSubData(GL_ARRAY_BUFFER, GameState->Player->RenderInfo->Offset, sizeof(entity_render_info), GameState->Player->RenderInfo);
 
     Renderer->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, GameState->TotalDrawableObjectCount);
 

@@ -20,7 +20,8 @@ Hash(char *Value)
     u32 Hash = 5381;
     s32 C;
 
-    while (C = *Value++) {
+    while (C = *Value++)
+    {
         Hash = ((Hash << 5) + Hash) + C;
     }
 

@@ -2,6 +2,7 @@
 #include "fuzzy_platform.h"
 #include "fuzzy.h"
 
+// todo: not scalable
 animation_type
 GetAnimationTypeFromString(const char *String)
 {
