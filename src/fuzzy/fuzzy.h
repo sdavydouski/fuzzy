@@ -5,6 +5,7 @@
 #include "fuzzy_tiled.h"
 #include "fuzzy_graphics.h"
 #include "fuzzy_animations.h"
+#include "fuzzy_containers.h"
 
 #define ArrayLength(Array) (sizeof(Array) / sizeof((Array)[0]))
 
@@ -94,8 +95,7 @@ struct game_state
     entity *Player;
     aabb *Boxes;
 
-    u32 AnimationCount;
-    animation *Animations;
+    hash_table<animation> Animations;
 
     // todo: merge with TotalDrawableObjectCount?
     u32 EntityRenderInfoCount;

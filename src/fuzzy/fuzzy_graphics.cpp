@@ -6,56 +6,38 @@
 
 #pragma region Shaders
 
-// todo: unify this with tiles
+inline b32
+UniformKeyComparator(shader_uniform *Uniform, char *Key)
+{
+    b32 Result = StringEquals(Uniform->Name, Key);
+    return Result;
+}
+
+inline b32
+UniformKeyExists(shader_uniform *Uniform)
+{
+    b32 Result = (b32)Uniform->Name;
+    return Result;
+}
+
+inline void
+UniformKeySetter(shader_uniform *Uniform, char *Key)
+{
+    Uniform->Name = Key;
+}
+
 shader_uniform *
-GetUniform(shader_program *ShaderProgram, char *Name) {
-    shader_uniform *Result = nullptr;
-
-    u32 HashValue = Hash(Name) % ShaderProgram->UniformCount;
-    assert(HashValue < ShaderProgram->UniformCount);
-
-    shader_uniform *Uniform = ShaderProgram->Uniforms + HashValue;
-
-    do {
-        if (StringEquals(Uniform->Name, Name)) {
-            Result = Uniform;
-            break;
-        }
-
-        Uniform = Uniform->Next;
-    } while (Uniform);
-
+GetUniform(shader_program *ShaderProgram, char *Name)
+{
+    shader_uniform *Result = Get<shader_uniform, char *>(&ShaderProgram->Uniforms, Name, UniformKeyComparator);
     return Result;
 }
 
 shader_uniform *
 CreateUniform(shader_program *ShaderProgram, char *Name, memory_arena *Arena)
 {
-    shader_uniform *Result = nullptr;
-
-    u32 HashValue = Hash(Name) % ShaderProgram->UniformCount;
-    assert(HashValue < ShaderProgram->UniformCount);
-
-    shader_uniform *Uniform = ShaderProgram->Uniforms + HashValue;
-
-    do {
-        if (!Uniform->Name)
-        {
-            Result = Uniform;
-            Result->Name = Name;
-            break;
-        }
-
-        if (Uniform->Name && !Uniform->Next)
-        {
-            // todo: potentially dangerous operation
-            Uniform->Next = PushStruct<shader_uniform>(Arena);
-            Uniform->Next->Name = nullptr;
-        }
-
-        Uniform = Uniform->Next;
-    } while (Uniform);
-
+    shader_uniform *Result = Create<shader_uniform, char *>(
+        &ShaderProgram->Uniforms, Name, UniformKeyExists, UniformKeySetter, Arena);
     return Result;
 }
 
@@ -70,19 +52,22 @@ CreateShader(game_memory *Memory, game_state *GameState, GLenum Type, char *Sour
     Memory->Renderer.glGetShaderiv(Shader, GL_COMPILE_STATUS, &IsShaderCompiled);
     if (!IsShaderCompiled)
     {
+        temporary_memory ErrorLogMemory = BeginTemporaryMemory(&GameState->WorldArena);
+        
         s32 LogLength;
         Memory->Renderer.glGetShaderiv(Shader, GL_INFO_LOG_LENGTH, &LogLength);
 
-        // todo: use temporary memory
         char *ErrorLog = PushString(&GameState->WorldArena, LogLength);
 
         Memory->Renderer.glGetShaderInfoLog(Shader, LogLength, NULL, ErrorLog);
 
         char Output[1024];
-        snprintf(Output, sizeof(Output), "%s%s%s", "Shader compilation failed:\n", ErrorLog, "\n");
+        FormatString(Output, sizeof(Output), "%s%s%s", "Shader compilation failed:\n", ErrorLog, "\n");
         Memory->Platform.PrintOutput(Output);
 
         Memory->Renderer.glDeleteShader(Shader);
+
+        EndTemporaryMemory(ErrorLogMemory);
     }
     assert(IsShaderCompiled);
 
@@ -104,17 +89,20 @@ CreateProgram(game_memory *Memory, game_state *GameState, u32 VertexShader, u32 
 
     if (!IsProgramLinked)
     {
+        temporary_memory ErrorLogMemory = BeginTemporaryMemory(&GameState->WorldArena);
+        
         s32 LogLength;
         Memory->Renderer.glGetProgramiv(Program, GL_INFO_LOG_LENGTH, &LogLength);
 
-        // todo: use temporary memory
         char *ErrorLog = PushString(&GameState->WorldArena, LogLength);
 
         Memory->Renderer.glGetProgramInfoLog(Program, LogLength, nullptr, ErrorLog);
 
         char Output[1024];
-        snprintf(Output, sizeof(Output), "%s%s%s", "Shader program linkage failed:\n", ErrorLog, "\n");
+        FormatString(Output, sizeof(Output), "%s%s%s", "Shader program linkage failed:\n", ErrorLog, "\n");
         Memory->Platform.PrintOutput(Output);
+        
+        EndTemporaryMemory(ErrorLogMemory);
     }
     assert(IsProgramLinked);
 
@@ -180,8 +168,8 @@ CreateShaderProgram(game_memory *Memory, game_state *GameState, char *VertexShad
     s32 UniformCount;
     Memory->Renderer.glGetProgramiv(Result.ProgramHandle, GL_ACTIVE_UNIFORMS, &UniformCount);
 
-    Result.UniformCount = (u32)UniformCount;
-    Result.Uniforms = PushArray<shader_uniform>(&GameState->WorldArena, Result.UniformCount);
+    Result.Uniforms.Count = (u32)UniformCount;
+    Result.Uniforms.Values = PushArray<shader_uniform>(&GameState->WorldArena, Result.Uniforms.Count);
 
     s32 MaxUniformLength;
     Memory->Renderer.glGetProgramiv(Result.ProgramHandle, GL_ACTIVE_UNIFORM_MAX_LENGTH, &MaxUniformLength);

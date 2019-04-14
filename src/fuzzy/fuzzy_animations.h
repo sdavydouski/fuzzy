@@ -2,20 +2,6 @@
 
 #include "fuzzy_types.h"
 
-enum animation_type
-{
-    ANIMATION_PLAYER_IDLE,
-    ANIMATION_PLAYER_RUN,
-    ANIMATION_PLAYER_JUMP_UP,
-    ANIMATION_PLAYER_JUMP_DOWN,
-    ANIMATION_PLAYER_SQUASH,
-    ANIMATION_PLAYER_ATTACK,
-
-    ANIMATION_SIREN,
-
-    ANIMATION_COUNT
-};
-
 struct animation_frame
 {
     f32 XOffset01;
@@ -37,8 +23,11 @@ struct animation
 
     u32 CurrentFrameIndex;
     f32 CurrentTime;
+    b32 StopOnTheLastFrame;
 
-    animation_type Type;
-
+    char *Name;
+    
+    animation *NextToPlay;
+    // todo: hash_table naming
     animation *Next;
 };

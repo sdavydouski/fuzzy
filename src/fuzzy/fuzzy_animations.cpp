@@ -2,45 +2,38 @@
 #include "fuzzy_platform.h"
 #include "fuzzy.h"
 
-// todo: not scalable
-animation_type
-GetAnimationTypeFromString(const char *String)
+inline b32
+AnimationKeyComparator(animation *Animation, char *Key)
 {
-    animation_type Result;
+    b32 Result = StringEquals(Animation->Name, Key);
+    return Result;
+}
 
-    if (StringEquals(String, "PLAYER_IDLE"))
-    {
-        Result = ANIMATION_PLAYER_IDLE;
-    }
-    else if (StringEquals(String, "PLAYER_RUN"))
-    {
-        Result = ANIMATION_PLAYER_RUN;
-    }
-    else if (StringEquals(String, "PLAYER_JUMP_UP"))
-    {
-        Result = ANIMATION_PLAYER_JUMP_UP;
-    }
-    else if (StringEquals(String, "PLAYER_JUMP_DOWN"))
-    {
-        Result = ANIMATION_PLAYER_JUMP_DOWN;
-    }
-    else if (StringEquals(String, "PLAYER_SQUASH"))
-    {
-        Result = ANIMATION_PLAYER_SQUASH;
-    }
-    else if (StringEquals(String, "PLAYER_ATTACK"))
-    {
-        Result = ANIMATION_PLAYER_ATTACK;
-    }
-    else if (StringEquals(String, "SIREN"))
-    {
-        Result = ANIMATION_SIREN;
-    }
-    else
-    {
-        InvalidCodePath;
-    }
+inline b32
+AnimationKeyExists(animation *Animation)
+{
+    b32 Result = (b32)Animation->Name;
+    return Result;
+}
 
+inline void
+AnimationKeySetter(animation *Animation, char *Key)
+{
+    Animation->Name = Key;
+}
+
+animation *
+GetAnimation(game_state *GameState, char *Name)
+{
+    animation *Result = Get<animation, char *>(&GameState->Animations, Name, AnimationKeyComparator);
+    return Result;
+}
+
+animation *
+CreateAnimation(game_state *GameState, char *Name, memory_arena *Arena)
+{
+    animation *Result = Create<animation, char *>(
+        &GameState->Animations, Name, AnimationKeyExists, AnimationKeySetter, Arena);
     return Result;
 }
 
@@ -48,13 +41,6 @@ inline animation_frame *
 GetCurrentAnimationFrame(animation *Animation)
 {
     animation_frame *Result = Animation->AnimationFrames + Animation->CurrentFrameIndex;
-    return Result;
-}
-
-inline animation *
-GetAnimation(game_state *GameState, animation_type Type)
-{
-    animation *Result = GameState->Animations + Type;
     return Result;
 }
 
@@ -71,15 +57,15 @@ ChangeAnimation(game_state *GameState, entity *Entity, animation *Animation, b32
 
     if (Loop)
     {
-        Animation->Next = Animation;
+        Animation->NextToPlay = Animation;
     }
 
     Entity->CurrentAnimation = Animation;
 }
 
 void
-ChangeAnimation(game_state *GameState, entity *Entity, animation_type Type, b32 Loop = true)
+ChangeAnimation(game_state *GameState, entity *Entity, char *Name, b32 Loop = true)
 {
-    animation *Animation = GetAnimation(GameState, Type);
+    animation *Animation = GetAnimation(GameState, Name);
     ChangeAnimation(GameState, Entity, Animation, Loop);
 }

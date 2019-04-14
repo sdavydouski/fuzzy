@@ -168,6 +168,7 @@ CalculateFrameStats(GLFWwindow *Window, char *WindowTitle, f64 TotalTime)
 
         char WindowText[64];
         snprintf(WindowText, sizeof(WindowText), "%s    fps: %f    ms: %f", WindowTitle, FPS, MsPerFrame);
+        FormatString(WindowText, sizeof(WindowText), "%s    fps: %f    ms: %f", WindowTitle, FPS, MsPerFrame);
         glfwSetWindowTitle(Window, WindowText);
 
         FrameCount = 0;

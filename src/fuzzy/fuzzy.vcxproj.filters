@@ -11,11 +11,13 @@
     <ClInclude Include="fuzzy_graphics.h" />
     <ClInclude Include="fuzzy_animations.h" />
     <ClInclude Include="fuzzy_tiled.h" />
+    <ClInclude Include="fuzzy_containers.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="fuzzy_graphics.cpp" />
     <None Include="fuzzy_tiled.cpp" />
     <None Include="fuzzy_animations.cpp" />
     <None Include="fuzzy_math.cpp" />
+    <None Include="fuzzy_containers.cpp" />
   </ItemGroup>
 </Project>

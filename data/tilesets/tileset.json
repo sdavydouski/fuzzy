@@ -639,7 +639,7 @@
          "id":293,
          "properties":[
                 {
-                 "name":"AnimationType",
+                 "name":"AnimationName",
                  "type":"string",
                  "value":"SIREN"
                 }],
@@ -710,7 +710,7 @@
             },
          "properties":[
                 {
-                 "name":"AnimationType",
+                 "name":"AnimationName",
                  "type":"string",
                  "value":"PLAYER_IDLE"
                 }, 
@@ -730,6 +730,32 @@
                  "value":"some value"
                 }],
          "type":"player"
+        }, 
+        {
+         "animation":[
+                {
+                 "duration":50,
+                 "tileid":512
+                }, 
+                {
+                 "duration":50,
+                 "tileid":513
+                }, 
+                {
+                 "duration":50,
+                 "tileid":514
+                }, 
+                {
+                 "duration":50,
+                 "tileid":515
+                }],
+         "id":513,
+         "properties":[
+                {
+                 "name":"AnimationName",
+                 "type":"string",
+                 "value":"PLAYER_DUCK"
+                }]
         }, 
         {
          "animation":[
@@ -756,7 +782,7 @@
          "id":515,
          "properties":[
                 {
-                 "name":"AnimationType",
+                 "name":"AnimationName",
                  "type":"string",
                  "value":"PLAYER_SQUASH"
                 }]
@@ -798,7 +824,7 @@
          "id":544,
          "properties":[
                 {
-                 "name":"AnimationType",
+                 "name":"AnimationName",
                  "type":"string",
                  "value":"PLAYER_RUN"
                 }]
@@ -812,7 +838,7 @@
          "id":545,
          "properties":[
                 {
-                 "name":"AnimationType",
+                 "name":"AnimationName",
                  "type":"string",
                  "value":"PLAYER_JUMP_UP"
                 }]
@@ -826,7 +852,7 @@
          "id":546,
          "properties":[
                 {
-                 "name":"AnimationType",
+                 "name":"AnimationName",
                  "type":"string",
                  "value":"PLAYER_JUMP_DOWN"
                 }]
@@ -852,7 +878,7 @@
          "id":608,
          "properties":[
                 {
-                 "name":"AnimationType",
+                 "name":"AnimationName",
                  "type":"string",
                  "value":"PLAYER_ATTACK"
                 }]

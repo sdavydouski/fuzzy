@@ -344,3 +344,13 @@ CopyString(const char *Source, char *Dest, u32 DestLength)
 {
     strcpy_s(Dest, DestLength * sizeof(char), Source);
 }
+
+inline void
+FormatString(char *String, u32 Size, char *Format, ...)
+{
+    va_list ArgPtr;
+
+    va_start(ArgPtr, Format);
+    vsnprintf(String, Size, Format, ArgPtr);
+    va_end(ArgPtr);
+}

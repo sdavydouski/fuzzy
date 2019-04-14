@@ -1,5 +1,7 @@
 #pragma once
 
+#include "fuzzy_containers.h"
+
 struct vertex_buffer_attribute
 {
     u32 Index;
@@ -53,6 +55,5 @@ struct shader_program
 {
     u32 ProgramHandle;
 
-    u32 UniformCount;
-    shader_uniform *Uniforms;
+    hash_table<shader_uniform> Uniforms;
 };

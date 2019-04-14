@@ -11,6 +11,7 @@
 #include "fuzzy.h"
 
 #include "fuzzy_math.cpp"
+#include "fuzzy_containers.cpp"
 #include "fuzzy_tiled.cpp"
 #include "fuzzy_graphics.cpp"
 #include "fuzzy_animations.cpp"
@@ -112,12 +113,13 @@ ProcessInput(game_state *GameState, game_input *Input, f32 Delta)
         // todo: in future handle flipped vertically/diagonally
         GameState->Player->RenderInfo->Flipped = true;
 
-        if (GameState->Player->CurrentAnimation->Type != ANIMATION_PLAYER_RUN &&
-            GameState->Player->CurrentAnimation->Type != ANIMATION_PLAYER_SQUASH &&
-            GameState->Player->CurrentAnimation->Type != ANIMATION_PLAYER_JUMP_UP &&
-            GameState->Player->CurrentAnimation->Type != ANIMATION_PLAYER_JUMP_DOWN)
+        // todo: find a better way (precalculate string hash?)
+        if (!StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_RUN") &&
+            !StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_SQUASH") &&
+            !StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_JUMP_UP") &&
+            !StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_JUMP_DOWN"))
         {
-            ChangeAnimation(GameState, GameState->Player, ANIMATION_PLAYER_RUN);
+            ChangeAnimation(GameState, GameState->Player, "PLAYER_RUN");
         }
     }
 
@@ -127,25 +129,25 @@ ProcessInput(game_state *GameState, game_input *Input, f32 Delta)
 
         GameState->Player->RenderInfo->Flipped = false;
 
-        if (GameState->Player->CurrentAnimation->Type != ANIMATION_PLAYER_RUN &&
-            GameState->Player->CurrentAnimation->Type != ANIMATION_PLAYER_SQUASH &&
-            GameState->Player->CurrentAnimation->Type != ANIMATION_PLAYER_JUMP_UP &&
-            GameState->Player->CurrentAnimation->Type != ANIMATION_PLAYER_JUMP_DOWN)
+        if (!StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_RUN") &&
+            !StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_SQUASH") &&
+            !StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_JUMP_UP") &&
+            !StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_JUMP_DOWN"))
         {
-            ChangeAnimation(GameState, GameState->Player, ANIMATION_PLAYER_RUN);
+            ChangeAnimation(GameState, GameState->Player, "PLAYER_RUN");
         }
     }
 
     if (!Input->Left.isPressed && !Input->Left.isProcessed)
     {
         Input->Left.isProcessed = true;
-        if (GameState->Player->CurrentAnimation != GetAnimation(GameState, ANIMATION_PLAYER_IDLE))
+        if (!StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_IDLE"))
         {
-            if (GameState->Player->CurrentAnimation->Type != ANIMATION_PLAYER_IDLE &&
-                GameState->Player->CurrentAnimation->Type != ANIMATION_PLAYER_JUMP_UP &&
-                GameState->Player->CurrentAnimation->Type != ANIMATION_PLAYER_JUMP_DOWN)
+            if (!StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_JUMP_IDLE") &&
+                !StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_JUMP_UP") &&
+                !StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_JUMP_DOWN"))
             {
-                ChangeAnimation(GameState, GameState->Player, ANIMATION_PLAYER_IDLE);
+                ChangeAnimation(GameState, GameState->Player, "PLAYER_IDLE");
             }
         }
     }
@@ -153,13 +155,13 @@ ProcessInput(game_state *GameState, game_input *Input, f32 Delta)
     if (!Input->Right.isPressed && !Input->Right.isProcessed)
     {
         Input->Right.isProcessed = true;
-        if (GameState->Player->CurrentAnimation != GetAnimation(GameState, ANIMATION_PLAYER_IDLE))
+        if (!StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_IDLE"))
         {
-            if (GameState->Player->CurrentAnimation->Type != ANIMATION_PLAYER_IDLE &&
-                GameState->Player->CurrentAnimation->Type != ANIMATION_PLAYER_JUMP_UP &&
-                GameState->Player->CurrentAnimation->Type != ANIMATION_PLAYER_JUMP_DOWN)
+            if (!StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_JUMP_IDLE") &&
+                !StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_JUMP_UP") &&
+                !StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_JUMP_DOWN"))
             {
-                ChangeAnimation(GameState, GameState->Player, ANIMATION_PLAYER_IDLE);
+                ChangeAnimation(GameState, GameState->Player, "PLAYER_IDLE");
             }
         }
     }
@@ -176,19 +178,33 @@ ProcessInput(game_state *GameState, game_input *Input, f32 Delta)
         Input->Attack.isProcessed = true;
 
         // todo: this is super janky
-        if (GameState->Player->CurrentAnimation->Type != ANIMATION_PLAYER_ATTACK)
+        if (!StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_ATTACK"))
         {
             animation *PrevAnimation = GameState->Player->CurrentAnimation;
 
-            if (PrevAnimation->Type == ANIMATION_PLAYER_SQUASH)
+            if (StringEquals(PrevAnimation->Name, "PLAYER_SQUASH"))
             {
-                PrevAnimation = GetAnimation(GameState, ANIMATION_PLAYER_IDLE);
+                PrevAnimation = GetAnimation(GameState, "PLAYER_IDLE");
             }
 
-            animation *AttackAnimation = GetAnimation(GameState, ANIMATION_PLAYER_ATTACK);
-            AttackAnimation->Next = PrevAnimation;
+            animation *AttackAnimation = GetAnimation(GameState, "PLAYER_ATTACK");
+            AttackAnimation->NextToPlay = PrevAnimation;
 
             ChangeAnimation(GameState, GameState->Player, AttackAnimation, false);
+        }
+    }
+
+    if (Input->Down.isPressed && !Input->Down.isProcessed)
+    {
+        Input->Down.isProcessed = true;
+        ChangeAnimation(GameState, GameState->Player, "PLAYER_DUCK");
+    }
+    
+    if (!Input->Down.isPressed)
+    {
+        if (StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_DUCK"))
+        {
+            ChangeAnimation(GameState, GameState->Player, "PLAYER_IDLE");
         }
     }
 
@@ -395,57 +411,64 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             }
         }
 
-        GameState->AnimationCount = 0;
+        GameState->Animations.Count = 0;
 
         for (u32 TilesetIndex = 0; TilesetIndex < GameState->Map.TilesetCount; ++TilesetIndex)
         {
             tileset_source *TilesetSource = GameState->Map.Tilesets + TilesetIndex;
             tileset Tileset = TilesetSource->Source;
 
-            for (u32 TileIndex = 0; TileIndex < Tileset.TileCount; ++TileIndex)
+            for (u32 TileIndex = 0; TileIndex < Tileset.Tiles.Count; ++TileIndex)
             {
-                tile_meta_info *Tile = Tileset.Tiles + TileIndex;
+                tile_meta_info *Tile = Tileset.Tiles.Values + TileIndex;
                 
                 if (Tile->AnimationFrameCount > 0)
                 {
-                    ++GameState->AnimationCount;
+                    ++GameState->Animations.Count;
                 }
             }
         }
 
-        GameState->Animations = PushArray<animation>(&GameState->WorldArena, GameState->AnimationCount);
+        GameState->Animations.Values = PushArray<animation>(&GameState->WorldArena, GameState->Animations.Count);
 
         for (u32 TilesetIndex = 0; TilesetIndex < GameState->Map.TilesetCount; ++TilesetIndex)
         {
             tileset_source *TilesetSource = GameState->Map.Tilesets + TilesetIndex;
             tileset Tileset = TilesetSource->Source;
 
-            for (u32 TileIndex = 0; TileIndex < Tileset.TileCount; ++TileIndex)
+            for (u32 TileIndex = 0; TileIndex < Tileset.Tiles.Count; ++TileIndex)
             {
-                tile_meta_info *Tile = Tileset.Tiles + TileIndex;
+                tile_meta_info *Tile = Tileset.Tiles.Values + TileIndex;
 
                 if (Tile->AnimationFrameCount > 0)
                 {
-                    char *AnimationTypeString = nullptr;
+                    char *AnimationName = nullptr;
 
                     for (u32 CustomPropertyIndex = 0; CustomPropertyIndex < Tile->CustomPropertiesCount; ++CustomPropertyIndex)
                     {
                         tile_custom_property *CustomProperty = Tile->CustomProperties + CustomPropertyIndex;
 
-                        if (StringEquals(CustomProperty->Name, "AnimationType"))
+                        if (StringEquals(CustomProperty->Name, "AnimationName"))
                         {
-                            AnimationTypeString = (char *)CustomProperty->Value;
+                            AnimationName = (char *)CustomProperty->Value;
                             break;
                         }
                     }
 
-                    assert(AnimationTypeString);
+                    assert(AnimationName);
 
-                    animation_type AnimationType = GetAnimationTypeFromString(AnimationTypeString);
-                    animation *Animation = GameState->Animations + AnimationType;
+                    animation *Animation = CreateAnimation(GameState, AnimationName, &GameState->WorldArena);
+
+                    assert(Animation);
 
                     *Animation = {};
-                    Animation->Type = AnimationType;
+
+                    if (StringEquals(AnimationName, "PLAYER_DUCK"))
+                    {
+                        Animation->StopOnTheLastFrame = true;
+                    }
+
+                    Animation->Name = AnimationName;
                     Animation->CurrentFrameIndex = 0;
                     Animation->AnimationFrameCount = Tile->AnimationFrameCount;
                     Animation->AnimationFrames = PushArray<animation_frame>(&GameState->WorldArena, Animation->AnimationFrameCount);
@@ -681,12 +704,12 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                         if (DrawableEntity->Type == ENTITY_PLAYER)
                         {
                             GameState->Player = DrawableEntity;
-                            ChangeAnimation(GameState, GameState->Player, ANIMATION_PLAYER_IDLE);
+                            ChangeAnimation(GameState, GameState->Player, "PLAYER_IDLE");
                         }
 
                         if (DrawableEntity->Type == ENTITY_SIREN)
                         {
-                            ChangeAnimation(GameState, DrawableEntity, ANIMATION_SIREN);
+                            ChangeAnimation(GameState, DrawableEntity, "SIREN");
                         }
 
                         ++EntityInstanceIndex;
@@ -1073,7 +1096,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
         f32 Dt = 0.1f;
 
-        // friction imitation
+        // friction imitation (todo: frame-rate dependent)
         GameState->Player->Acceleration.x += -8.f * GameState->Player->Velocity.x;
         GameState->Player->Acceleration.y += -0.01f * GameState->Player->Velocity.y;
 
@@ -1127,8 +1150,8 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
             if (UpdatedMove.y < 0.f)
             {
-                animation *SquashAnimation = GetAnimation(GameState, ANIMATION_PLAYER_SQUASH);
-                SquashAnimation->Next = GetAnimation(GameState, ANIMATION_PLAYER_IDLE);
+                animation *SquashAnimation = GetAnimation(GameState, "PLAYER_SQUASH");
+                SquashAnimation->NextToPlay = GetAnimation(GameState, "PLAYER_IDLE");
 
                 ChangeAnimation(GameState, GameState->Player, SquashAnimation, false);
             }
@@ -1137,16 +1160,16 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         if (GameState->Player->Velocity.y > 0.f)
         {
             // todo: deal with ifs
-            if (GameState->Player->CurrentAnimation->Type != ANIMATION_PLAYER_JUMP_UP)
+            if (!StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_JUMP_UP"))
             {
-                ChangeAnimation(GameState, GameState->Player, ANIMATION_PLAYER_JUMP_UP);
+                ChangeAnimation(GameState, GameState->Player, "PLAYER_JUMP_UP");
             }
         }
         else if (GameState->Player->Velocity.y < 0.f)
         {
-            if (GameState->Player->CurrentAnimation->Type != ANIMATION_PLAYER_JUMP_DOWN)
+            if (!StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_JUMP_DOWN"))
             {
-                ChangeAnimation(GameState, GameState->Player, ANIMATION_PLAYER_JUMP_DOWN);
+                ChangeAnimation(GameState, GameState->Player, "PLAYER_JUMP_DOWN");
             }
         }
 
@@ -1248,14 +1271,21 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
                 if (Animation->CurrentFrameIndex >= Animation->AnimationFrameCount)
                 {
-                    if (Entity->CurrentAnimation->Next)
+                    if (Animation->StopOnTheLastFrame)
                     {
-                        Animation = Entity->CurrentAnimation->Next;
-                        ChangeAnimation(GameState, Entity, Animation);
+                        Animation->CurrentFrameIndex--;
                     }
                     else
                     {
-                        Entity->CurrentAnimation = nullptr;
+                        if (Entity->CurrentAnimation->NextToPlay)
+                        {
+                            Animation = Entity->CurrentAnimation->NextToPlay;
+                            ChangeAnimation(GameState, Entity, Animation);
+                        }
+                        else
+                        {
+                            Entity->CurrentAnimation = nullptr;
+                        }
                     }
                 }
 
@@ -1265,7 +1295,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                 CurrentFrame->CurrentYOffset01 = CurrentFrame->YOffset01;
 
                 Animation->CurrentTime = 0.f;
-            }
+           }
 
             Entity->RenderInfo->InstanceUVOffset01.x = CurrentFrame->CurrentXOffset01;
             Entity->RenderInfo->InstanceUVOffset01.y = CurrentFrame->CurrentYOffset01;

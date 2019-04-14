@@ -1,6 +1,7 @@
 #pragma once
 
 #include "fuzzy_types.h"
+#include "fuzzy_containers.h"
 
 struct bitmap
 {
@@ -72,8 +73,7 @@ struct tileset
 
     bitmap Image;
 
-    u32 TileCount;
-    tile_meta_info *Tiles;
+    hash_table<tile_meta_info> Tiles;
 };
 
 struct map_chunk

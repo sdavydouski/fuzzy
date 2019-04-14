@@ -1,7 +1,7 @@
 #include "fuzzy_types.h"
 
 // from https://stackoverflow.com/questions/664014
-u32
+inline u32
 Hash(u32 Value)
 {
     u32 Hash = Value;
@@ -14,7 +14,7 @@ Hash(u32 Value)
 }
 
 // from https://stackoverflow.com/questions/7666509/
-u32
+inline u32
 Hash(char *Value)
 {
     u32 Hash = 5381;

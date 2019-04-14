@@ -34,57 +34,38 @@ GetEntityTypeFromString(const char *String)
     return Result;
 }
 
-tile_meta_info *
-GetTileMetaInfo(tileset *Tileset, u32 Id) {
-    tile_meta_info *Result = nullptr;
-
-    u32 HashValue = Hash(Id) % Tileset->TileCount;
-    assert(HashValue < Tileset->TileCount);
-
-    tile_meta_info *Tile = Tileset->Tiles + HashValue;
-
-    do {
-        if (Tile->Id == Id) {
-            Result = Tile;
-            break;
-        }
-
-        Tile = Tile->Next;
-    } while (Tile);
-
+inline b32
+TileMetaInfoKeyComparator(tile_meta_info *TileMetaInfo, u32 Key)
+{
+    b32 Result = TileMetaInfo->Id == Key;
     return Result;
 }
 
-global_variable const u32 UNINITIALIZED_TILE_ID = 0;
+inline b32
+TileMetaInfoKeyExists(tile_meta_info *TileMetaInfo)
+{
+    b32 Result = (b32)TileMetaInfo->Id;
+    return Result;
+}
+
+inline void
+TileMetaInfoKeySetter(tile_meta_info *TileMetaInfo, u32 Key)
+{
+    TileMetaInfo->Id = Key;
+}
 
 tile_meta_info *
-CreateTileMetaInfo(tileset *Tileset, u32 Id, memory_arena *Arena)
+GetTileMetaInfo(tileset *Tileset, u32 ID)
 {
-    tile_meta_info *Result = nullptr;
+    tile_meta_info *Result = Get<tile_meta_info, u32>(&Tileset->Tiles, ID, TileMetaInfoKeyComparator);
+    return Result;
+}
 
-    u32 HashValue = Hash(Id) % Tileset->TileCount;
-    assert(HashValue < Tileset->TileCount);
-
-    tile_meta_info *Tile = Tileset->Tiles + HashValue;
-
-    do {
-        if (Tile->Id == UNINITIALIZED_TILE_ID)
-        {
-            Result = Tile;
-            Result->Id = Id;
-            break;
-        }
-
-        if (Tile->Id != UNINITIALIZED_TILE_ID && !Tile->Next)
-        {
-            // todo: potentially dangerous operation
-            Tile->Next = PushStruct<tile_meta_info>(Arena);
-            Tile->Next->Id = UNINITIALIZED_TILE_ID;
-        }
-
-        Tile = Tile->Next;
-    } while (Tile);
-
+tile_meta_info *
+CreateTileMetaInfo(tileset *Tileset, u32 ID, memory_arena *Arena)
+{
+    tile_meta_info *Result = Create<tile_meta_info, u32>(
+        &Tileset->Tiles, ID, TileMetaInfoKeyExists, TileMetaInfoKeySetter, Arena);
     return Result;
 }
 
@@ -117,7 +98,7 @@ LoadTileset(tileset *Tileset, const char *Json, memory_arena *Arena, platform_ap
     const char *ImagePath = Document["image"].GetString();
 
     char FullImagePath[256];
-    snprintf(FullImagePath, sizeof(FullImagePath), "%s%s", "tilesets/", ImagePath);
+    FormatString(FullImagePath, sizeof(FullImagePath), "%s%s", "tilesets/", ImagePath);
 
     Tileset->Image.Memory = Platform->ReadImageFile(FullImagePath, 
         &Tileset->Image.Width, &Tileset->Image.Height, &Tileset->Image.Channels, 0);
@@ -160,8 +141,8 @@ LoadTileset(tileset *Tileset, const char *Json, memory_arena *Arena, platform_ap
     Tileset->TilesetWidthPixelsToMeters = Tileset->TileWidthInMeters / Tileset->TileWidthInPixels;
     Tileset->TilesetHeightPixelsToMeters = Tileset->TileHeightInMeters / Tileset->TileHeightInPixels;
 
-    Tileset->TileCount = Document["tilecount"].GetUint();
-    Tileset->Tiles = PushArray<tile_meta_info>(Arena, Tileset->TileCount);
+    Tileset->Tiles.Count = Document["tilecount"].GetUint();
+    Tileset->Tiles.Values = PushArray<tile_meta_info>(Arena, Tileset->Tiles.Count);
 
     if (Document.HasMember("tiles")) 
     {
@@ -303,7 +284,7 @@ LoadMap(tilemap *Map, const char *Json, memory_arena *Arena, platform_api *Platf
     char *TilesetPath = GetLastAfterDelimiter(TilesetSource, '/');
 
     char FullTilesetPath[256];
-    snprintf(FullTilesetPath, sizeof(FullTilesetPath), "%s%s", "tilesets/", TilesetPath);
+    FormatString(FullTilesetPath, sizeof(FullTilesetPath), "%s%s", "tilesets/", TilesetPath);
 
     char *TilesetJson = (char*)Platform->ReadFile(FullTilesetPath).Contents;
 
