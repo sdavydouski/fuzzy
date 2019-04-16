@@ -106,105 +106,168 @@ global_variable const vec3 BackgroundColor = NormalizeRGB(29, 33, 45);
 internal_function void
 ProcessInput(game_state *GameState, game_input *Input, f32 Delta)
 {
+    // todo: move out
+    switch (GameState->Player->State)
+    {
+    case ENTITY_STATE_IDLE:
+        if (Input->Left.isPressed)
+        {
+            GameState->Player->PrevState = GameState->Player->State;
+            GameState->Player->State = ENTITY_STATE_RUN;
+
+            //GameState->Player->Acceleration.x = -1.f;
+            // todo: in future handle flipped vertically/diagonally
+            //GameState->Player->RenderInfo->Flipped = true;
+
+            ChangeAnimation(GameState, GameState->Player, "PLAYER_RUN");
+        }
+        else if (Input->Right.isPressed)
+        {
+            GameState->Player->PrevState = GameState->Player->State;
+            GameState->Player->State = ENTITY_STATE_RUN;
+
+            //GameState->Player->Acceleration.x = 1.f;
+            // todo: in future handle flipped vertically/diagonally
+            //GameState->Player->RenderInfo->Flipped = false;
+
+            ChangeAnimation(GameState, GameState->Player, "PLAYER_RUN");
+        }
+        else if (Input->Jump.isPressed && !Input->Jump.isProcessed)
+        {
+            Input->Jump.isProcessed = true;
+
+            GameState->Player->PrevState = GameState->Player->State;
+            GameState->Player->State = ENTITY_STATE_JUMP;
+            GameState->Player->Acceleration.y = 12.f;
+            GameState->Player->Velocity.y = 0.f;
+            
+            ChangeAnimation(GameState, GameState->Player, "PLAYER_JUMP_UP");
+        }
+        else if (Input->Down.isPressed)
+        {
+            GameState->Player->PrevState = GameState->Player->State;
+            GameState->Player->State = ENTITY_STATE_DUCK;
+
+            ChangeAnimation(GameState, GameState->Player, "PLAYER_DUCK");
+        }
+        else if (Input->Attack.isPressed)
+        {
+            GameState->Player->PrevState = GameState->Player->State;
+            GameState->Player->State = ENTITY_STATE_ATTACK;
+
+            animation *AttackAnimation = GetAnimation(GameState, "PLAYER_ATTACK");
+            AttackAnimation->NextToPlay = GameState->Player->CurrentAnimation; 
+            
+            ChangeAnimation(GameState, GameState->Player, AttackAnimation, false);
+        }
+        break;
+    case ENTITY_STATE_RUN:
+        if (!Input->Left.isPressed && !Input->Right.isPressed)
+        {
+            GameState->Player->PrevState = GameState->Player->State;
+            GameState->Player->State = ENTITY_STATE_IDLE;
+            GameState->Player->Acceleration.x = 0.f;
+
+            ChangeAnimation(GameState, GameState->Player, "PLAYER_IDLE");
+        }
+        else if (Input->Jump.isPressed && !Input->Jump.isProcessed)
+        {
+            Input->Jump.isProcessed = true;
+
+            GameState->Player->PrevState = GameState->Player->State;
+            GameState->Player->State = ENTITY_STATE_JUMP;
+            GameState->Player->Acceleration.y = 12.f;
+            GameState->Player->Velocity.y = 0.f;
+
+            ChangeAnimation(GameState, GameState->Player, "PLAYER_JUMP_UP");
+        }
+        else if (Input->Down.isPressed)
+        {
+            GameState->Player->PrevState = GameState->Player->State;
+            GameState->Player->State = ENTITY_STATE_DUCK;
+
+            ChangeAnimation(GameState, GameState->Player, "PLAYER_DUCK");
+        }
+        else if (Input->Attack.isPressed)
+        {
+            GameState->Player->PrevState = GameState->Player->State;
+            GameState->Player->State = ENTITY_STATE_ATTACK;
+
+            animation *AttackAnimation = GetAnimation(GameState, "PLAYER_ATTACK");
+            AttackAnimation->NextToPlay = GameState->Player->CurrentAnimation; 
+
+            ChangeAnimation(GameState, GameState->Player, AttackAnimation, false);
+        }
+        break;
+    case ENTITY_STATE_JUMP:
+        if (Input->Attack.isPressed)
+        {
+            GameState->Player->PrevState = GameState->Player->State;
+            GameState->Player->State = ENTITY_STATE_ATTACK;
+
+            animation *AttackAnimation = GetAnimation(GameState, "PLAYER_ATTACK");
+            AttackAnimation->NextToPlay = GameState->Player->CurrentAnimation; 
+
+            ChangeAnimation(GameState, GameState->Player, AttackAnimation, false);
+        }
+        break;
+    case ENTITY_STATE_FALL:
+        if (Input->Attack.isPressed)
+        {
+            GameState->Player->PrevState = GameState->Player->State;
+            GameState->Player->State = ENTITY_STATE_ATTACK;
+
+            animation *AttackAnimation = GetAnimation(GameState, "PLAYER_ATTACK");
+            AttackAnimation->NextToPlay = GameState->Player->CurrentAnimation; 
+
+            ChangeAnimation(GameState, GameState->Player, AttackAnimation, false);
+        }
+        break;
+    case ENTITY_STATE_DUCK:
+        if (!Input->Down.isPressed)
+        {
+            GameState->Player->PrevState = GameState->Player->State;
+            GameState->Player->State = ENTITY_STATE_IDLE;
+
+            ChangeAnimation(GameState, GameState->Player, "PLAYER_IDLE");
+        }
+        break;
+    case ENTITY_STATE_ATTACK:
+        break;
+    case ENTITY_STATE_SQUASH:
+        if (Input->Jump.isPressed && !Input->Jump.isProcessed)
+        {
+            Input->Jump.isProcessed = true;
+            GameState->Player->PrevState = GameState->Player->State;
+            GameState->Player->State = ENTITY_STATE_JUMP;
+
+            GameState->Player->Acceleration.y = 12.f;
+            GameState->Player->Velocity.y = 0.f;
+
+            ChangeAnimation(GameState, GameState->Player, "PLAYER_JUMP_UP");
+        }
+        break;
+    default:
+        break;
+    }
     if (Input->Left.isPressed)
     {
-        GameState->Player->Acceleration.x = -8.f;
-
-        // todo: in future handle flipped vertically/diagonally
-        GameState->Player->RenderInfo->Flipped = true;
-
-        // todo: find a better way (precalculate string hash?)
-        if (!StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_RUN") &&
-            !StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_SQUASH") &&
-            !StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_JUMP_UP") &&
-            !StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_JUMP_DOWN"))
+        if (GameState->Player->State != ENTITY_STATE_DUCK)
         {
-            ChangeAnimation(GameState, GameState->Player, "PLAYER_RUN");
+            GameState->Player->Acceleration.x = -8.f;
+
+            // todo: in future handle flipped vertically/diagonally
+            GameState->Player->RenderInfo->Flipped = true;
         }
     }
 
     if (Input->Right.isPressed)
     {
-        GameState->Player->Acceleration.x = 8.f;
-
-        GameState->Player->RenderInfo->Flipped = false;
-
-        if (!StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_RUN") &&
-            !StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_SQUASH") &&
-            !StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_JUMP_UP") &&
-            !StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_JUMP_DOWN"))
+        if (GameState->Player->State != ENTITY_STATE_DUCK)
         {
-            ChangeAnimation(GameState, GameState->Player, "PLAYER_RUN");
-        }
-    }
+            GameState->Player->Acceleration.x = 8.f;
 
-    if (!Input->Left.isPressed && !Input->Left.isProcessed)
-    {
-        Input->Left.isProcessed = true;
-        if (!StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_IDLE"))
-        {
-            if (!StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_JUMP_IDLE") &&
-                !StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_JUMP_UP") &&
-                !StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_JUMP_DOWN"))
-            {
-                ChangeAnimation(GameState, GameState->Player, "PLAYER_IDLE");
-            }
-        }
-    }
-
-    if (!Input->Right.isPressed && !Input->Right.isProcessed)
-    {
-        Input->Right.isProcessed = true;
-        if (!StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_IDLE"))
-        {
-            if (!StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_JUMP_IDLE") &&
-                !StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_JUMP_UP") &&
-                !StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_JUMP_DOWN"))
-            {
-                ChangeAnimation(GameState, GameState->Player, "PLAYER_IDLE");
-            }
-        }
-    }
-
-    if (Input->Jump.isPressed && !Input->Jump.isProcessed)
-    {
-        Input->Jump.isProcessed = true;
-        GameState->Player->Acceleration.y = 12.f;
-        GameState->Player->Velocity.y = 0.f;
-    }
-
-    if (Input->Attack.isPressed && !Input->Attack.isProcessed)
-    {
-        Input->Attack.isProcessed = true;
-
-        // todo: this is super janky
-        if (!StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_ATTACK"))
-        {
-            animation *PrevAnimation = GameState->Player->CurrentAnimation;
-
-            if (StringEquals(PrevAnimation->Name, "PLAYER_SQUASH"))
-            {
-                PrevAnimation = GetAnimation(GameState, "PLAYER_IDLE");
-            }
-
-            animation *AttackAnimation = GetAnimation(GameState, "PLAYER_ATTACK");
-            AttackAnimation->NextToPlay = PrevAnimation;
-
-            ChangeAnimation(GameState, GameState->Player, AttackAnimation, false);
-        }
-    }
-
-    if (Input->Down.isPressed && !Input->Down.isProcessed)
-    {
-        Input->Down.isProcessed = true;
-        ChangeAnimation(GameState, GameState->Player, "PLAYER_DUCK");
-    }
-    
-    if (!Input->Down.isPressed)
-    {
-        if (StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_DUCK"))
-        {
-            ChangeAnimation(GameState, GameState->Player, "PLAYER_IDLE");
+            GameState->Player->RenderInfo->Flipped = false;
         }
     }
 
@@ -463,6 +526,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
                     *Animation = {};
 
+                    // todo:
                     if (StringEquals(AnimationName, "PLAYER_DUCK"))
                     {
                         Animation->StopOnTheLastFrame = true;
@@ -1150,8 +1214,11 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
             if (UpdatedMove.y < 0.f)
             {
+                GameState->Player->PrevState = GameState->Player->State;
+                GameState->Player->State = ENTITY_STATE_SQUASH;
+
                 animation *SquashAnimation = GetAnimation(GameState, "PLAYER_SQUASH");
-                SquashAnimation->NextToPlay = GetAnimation(GameState, "PLAYER_IDLE");
+                SquashAnimation->NextToPlay = GetAnimation(GameState, "PLAYER_IDLE"); 
 
                 ChangeAnimation(GameState, GameState->Player, SquashAnimation, false);
             }
@@ -1159,16 +1226,20 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
         if (GameState->Player->Velocity.y > 0.f)
         {
-            // todo: deal with ifs
-            if (!StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_JUMP_UP"))
+            // todo: do i need this?
+            if (GameState->Player->State != ENTITY_STATE_JUMP && GameState->Player->State != ENTITY_STATE_ATTACK)
             {
+                GameState->Player->PrevState = GameState->Player->State;
+                GameState->Player->State = ENTITY_STATE_JUMP;
                 ChangeAnimation(GameState, GameState->Player, "PLAYER_JUMP_UP");
             }
         }
         else if (GameState->Player->Velocity.y < 0.f)
         {
-            if (!StringEquals(GameState->Player->CurrentAnimation->Name, "PLAYER_JUMP_DOWN"))
+            if (GameState->Player->State != ENTITY_STATE_FALL && GameState->Player->State != ENTITY_STATE_ATTACK)
             {
+                GameState->Player->PrevState = GameState->Player->State;
+                GameState->Player->State = ENTITY_STATE_FALL;
                 ChangeAnimation(GameState, GameState->Player, "PLAYER_JUMP_DOWN");
             }
         }
@@ -1271,6 +1342,16 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
                 if (Animation->CurrentFrameIndex >= Animation->AnimationFrameCount)
                 {
+                    // todo:
+                    if (Entity->State == ENTITY_STATE_ATTACK)
+                    {
+                        Entity->State = Entity->PrevState;
+                    }
+                    else if (Entity->State == ENTITY_STATE_SQUASH)
+                    {
+                        Entity->State = ENTITY_STATE_IDLE;
+                    }
+
                     if (Animation->StopOnTheLastFrame)
                     {
                         Animation->CurrentFrameIndex--;
@@ -1438,4 +1519,6 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
         Renderer->glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     }
+
+    std::cout << GameState->Player->State << std::endl;
 }
