@@ -65,3 +65,45 @@ Create(
 
     return Result;
 }
+
+template<typename TValue>
+inline void
+Push(stack<TValue> *Stack, TValue NewValue)
+{
+    TValue *Value = Stack->Values + Stack->Count;
+    ++Stack->Count;
+
+    assert(Stack->Count < Stack->MaxCount);
+
+    *Value = NewValue;
+}
+
+template<typename TValue>
+inline TValue *
+Top(stack<TValue> *Stack)
+{
+    assert(Stack->Count > 0);
+
+    TValue *Result = Stack->Values + (Stack->Count - 1);
+    return Result;
+}
+
+template<typename TValue>
+inline TValue *
+Pop(stack<TValue> *Stack)
+{
+    TValue *Result = Top(Stack);
+    --Stack->Count;
+
+    assert(Stack->Count >= 0);
+
+    return Result;
+}
+
+template<typename TValue>
+inline void
+Replace(stack<TValue> *Stack, TValue NewValue)
+{
+    Pop(Stack);
+    Push(Stack, NewValue);
+}

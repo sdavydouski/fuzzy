@@ -3,8 +3,6 @@
 #include "fuzzy_types.h"
 #include "fuzzy_memory.h"
 
-#pragma region HashTable
-
 template<typename T>
 struct hash_table
 {
@@ -26,4 +24,27 @@ Create(
     memory_arena *Arena
 );
 
-#pragma endregion
+template<typename TValue>
+struct stack
+{
+    u32 MaxCount;
+    TValue *Values;
+
+    u32 Count;
+};
+
+template<typename TValue>
+inline void
+Push(stack<TValue> *Stack, TValue NewValue);
+
+template<typename TValue>
+inline TValue *
+Top(stack<TValue> *Stack);
+
+template<typename TValue>
+inline TValue *
+Pop(stack<TValue> *Stack);
+
+template<typename TValue>
+inline void
+Replace(stack<TValue> *Stack, TValue NewValue);

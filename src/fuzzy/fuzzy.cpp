@@ -106,57 +106,45 @@ global_variable const vec3 BackgroundColor = NormalizeRGB(29, 33, 45);
 internal_function void
 ProcessInput(game_state *GameState, game_input *Input, f32 Delta)
 {
-    // todo: move out
-    switch (GameState->Player->State)
+    entity_state PlayerState = *Top(&GameState->Player->StatesStack);
+
+    // todo: move out common parts
+    switch (PlayerState)
     {
     case ENTITY_STATE_IDLE:
         if (Input->Left.isPressed)
         {
-            GameState->Player->PrevState = GameState->Player->State;
-            GameState->Player->State = ENTITY_STATE_RUN;
-
-            //GameState->Player->Acceleration.x = -1.f;
-            // todo: in future handle flipped vertically/diagonally
-            //GameState->Player->RenderInfo->Flipped = true;
-
+            Replace(&GameState->Player->StatesStack, ENTITY_STATE_RUN);
             ChangeAnimation(GameState, GameState->Player, "PLAYER_RUN");
         }
-        else if (Input->Right.isPressed)
+        if (Input->Right.isPressed)
         {
-            GameState->Player->PrevState = GameState->Player->State;
-            GameState->Player->State = ENTITY_STATE_RUN;
-
-            //GameState->Player->Acceleration.x = 1.f;
-            // todo: in future handle flipped vertically/diagonally
-            //GameState->Player->RenderInfo->Flipped = false;
-
+            Replace(&GameState->Player->StatesStack, ENTITY_STATE_RUN);
             ChangeAnimation(GameState, GameState->Player, "PLAYER_RUN");
         }
-        else if (Input->Jump.isPressed && !Input->Jump.isProcessed)
+        if (Input->Jump.isPressed && !Input->Jump.isProcessed)
         {
             Input->Jump.isProcessed = true;
 
-            GameState->Player->PrevState = GameState->Player->State;
-            GameState->Player->State = ENTITY_STATE_JUMP;
             GameState->Player->Acceleration.y = 12.f;
             GameState->Player->Velocity.y = 0.f;
-            
+
+            Replace(&GameState->Player->StatesStack, ENTITY_STATE_JUMP);
             ChangeAnimation(GameState, GameState->Player, "PLAYER_JUMP_UP");
         }
-        else if (Input->Down.isPressed)
+        if (Input->Down.isPressed)
         {
-            GameState->Player->PrevState = GameState->Player->State;
-            GameState->Player->State = ENTITY_STATE_DUCK;
-
+            Replace(&GameState->Player->StatesStack, ENTITY_STATE_DUCK);
             ChangeAnimation(GameState, GameState->Player, "PLAYER_DUCK");
         }
-        else if (Input->Attack.isPressed)
+        if (Input->Attack.isPressed && !Input->Attack.isProcessed)
         {
-            GameState->Player->PrevState = GameState->Player->State;
-            GameState->Player->State = ENTITY_STATE_ATTACK;
+            Input->Attack.isProcessed = true;
+
+            Push(&GameState->Player->StatesStack, ENTITY_STATE_ATTACK);
 
             animation *AttackAnimation = GetAnimation(GameState, "PLAYER_ATTACK");
-            AttackAnimation->NextToPlay = GameState->Player->CurrentAnimation; 
+            AttackAnimation->NextToPlay = GetAnimation(GameState, "PLAYER_IDLE"); 
             
             ChangeAnimation(GameState, GameState->Player, AttackAnimation, false);
         }
@@ -164,71 +152,94 @@ ProcessInput(game_state *GameState, game_input *Input, f32 Delta)
     case ENTITY_STATE_RUN:
         if (!Input->Left.isPressed && !Input->Right.isPressed)
         {
-            GameState->Player->PrevState = GameState->Player->State;
-            GameState->Player->State = ENTITY_STATE_IDLE;
             GameState->Player->Acceleration.x = 0.f;
 
+            Replace(&GameState->Player->StatesStack, ENTITY_STATE_IDLE);
             ChangeAnimation(GameState, GameState->Player, "PLAYER_IDLE");
         }
-        else if (Input->Jump.isPressed && !Input->Jump.isProcessed)
+        if (Input->Jump.isPressed && !Input->Jump.isProcessed)
         {
             Input->Jump.isProcessed = true;
 
-            GameState->Player->PrevState = GameState->Player->State;
-            GameState->Player->State = ENTITY_STATE_JUMP;
             GameState->Player->Acceleration.y = 12.f;
             GameState->Player->Velocity.y = 0.f;
 
+            Replace(&GameState->Player->StatesStack, ENTITY_STATE_JUMP);
             ChangeAnimation(GameState, GameState->Player, "PLAYER_JUMP_UP");
         }
-        else if (Input->Down.isPressed)
+        if (Input->Down.isPressed)
         {
-            GameState->Player->PrevState = GameState->Player->State;
-            GameState->Player->State = ENTITY_STATE_DUCK;
-
+            Replace(&GameState->Player->StatesStack, ENTITY_STATE_DUCK);
             ChangeAnimation(GameState, GameState->Player, "PLAYER_DUCK");
         }
-        else if (Input->Attack.isPressed)
+        /*if (Input->Attack.isPressed && !Input->Attack.isProcessed)
         {
-            GameState->Player->PrevState = GameState->Player->State;
-            GameState->Player->State = ENTITY_STATE_ATTACK;
+            Input->Attack.isProcessed = true;
+
+            Push(&GameState->Player->StatesStack, ENTITY_STATE_ATTACK);
 
             animation *AttackAnimation = GetAnimation(GameState, "PLAYER_ATTACK");
             AttackAnimation->NextToPlay = GameState->Player->CurrentAnimation; 
 
             ChangeAnimation(GameState, GameState->Player, AttackAnimation, false);
-        }
+        }*/
         break;
     case ENTITY_STATE_JUMP:
-        if (Input->Attack.isPressed)
+        /*if (Input->Attack.isPressed && !Input->Attack.isProcessed)
         {
-            GameState->Player->PrevState = GameState->Player->State;
-            GameState->Player->State = ENTITY_STATE_ATTACK;
+            Input->Attack.isProcessed = true;
+
+            Push(&GameState->Player->StatesStack, ENTITY_STATE_ATTACK);
 
             animation *AttackAnimation = GetAnimation(GameState, "PLAYER_ATTACK");
             AttackAnimation->NextToPlay = GameState->Player->CurrentAnimation; 
 
             ChangeAnimation(GameState, GameState->Player, AttackAnimation, false);
+        }*/
+        if (PlayerState != ENTITY_STATE_DOUBLE_JUMP)
+        {
+            if (Input->Jump.isPressed && !Input->Jump.isProcessed)
+            {
+                Input->Jump.isProcessed = true;
+
+                GameState->Player->Acceleration.y = 12.f;
+                GameState->Player->Velocity.y = 0.f;
+
+                Replace(&GameState->Player->StatesStack, ENTITY_STATE_DOUBLE_JUMP);
+                ChangeAnimation(GameState, GameState->Player, "PLAYER_JUMP_UP");
+            }
         }
         break;
     case ENTITY_STATE_FALL:
-        if (Input->Attack.isPressed)
+        /*if (Input->Attack.isPressed && !Input->Attack.isProcessed)
         {
-            GameState->Player->PrevState = GameState->Player->State;
-            GameState->Player->State = ENTITY_STATE_ATTACK;
+            Input->Attack.isProcessed = true;
+
+            Push(&GameState->Player->StatesStack, ENTITY_STATE_ATTACK);
 
             animation *AttackAnimation = GetAnimation(GameState, "PLAYER_ATTACK");
             AttackAnimation->NextToPlay = GameState->Player->CurrentAnimation; 
 
             ChangeAnimation(GameState, GameState->Player, AttackAnimation, false);
+        }*/
+        if (Input->Jump.isPressed && !Input->Jump.isProcessed)
+        {
+            if (PlayerState != ENTITY_STATE_DOUBLE_JUMP)
+            {
+                Input->Jump.isProcessed = true;
+
+                GameState->Player->Acceleration.y = 12.f;
+                GameState->Player->Velocity.y = 0.f;
+
+                Replace(&GameState->Player->StatesStack, ENTITY_STATE_DOUBLE_JUMP);
+                ChangeAnimation(GameState, GameState->Player, "PLAYER_JUMP_UP");
+            }
         }
         break;
     case ENTITY_STATE_DUCK:
         if (!Input->Down.isPressed)
         {
-            GameState->Player->PrevState = GameState->Player->State;
-            GameState->Player->State = ENTITY_STATE_IDLE;
-
+            Replace(&GameState->Player->StatesStack, ENTITY_STATE_IDLE);
             ChangeAnimation(GameState, GameState->Player, "PLAYER_IDLE");
         }
         break;
@@ -238,21 +249,23 @@ ProcessInput(game_state *GameState, game_input *Input, f32 Delta)
         if (Input->Jump.isPressed && !Input->Jump.isProcessed)
         {
             Input->Jump.isProcessed = true;
-            GameState->Player->PrevState = GameState->Player->State;
-            GameState->Player->State = ENTITY_STATE_JUMP;
 
             GameState->Player->Acceleration.y = 12.f;
             GameState->Player->Velocity.y = 0.f;
 
+            Replace(&GameState->Player->StatesStack, ENTITY_STATE_JUMP);
             ChangeAnimation(GameState, GameState->Player, "PLAYER_JUMP_UP");
         }
         break;
     default:
         break;
     }
+
+    //entity_state PlayerState = *Top(&GameState->Player->StatesStack);
+
     if (Input->Left.isPressed)
     {
-        if (GameState->Player->State != ENTITY_STATE_DUCK)
+        if (PlayerState != ENTITY_STATE_DUCK)
         {
             GameState->Player->Acceleration.x = -8.f;
 
@@ -263,7 +276,7 @@ ProcessInput(game_state *GameState, game_input *Input, f32 Delta)
 
     if (Input->Right.isPressed)
     {
-        if (GameState->Player->State != ENTITY_STATE_DUCK)
+        if (PlayerState != ENTITY_STATE_DUCK)
         {
             GameState->Player->Acceleration.x = 8.f;
 
@@ -765,14 +778,25 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                         // todo: hmm...
                         *DrawableEntity = *Entity;
 
+                        // todo:
                         if (DrawableEntity->Type == ENTITY_PLAYER)
                         {
                             GameState->Player = DrawableEntity;
+                            GameState->Player->StatesStack.MaxCount = 10;
+                            GameState->Player->StatesStack.Values = 
+                                PushArray<entity_state>(&GameState->WorldArena, GameState->Player->StatesStack.MaxCount);
+
+                            Push(&GameState->Player->StatesStack, ENTITY_STATE_IDLE);
                             ChangeAnimation(GameState, GameState->Player, "PLAYER_IDLE");
                         }
 
                         if (DrawableEntity->Type == ENTITY_SIREN)
                         {
+                            DrawableEntity->StatesStack.MaxCount = 10;
+                            DrawableEntity->StatesStack.Values = 
+                                PushArray<entity_state>(&GameState->WorldArena, DrawableEntity->StatesStack.MaxCount);
+
+                            Push(&DrawableEntity->StatesStack, ENTITY_STATE_IDLE);
                             ChangeAnimation(GameState, DrawableEntity, "SIREN");
                         }
 
@@ -1214,8 +1238,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
             if (UpdatedMove.y < 0.f)
             {
-                GameState->Player->PrevState = GameState->Player->State;
-                GameState->Player->State = ENTITY_STATE_SQUASH;
+                Replace(&GameState->Player->StatesStack, ENTITY_STATE_SQUASH);
 
                 animation *SquashAnimation = GetAnimation(GameState, "PLAYER_SQUASH");
                 SquashAnimation->NextToPlay = GetAnimation(GameState, "PLAYER_IDLE"); 
@@ -1224,23 +1247,26 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             }
         }
 
+        entity_state PlayerState = *Top(&GameState->Player->StatesStack);
+
         if (GameState->Player->Velocity.y > 0.f)
         {
             // todo: do i need this?
-            if (GameState->Player->State != ENTITY_STATE_JUMP && GameState->Player->State != ENTITY_STATE_ATTACK)
+            /*if (PlayerState != ENTITY_STATE_JUMP && PlayerState != ENTITY_STATE_ATTACK)
             {
-                GameState->Player->PrevState = GameState->Player->State;
-                GameState->Player->State = ENTITY_STATE_JUMP;
+                Pop(&GameState->Player->StatesStack);
+                Push(&GameState->Player->StatesStack, ENTITY_STATE_JUMP);
+
                 ChangeAnimation(GameState, GameState->Player, "PLAYER_JUMP_UP");
-            }
+            }*/
         }
         else if (GameState->Player->Velocity.y < 0.f)
         {
-            if (GameState->Player->State != ENTITY_STATE_FALL && GameState->Player->State != ENTITY_STATE_ATTACK)
+            if (PlayerState != ENTITY_STATE_FALL && PlayerState != ENTITY_STATE_ATTACK)
             {
-                GameState->Player->PrevState = GameState->Player->State;
-                GameState->Player->State = ENTITY_STATE_FALL;
-                ChangeAnimation(GameState, GameState->Player, "PLAYER_JUMP_DOWN");
+                Replace(&GameState->Player->StatesStack, ENTITY_STATE_FALL);
+
+                ChangeAnimation(GameState, GameState->Player, "PLAYER_FALL");
             }
         }
 
@@ -1343,13 +1369,15 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                 if (Animation->CurrentFrameIndex >= Animation->AnimationFrameCount)
                 {
                     // todo:
-                    if (Entity->State == ENTITY_STATE_ATTACK)
+                    entity_state EntityState = *Top(&Entity->StatesStack);
+                    switch (EntityState)
                     {
-                        Entity->State = Entity->PrevState;
-                    }
-                    else if (Entity->State == ENTITY_STATE_SQUASH)
-                    {
-                        Entity->State = ENTITY_STATE_IDLE;
+                    case ENTITY_STATE_ATTACK:
+                        Pop(&Entity->StatesStack);
+                        break;
+                    case ENTITY_STATE_SQUASH:
+                        Replace(&Entity->StatesStack, ENTITY_STATE_IDLE);
+                        break;
                     }
 
                     if (Animation->StopOnTheLastFrame)
@@ -1520,5 +1548,9 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Renderer->glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     }
 
-    std::cout << GameState->Player->State << std::endl;
+    entity_state PlayerState = *Top(&GameState->Player->StatesStack);
+
+    std::cout << GameState->Player->StatesStack.Count << std::endl;
+    std::cout << PlayerState << std::endl;
+    std::cout << "----" << std::endl;
 }

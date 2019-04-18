@@ -854,7 +854,7 @@
                 {
                  "name":"AnimationName",
                  "type":"string",
-                 "value":"PLAYER_JUMP_DOWN"
+                 "value":"PLAYER_FALL"
                 }]
         }, 
         {

@@ -37,15 +37,11 @@ enum entity_state
     ENTITY_STATE_IDLE,
     ENTITY_STATE_RUN,
     ENTITY_STATE_JUMP,
+    ENTITY_STATE_DOUBLE_JUMP,
     ENTITY_STATE_FALL,
     ENTITY_STATE_SQUASH,
     ENTITY_STATE_DUCK,
     ENTITY_STATE_ATTACK
-};
-
-struct entity_state_stack
-{
-
 };
 
 struct entity
@@ -59,8 +55,7 @@ struct entity
     vec2 Size;
     entity_type Type;
     // todo: pushdown automata?
-    entity_state PrevState;
-    entity_state State;
+    stack<entity_state> StatesStack; 
 
     entity_render_info *RenderInfo;
 
