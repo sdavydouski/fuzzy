@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdint.h>
 #include <glad/glad.h>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
@@ -10,6 +11,8 @@
 #define local_persist static
 
 #define InvalidCodePath assert(!"InvalidCodePath")
+
+#define U32Max UINT32_MAX;
 
 #pragma region GLM types
 using vec2 = glm::vec2;

@@ -10,7 +10,8 @@
 #include "fuzzy_platform.h"
 #include "fuzzy.h"
 
-#include "fuzzy_math.cpp"
+#include "fuzzy_math.h"
+#include "fuzzy_random.h"
 #include "fuzzy_containers.cpp"
 #include "fuzzy_tiled.cpp"
 #include "fuzzy_graphics.cpp"
@@ -1157,9 +1158,12 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
         GameState->UpdateRate = 0.01f;   // 10 ms
         GameState->Lag = 0.f;
+        GameState->Time = 0.f;
 
         GameState->Zoom = 1.f / 1.f;
         GameState->Camera = GameState->Player->Position;
+
+        GameState->Entropy = RandomSequence(42);
 
         Renderer->glEnable(GL_BLEND);
         Renderer->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -1174,6 +1178,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     Renderer->glViewport(0, 0, ScreenWidth, ScreenHeight);
 
+    GameState->Time += Params->Delta;
     GameState->Lag += Params->Delta;
 
     ProcessInput(GameState, &Params->Input, Params->Delta);
@@ -1526,15 +1531,20 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         shader_uniform *BorderWidthUniform = GetUniform(&GameState->BorderShaderProgram, "u_BorderWidth");
         shader_uniform *WidthOverHeightUniform = GetUniform(&GameState->BorderShaderProgram, "u_WidthOverHeight");
 
-        vec2 BorderSize = vec2(2.f, 2.f);
+        vec2 BorderSize = vec2(1.f, 1.f);
         SetShaderUniform(Memory, WidthOverHeightUniform->Location, BorderSize.x / BorderSize.y);
 
         mat4 Model = mat4(1.f);
 
         // todo: consolidate about game world coordinates ([0,0] is at the center)
         Model = glm::translate(Model, vec3(GameState->ScreenWidthInMeters / 2.f, GameState->ScreenHeightInMeters / 2.f, 0.f));
-        Model = glm::translate(Model, vec3(0.f, 0.f, 0.f));
+        Model = glm::translate(Model, vec3(6.f, 1.f, 0.f));
+        
         Model = glm::scale(Model, vec3(BorderSize, 0.f));
+
+        Model = glm::translate(Model, vec3(BorderSize / 2.f, 0.f));
+        Model = glm::rotate(Model, glm::radians((f32)GameState->Time * 40.f), vec3(0.f, 0.f, 1.f));
+        Model = glm::translate(Model, vec3(-BorderSize / 2.f, 0.f));
 
         SetShaderUniform(Memory, ModelUniform->Location, Model);
 
@@ -1550,7 +1560,11 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     entity_state PlayerState = *Top(&GameState->Player->StatesStack);
 
-    std::cout << GameState->Player->StatesStack.Count << std::endl;
+    /*std::cout << GameState->Player->StatesStack.Count << std::endl;
     std::cout << PlayerState << std::endl;
-    std::cout << "----" << std::endl;
+    std::cout << "----" << std::endl;*/
+
+    //std::cout << Random01(&GameState->Entropy) << std::endl;
+    //std::cout << RandomBetween(&GameState->Entropy, -10, 10) << std::endl;
+    //std::cout << RandomBetween(&GameState->Entropy, -1.f, 1.f) << std::endl;
 }

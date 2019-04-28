@@ -6,6 +6,7 @@
 #include "fuzzy_graphics.h"
 #include "fuzzy_animations.h"
 #include "fuzzy_containers.h"
+#include "fuzzy_random.h"
 
 #define ArrayLength(Array) (sizeof(Array) / sizeof((Array)[0]))
 
@@ -65,6 +66,15 @@ struct entity
     animation *CurrentAnimation;
 };
 
+struct particle
+{
+    vec2 Position;
+    vec2 Velocity;
+    vec3 Acceleration;
+    vec4 Color;
+    vec4 dColor;
+};
+
 struct game_state
 {
     b32 IsInitialized;
@@ -77,6 +87,7 @@ struct game_state
 
     tilemap Map;
 
+    f64 Time;
     f32 Lag;
     f32 UpdateRate;
 
@@ -115,4 +126,9 @@ struct game_state
     u32 EntityRenderInfoCount;
     // todo: maybe store in in entity directly?
     entity_render_info *EntityRenderInfos;
+
+    u32 NextParticle;
+    particle Particles[256];
+
+    random_sequence Entropy;
 };

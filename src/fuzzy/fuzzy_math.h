@@ -1,3 +1,5 @@
+#pragma once
+
 #include "fuzzy_types.h"
 
 // from https://stackoverflow.com/questions/664014
@@ -26,4 +28,12 @@ Hash(char *Value)
     }
 
     return Hash;
+}
+
+inline f32
+Lerp(f32 A, f32 t, f32 B)
+{
+    f32 Result = (1.f - t) * A + t * B;
+
+    return Result;
 }
