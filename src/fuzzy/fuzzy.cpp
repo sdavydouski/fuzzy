@@ -1195,7 +1195,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
         GameState->Player->Velocity += GameState->Player->Acceleration * Dt;
 
-        vec2 Move = 0.5f * GameState->Player->Acceleration * Dt * Dt + GameState->Player->Velocity * Dt;
+        vec2 Move = 0.5f * GameState->Player->Acceleration * Square(Dt) + GameState->Player->Velocity * Dt;
 
         vec2 CollisionTime = vec2(1.f);
 
@@ -1558,7 +1558,77 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Renderer->glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     }
 
-    entity_state PlayerState = *Top(&GameState->Player->StatesStack);
+    u32 ParticlesSpawnPerFrame = 1;
+    for (u32 ParticleSpawnIndex = 0; ParticleSpawnIndex < ParticlesSpawnPerFrame; ++ParticleSpawnIndex)
+    {
+        particle *Particle = GameState->Particles + GameState->NextParticle++;
+
+        if (GameState->NextParticle >= ArrayCount(GameState->Particles))
+        {
+            GameState->NextParticle = 0;
+        }
+
+        Particle->Position = vec2(RandomBetween(&GameState->Entropy, -0.1f, 0.1f) + 2.f, 0.f);
+        Particle->Velocity = vec2(
+            RandomBetween(&GameState->Entropy, -1.f, 1.f), 
+            RandomBetween(&GameState->Entropy, 2.f, 2.2f)
+        );
+        Particle->Acceleration = vec2(0.f, -1.f);
+        Particle->Color = vec4(
+            RandomBetween(&GameState->Entropy, 0.75f, 1.0f),
+            RandomBetween(&GameState->Entropy, 0.75f, 1.0f),
+            RandomBetween(&GameState->Entropy, 0.75f, 1.0f),
+            1.0f
+        );
+        Particle->dColor = vec4(0.f, 0.f, 0.f, -0.25f);
+    }
+
+    f32 dt = Params->Delta;
+
+    // todo: test code
+    Renderer->glUseProgram(GameState->BorderShaderProgram.ProgramHandle);
+    Renderer->glBindVertexArray(GameState->BorderVertexBuffer.VAO);
+    Renderer->glBindBuffer(GL_ARRAY_BUFFER, GameState->BorderVertexBuffer.VBO);
+
+    for (u32 ParticleIndex = 0; ParticleIndex < ArrayCount(GameState->Particles); ++ParticleIndex)
+    {
+        particle *Particle = GameState->Particles + ParticleIndex;
+
+        Particle->Position += 0.5f * Particle->Acceleration * Square(dt) + Particle->Velocity * dt;
+        Particle->Velocity += dt * Particle->Acceleration;
+        Particle->Color += dt * Particle->dColor;
+
+        {
+            shader_uniform *ModelUniform = GetUniform(&GameState->BorderShaderProgram, "u_Model");
+            shader_uniform *ColorUniform = GetUniform(&GameState->BorderShaderProgram, "u_Color");
+            shader_uniform *BorderWidthUniform = GetUniform(&GameState->BorderShaderProgram, "u_BorderWidth");
+            shader_uniform *WidthOverHeightUniform = GetUniform(&GameState->BorderShaderProgram, "u_WidthOverHeight");
+
+            vec2 ParticleSize = vec2(0.1f);
+            SetShaderUniform(Memory, WidthOverHeightUniform->Location, ParticleSize.x / ParticleSize.y);
+
+            mat4 Model = mat4(1.f);
+
+            Model = glm::translate(Model, vec3(GameState->ScreenWidthInMeters / 2.f, GameState->ScreenHeightInMeters / 2.f, 0.f));
+            Model = glm::translate(Model, vec3(Particle->Position, 0.f));
+
+            Model = glm::scale(Model, vec3(ParticleSize, 0.f));
+
+            SetShaderUniform(Memory, ModelUniform->Location, Model);
+
+            vec4 Color = Particle->Color;
+
+            SetShaderUniform(Memory, ColorUniform->Location, Color);
+
+            // meters to (0-1) uv-range
+            f32 BorderWidth = 0.01f / ParticleSize.x;
+            SetShaderUniform(Memory, BorderWidthUniform->Location, BorderWidth);
+
+            Renderer->glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        }
+    }
+
+    //entity_state PlayerState = *Top(&GameState->Player->StatesStack);
 
     /*std::cout << GameState->Player->StatesStack.Count << std::endl;
     std::cout << PlayerState << std::endl;

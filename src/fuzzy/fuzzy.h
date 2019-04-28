@@ -70,7 +70,7 @@ struct particle
 {
     vec2 Position;
     vec2 Velocity;
-    vec3 Acceleration;
+    vec2 Acceleration;
     vec4 Color;
     vec4 dColor;
 };

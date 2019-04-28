@@ -37,3 +37,11 @@ Lerp(f32 A, f32 t, f32 B)
 
     return Result;
 }
+
+inline f32
+Square(f32 Value)
+{
+    f32 Result = Value * Value;
+
+    return Result;
+}
