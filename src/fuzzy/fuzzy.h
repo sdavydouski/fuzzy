@@ -82,6 +82,8 @@ struct particle
     vec2 Acceleration;
     vec4 Color;
     vec4 dColor;
+    vec2 Size;
+    vec2 dSize;
 
     particle_render_info *RenderInfo;
 };
@@ -143,7 +145,9 @@ struct game_state
     particle_render_info *ParticleRenderInfos;
 
     u32 NextParticle;
-    particle Particles[256];
+    particle Particles[1024];
 
     random_sequence Entropy;
+
+    u32 QuadVerticesSize;
 };

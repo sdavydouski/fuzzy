@@ -438,6 +438,8 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         };
 
         u32 QuadVerticesSize = ArrayCount(QuadVerticesData) * sizeof(f32);
+        GameState->QuadVerticesSize = QuadVerticesSize;
+
         f32 *QuadVertices = PushArray<f32>(&GameState->WorldArena, ArrayCount(QuadVerticesData));
         for (u32 Index = 0; Index < ArrayCount(QuadVerticesData); ++Index)
         {
@@ -1647,7 +1649,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         DrawRectangleOutline(Memory, GameState, Position, Size, Rotation, Thickness, Color);
     }
 
-    u32 ParticlesSpawnPerFrame = 1;
+    u32 ParticlesSpawnPerFrame = 3;
     for (u32 ParticleSpawnIndex = 0; ParticleSpawnIndex < ParticlesSpawnPerFrame; ++ParticleSpawnIndex)
     {
         particle *Particle = GameState->Particles + GameState->NextParticle++;
@@ -1657,19 +1659,24 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             GameState->NextParticle = 0;
         }
 
-        Particle->Position = vec2(RandomBetween(&GameState->Entropy, -0.1f, 0.1f) + 2.f, 0.f);
+        Particle->Position = vec2(
+            RandomBetween(&GameState->Entropy, -0.1f, 0.1f) + 0.f, 
+            RandomBetween(&GameState->Entropy, 0.f, 0.1f)
+        );
         Particle->Velocity = vec2(
-            RandomBetween(&GameState->Entropy, -1.f, 1.f), 
+            RandomBetween(&GameState->Entropy, -0.5f, 0.5f), 
             RandomBetween(&GameState->Entropy, 2.f, 2.2f)
         );
-        Particle->Acceleration = vec2(0.f, -1.f);
+        Particle->Acceleration = vec2(0.f, -1.5f);
         Particle->Color = vec4(
             RandomBetween(&GameState->Entropy, 0.75f, 1.0f),
             RandomBetween(&GameState->Entropy, 0.75f, 1.0f),
             RandomBetween(&GameState->Entropy, 0.75f, 1.0f),
             1.0f
         );
-        Particle->dColor = vec4(0.f, 0.f, 0.f, -0.25f);
+        Particle->dColor = vec4(0.f, 0.f, 0.f, -0.2f);
+        Particle->Size = vec2(0.1f);
+        Particle->dSize = vec2(-0.02f);
     }
 
     f32 dt = Params->Delta;
@@ -1686,12 +1693,21 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Particle->Position += 0.5f * Particle->Acceleration * Square(dt) + Particle->Velocity * dt;
         Particle->Velocity += dt * Particle->Acceleration;
         Particle->Color += dt * Particle->dColor;
+        Particle->Size += dt * Particle->dSize;
+
+        f32 CoefficientOfRestitution = 0.3f;
+
+        if (Particle->Position.y < 0.f)
+        {
+            Particle->Position.y = -Particle->Position.y;
+            Particle->Velocity.y = -Particle->Velocity.y * CoefficientOfRestitution;
+        }
 
         {
             vec2 Position = vec2(GameState->ScreenWidthInMeters / 2.f, GameState->ScreenHeightInMeters / 2.f) + Particle->Position;
-            vec2 Size = vec2(0.1f);
             f32 Rotation = 0.f;
             vec4 Color = Particle->Color;
+            vec2 Size = Particle->Size;
 
             //DrawRectangle(Memory, GameState, Position, Size, Rotation, Color);
 
@@ -1701,16 +1717,16 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             // scaling
             Particle->RenderInfo->Model = glm::scale(Particle->RenderInfo->Model, vec3(Size, 0.f));
             // rotation
-           /* Particle->RenderInfo->Model = glm::translate(Particle->RenderInfo->Model, vec3(Size / 2.f, 0.f));
-            Particle->RenderInfo->Model = glm::rotate(Particle->RenderInfo->Model, Rotation, vec3(0.f, 0.f, 1.f));
-            Particle->RenderInfo->Model = glm::translate(Particle->RenderInfo->Model, vec3(-Size / 2.f, 0.f));*/
+            //Particle->RenderInfo->Model = glm::translate(Particle->RenderInfo->Model, vec3(Size / 2.f, 0.f));
+            //Particle->RenderInfo->Model = glm::rotate(Particle->RenderInfo->Model, Rotation, vec3(0.f, 0.f, 1.f));
+            //Particle->RenderInfo->Model = glm::translate(Particle->RenderInfo->Model, vec3(-Size / 2.f, 0.f));
 
             Particle->RenderInfo->Color = Color;
-
-            Renderer->glBufferSubData(GL_ARRAY_BUFFER, Particle->RenderInfo->Offset, sizeof(particle_render_info), Particle->RenderInfo);
         }
     }
 
+    Renderer->glBufferSubData(GL_ARRAY_BUFFER, GameState->QuadVerticesSize, 
+        ArrayCount(GameState->Particles) * sizeof(particle_render_info), GameState->ParticleRenderInfos);
     Renderer->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, ArrayCount(GameState->Particles));
 
     //entity_state PlayerState = *Top(&GameState->Player->StatesStack);

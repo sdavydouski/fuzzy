@@ -45,3 +45,15 @@ Square(f32 Value)
 
     return Result;
 }
+
+inline f32
+AbsoluteValue(f32 Value)
+{
+    f32 Result = Value;
+    if (Value < 0.f) 
+    {
+        Result = -Value;
+    }
+
+    return Result;
+}
