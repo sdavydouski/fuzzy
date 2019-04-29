@@ -33,6 +33,15 @@ struct entity_render_info
     u32 BoxModelOffset;
 };
 
+struct particle_render_info
+{
+    u64 Offset;
+
+    mat4 Model;
+    //vec2 uvOffset01;
+    vec4 Color;
+};
+
 enum entity_state
 {
     ENTITY_STATE_IDLE,
@@ -73,6 +82,8 @@ struct particle
     vec2 Acceleration;
     vec4 Color;
     vec4 dColor;
+
+    particle_render_info *RenderInfo;
 };
 
 struct game_state
@@ -102,6 +113,7 @@ struct game_state
     vertex_buffer TilesVertexBuffer;
     vertex_buffer DrawableEntitiesVertexBuffer;
     vertex_buffer RectangleVertexBuffer;
+    vertex_buffer ParticlesVertexBuffer;
 
     shader_program TilesShaderProgram;
     shader_program BoxesShaderProgram;
@@ -109,6 +121,7 @@ struct game_state
     shader_program DrawableEntitiesBorderShaderProgram;
     shader_program RectangleOutlineShaderProgram;
     shader_program RectangleShaderProgram;
+    shader_program ParticlesShaderProgram;
 
     mat4 Projection;
     mat4 VP;
@@ -127,6 +140,7 @@ struct game_state
     u32 EntityRenderInfoCount;
     // todo: maybe store in in entity directly?
     entity_render_info *EntityRenderInfos;
+    particle_render_info *ParticleRenderInfos;
 
     u32 NextParticle;
     particle Particles[256];

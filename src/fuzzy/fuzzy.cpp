@@ -411,6 +411,18 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             Renderer->glUniformBlockBinding(GameState->RectangleShaderProgram.ProgramHandle, transformsUniformBlockIndex, transformsBindingPoint);
         }
 
+        {
+            GameState->ParticlesShaderProgram = CreateShaderProgram(Memory, GameState, "shaders/particle.vert", "shaders/particle.frag");
+
+            u32 transformsUniformBlockIndex = Renderer->glGetUniformBlockIndex(GameState->ParticlesShaderProgram.ProgramHandle, "transforms");
+            Renderer->glUniformBlockBinding(GameState->ParticlesShaderProgram.ProgramHandle, transformsUniformBlockIndex, transformsBindingPoint);
+
+            Renderer->glUseProgram(GameState->ParticlesShaderProgram.ProgramHandle);
+
+            /*shader_uniform *TileSizeUniform = GetUniform(&GameState->ParticlesShaderProgram, "u_TileSize");
+            SetShaderUniform(Memory, TileSizeUniform->Location, TileSize01);*/
+        }
+
 
         Renderer->glGenBuffers(1, &GameState->UBO);
         Renderer->glBindBuffer(GL_UNIFORM_BUFFER, GameState->UBO);
@@ -1126,6 +1138,107 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         SetupVertexBuffer(Renderer, &GameState->DrawableEntitiesVertexBuffer);
         #pragma endregion
 
+        #pragma region Particles
+        GameState->ParticleRenderInfos = PushArray<particle_render_info>(&GameState->WorldArena, ArrayCount(GameState->Particles));
+
+        GameState->ParticlesVertexBuffer = {};
+        GameState->ParticlesVertexBuffer.Size = QuadVerticesSize + ArrayCount(GameState->Particles) * sizeof(particle_render_info);
+        GameState->ParticlesVertexBuffer.Usage = GL_STREAM_DRAW;
+
+        GameState->ParticlesVertexBuffer.DataLayout = PushStruct<vertex_buffer_data_layout>(&GameState->WorldArena);
+        GameState->ParticlesVertexBuffer.DataLayout->SubBufferCount = 2;
+        GameState->ParticlesVertexBuffer.DataLayout->SubBuffers = PushArray<vertex_sub_buffer>(
+            &GameState->WorldArena, GameState->ParticlesVertexBuffer.DataLayout->SubBufferCount);
+
+        {
+            vertex_sub_buffer *SubBuffer = GameState->ParticlesVertexBuffer.DataLayout->SubBuffers + 0;
+            SubBuffer->Offset = 0;
+            SubBuffer->Size = QuadVerticesSize;
+            SubBuffer->Data = QuadVertices;
+        }
+
+        {
+            vertex_sub_buffer *SubBuffer = GameState->ParticlesVertexBuffer.DataLayout->SubBuffers + 1;
+            SubBuffer->Offset = QuadVerticesSize;
+            SubBuffer->Size = ArrayCount(GameState->Particles) * sizeof(particle_render_info);
+            SubBuffer->Data = GameState->ParticleRenderInfos;
+        }
+
+        GameState->ParticlesVertexBuffer.AttributesLayout = PushStruct<vertex_buffer_attributes_layout>(&GameState->WorldArena);
+        GameState->ParticlesVertexBuffer.AttributesLayout->AttributeCount = 6;
+        GameState->ParticlesVertexBuffer.AttributesLayout->Attributes = PushArray<vertex_buffer_attribute>(
+            &GameState->WorldArena, GameState->ParticlesVertexBuffer.AttributesLayout->AttributeCount);
+
+        {
+            vertex_buffer_attribute *Attribute = GameState->ParticlesVertexBuffer.AttributesLayout->Attributes + 0;
+            Attribute->Index = 0;
+            Attribute->Size = 4;
+            Attribute->Type = GL_FLOAT;
+            Attribute->Normalized = GL_FALSE;
+            Attribute->Stride = sizeof(vec4);
+            Attribute->Divisor = 0;
+            Attribute->OffsetPointer = (void *)0;
+        }
+
+        {
+            vertex_buffer_attribute *Attribute = GameState->ParticlesVertexBuffer.AttributesLayout->Attributes + 1;
+            Attribute->Index = 1;
+            Attribute->Size = 4;
+            Attribute->Type = GL_FLOAT;
+            Attribute->Normalized = GL_FALSE;
+            Attribute->Stride = sizeof(particle_render_info);
+            Attribute->Divisor = 1;
+            // todo: really need to deal with this offset thing, man
+            Attribute->OffsetPointer = (void *)((u64)QuadVerticesSize + StructOffset(particle_render_info, Model));
+        }
+
+        {
+            vertex_buffer_attribute *Attribute = GameState->ParticlesVertexBuffer.AttributesLayout->Attributes + 2;
+            Attribute->Index = 2;
+            Attribute->Size = 4;
+            Attribute->Type = GL_FLOAT;
+            Attribute->Normalized = GL_FALSE;
+            Attribute->Stride = sizeof(particle_render_info);
+            Attribute->Divisor = 1;
+            Attribute->OffsetPointer = (void *)(QuadVerticesSize + StructOffset(particle_render_info, Model) + sizeof(vec4));
+        }
+
+        {
+            vertex_buffer_attribute *Attribute = GameState->ParticlesVertexBuffer.AttributesLayout->Attributes + 3;
+            Attribute->Index = 3;
+            Attribute->Size = 4;
+            Attribute->Type = GL_FLOAT;
+            Attribute->Normalized = GL_FALSE;
+            Attribute->Stride = sizeof(particle_render_info);
+            Attribute->Divisor = 1;
+            Attribute->OffsetPointer = (void *)(QuadVerticesSize + StructOffset(particle_render_info, Model) + 2 * sizeof(vec4));
+        }
+
+        {
+            vertex_buffer_attribute *Attribute = GameState->ParticlesVertexBuffer.AttributesLayout->Attributes + 4;
+            Attribute->Index = 4;
+            Attribute->Size = 4;
+            Attribute->Type = GL_FLOAT;
+            Attribute->Normalized = GL_FALSE;
+            Attribute->Stride = sizeof(particle_render_info);
+            Attribute->Divisor = 1;
+            Attribute->OffsetPointer = (void *)(QuadVerticesSize + StructOffset(particle_render_info, Model) + 3 * sizeof(vec4));
+        }
+
+        {
+            vertex_buffer_attribute *Attribute = GameState->ParticlesVertexBuffer.AttributesLayout->Attributes + 5;
+            Attribute->Index = 5;
+            Attribute->Size = 4;
+            Attribute->Type = GL_FLOAT;
+            Attribute->Normalized = GL_FALSE;
+            Attribute->Stride = sizeof(particle_render_info);
+            Attribute->Divisor = 1;
+            Attribute->OffsetPointer = (void *)((u64)QuadVerticesSize + StructOffset(particle_render_info, Color));
+        }
+
+        SetupVertexBuffer(Renderer, &GameState->ParticlesVertexBuffer);
+        #pragma endregion
+
         #pragma region Border
 
         GameState->RectangleVertexBuffer = {};
@@ -1171,6 +1284,17 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         GameState->Camera = GameState->Player->Position;
 
         GameState->Entropy = RandomSequence(42);
+
+        // init particles
+        for (u32 ParticleIndex = 0; ParticleIndex < ArrayCount(GameState->Particles); ++ParticleIndex)
+        {
+            particle *Particle = GameState->Particles + ParticleIndex;
+
+            Particle->RenderInfo = GameState->ParticleRenderInfos + ParticleIndex;
+            Particle->RenderInfo->Offset = ParticleIndex * sizeof(particle_render_info) + QuadVerticesSize;
+            Particle->RenderInfo->Model = mat4(1.f);
+            Particle->RenderInfo->Color = vec4(0.f);
+        }
 
         Renderer->glEnable(GL_BLEND);
         Renderer->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -1550,6 +1674,10 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     f32 dt = Params->Delta;
 
+    Renderer->glUseProgram(GameState->ParticlesShaderProgram.ProgramHandle);
+    Renderer->glBindVertexArray(GameState->ParticlesVertexBuffer.VAO);
+    Renderer->glBindBuffer(GL_ARRAY_BUFFER, GameState->ParticlesVertexBuffer.VBO);
+
     // todo: test code
     for (u32 ParticleIndex = 0; ParticleIndex < ArrayCount(GameState->Particles); ++ParticleIndex)
     {
@@ -1565,9 +1693,25 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             f32 Rotation = 0.f;
             vec4 Color = Particle->Color;
 
-            DrawRectangle(Memory, GameState, Position, Size, Rotation, Color);
+            //DrawRectangle(Memory, GameState, Position, Size, Rotation, Color);
+
+            Particle->RenderInfo->Model = mat4(1.f);
+            // translation
+            Particle->RenderInfo->Model = glm::translate(Particle->RenderInfo->Model, vec3(Position, 0.f));
+            // scaling
+            Particle->RenderInfo->Model = glm::scale(Particle->RenderInfo->Model, vec3(Size, 0.f));
+            // rotation
+            Particle->RenderInfo->Model = glm::translate(Particle->RenderInfo->Model, vec3(Size / 2.f, 0.f));
+            Particle->RenderInfo->Model = glm::rotate(Particle->RenderInfo->Model, Rotation, vec3(0.f, 0.f, 1.f));
+            Particle->RenderInfo->Model = glm::translate(Particle->RenderInfo->Model, vec3(-Size / 2.f, 0.f));
+
+            Particle->RenderInfo->Color = Color;
+
+            Renderer->glBufferSubData(GL_ARRAY_BUFFER, Particle->RenderInfo->Offset, sizeof(particle_render_info), Particle->RenderInfo);
         }
     }
+
+    Renderer->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, ArrayCount(GameState->Particles));
 
     //entity_state PlayerState = *Top(&GameState->Player->StatesStack);
 
