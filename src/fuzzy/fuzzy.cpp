@@ -1701,9 +1701,9 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             // scaling
             Particle->RenderInfo->Model = glm::scale(Particle->RenderInfo->Model, vec3(Size, 0.f));
             // rotation
-            Particle->RenderInfo->Model = glm::translate(Particle->RenderInfo->Model, vec3(Size / 2.f, 0.f));
+           /* Particle->RenderInfo->Model = glm::translate(Particle->RenderInfo->Model, vec3(Size / 2.f, 0.f));
             Particle->RenderInfo->Model = glm::rotate(Particle->RenderInfo->Model, Rotation, vec3(0.f, 0.f, 1.f));
-            Particle->RenderInfo->Model = glm::translate(Particle->RenderInfo->Model, vec3(-Size / 2.f, 0.f));
+            Particle->RenderInfo->Model = glm::translate(Particle->RenderInfo->Model, vec3(-Size / 2.f, 0.f));*/
 
             Particle->RenderInfo->Color = Color;
 
