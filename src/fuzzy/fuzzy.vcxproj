@@ -196,14 +196,14 @@
     <None Include="fuzzy_math.h" />
     <None Include="fuzzy_animations.cpp" />
     <None Include="fuzzy_tiled.cpp" />
-    <None Include="fuzzy_graphics.cpp" />
+    <None Include="fuzzy_renderer.cpp" />
     <ClCompile Include="fuzzy.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="fuzzy.h" />
     <ClInclude Include="fuzzy_animations.h" />
     <ClInclude Include="fuzzy_containers.h" />
-    <ClInclude Include="fuzzy_graphics.h" />
+    <ClInclude Include="fuzzy_renderer.h" />
     <ClInclude Include="fuzzy_platform.h" />
     <ClInclude Include="fuzzy_memory.h" />
     <ClInclude Include="fuzzy_random.h" />

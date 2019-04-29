@@ -1,5 +1,5 @@
 #include "fuzzy_platform.h"
-#include "fuzzy_graphics.h"
+#include "fuzzy_renderer.h"
 #include "fuzzy.h"
 #include <glm/gtc/type_ptr.hpp>
 #include "stdio.h"
@@ -227,6 +227,94 @@ SetupVertexBuffer(renderer_api *Renderer, vertex_buffer *Buffer)
         }
         Renderer->glVertexAttribDivisor(VertexAttribute->Index, VertexAttribute->Divisor);
     }
+}
+
+#pragma endregion
+
+#pragma region New Renderer API
+
+void
+DrawRectangle(
+    game_memory *Memory, 
+    game_state *GameState, 
+    vec2 Position, 
+    vec2 Size, 
+    f32 Rotation,
+    vec4 Color
+)
+{
+    // todo: move out
+    Memory->Renderer.glUseProgram(GameState->RectangleShaderProgram.ProgramHandle);
+    Memory->Renderer.glBindVertexArray(GameState->RectangleVertexBuffer.VAO);
+    Memory->Renderer.glBindBuffer(GL_ARRAY_BUFFER, GameState->RectangleVertexBuffer.VBO);
+
+    shader_uniform *ModelUniform = GetUniform(&GameState->RectangleShaderProgram, "u_Model");
+    shader_uniform *ColorUniform = GetUniform(&GameState->RectangleShaderProgram, "u_Color");
+
+    mat4 Model = mat4(1.f);
+
+    // translation
+    Model = glm::translate(Model, vec3(Position, 0.f));
+
+    // scaling
+    Model = glm::scale(Model, vec3(Size, 0.f));
+
+    // rotation
+    Model = glm::translate(Model, vec3(Size / 2.f, 0.f));
+    Model = glm::rotate(Model, Rotation, vec3(0.f, 0.f, 1.f));
+    Model = glm::translate(Model, vec3(-Size / 2.f, 0.f));
+
+    SetShaderUniform(Memory, ModelUniform->Location, Model);
+
+    SetShaderUniform(Memory, ColorUniform->Location, Color);
+
+    Memory->Renderer.glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+}
+
+void
+DrawRectangleOutline(
+    game_memory *Memory, 
+    game_state *GameState, 
+    vec2 Position, 
+    vec2 Size, 
+    f32 Rotation,
+    f32 Thickness,
+    vec4 Color
+)
+{
+    // todo: move out
+    Memory->Renderer.glUseProgram(GameState->RectangleOutlineShaderProgram.ProgramHandle);
+    Memory->Renderer.glBindVertexArray(GameState->RectangleVertexBuffer.VAO);
+    Memory->Renderer.glBindBuffer(GL_ARRAY_BUFFER, GameState->RectangleVertexBuffer.VBO);
+
+    shader_uniform *ModelUniform = GetUniform(&GameState->RectangleOutlineShaderProgram, "u_Model");
+    shader_uniform *ColorUniform = GetUniform(&GameState->RectangleOutlineShaderProgram, "u_Color");
+    shader_uniform *ThicknessUniform = GetUniform(&GameState->RectangleOutlineShaderProgram, "u_Thickness");
+    shader_uniform *WidthOverHeightUniform = GetUniform(&GameState->RectangleOutlineShaderProgram, "u_WidthOverHeight");
+
+    SetShaderUniform(Memory, WidthOverHeightUniform->Location, Size.x / Size.y);
+
+    mat4 Model = mat4(1.f);
+
+    // translation
+    Model = glm::translate(Model, vec3(Position, 0.f));
+
+    // scaling
+    Model = glm::scale(Model, vec3(Size, 0.f));
+
+    // rotation
+    Model = glm::translate(Model, vec3(Size / 2.f, 0.f));
+    Model = glm::rotate(Model, Rotation, vec3(0.f, 0.f, 1.f));
+    Model = glm::translate(Model, vec3(-Size / 2.f, 0.f));
+
+    SetShaderUniform(Memory, ModelUniform->Location, Model);
+
+    SetShaderUniform(Memory, ColorUniform->Location, Color);
+
+    // meters to (0-1) uv-range
+    SetShaderUniform(Memory, ThicknessUniform->Location, Thickness / Size.x);
+
+    Memory->Renderer.glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
 #pragma endregion

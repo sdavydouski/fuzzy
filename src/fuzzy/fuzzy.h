@@ -3,7 +3,7 @@
 #include "fuzzy_types.h"
 #include "fuzzy_memory.h"
 #include "fuzzy_tiled.h"
-#include "fuzzy_graphics.h"
+#include "fuzzy_renderer.h"
 #include "fuzzy_animations.h"
 #include "fuzzy_containers.h"
 #include "fuzzy_random.h"
@@ -101,13 +101,14 @@ struct game_state
     vertex_buffer BoxesVertexBuffer;
     vertex_buffer TilesVertexBuffer;
     vertex_buffer DrawableEntitiesVertexBuffer;
-    vertex_buffer BorderVertexBuffer;
+    vertex_buffer RectangleVertexBuffer;
 
     shader_program TilesShaderProgram;
     shader_program BoxesShaderProgram;
     shader_program DrawableEntitiesShaderProgram;
     shader_program DrawableEntitiesBorderShaderProgram;
-    shader_program BorderShaderProgram;
+    shader_program RectangleOutlineShaderProgram;
+    shader_program RectangleShaderProgram;
 
     mat4 Projection;
     mat4 VP;

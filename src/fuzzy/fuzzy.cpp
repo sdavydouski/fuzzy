@@ -14,7 +14,7 @@
 #include "fuzzy_random.h"
 #include "fuzzy_containers.cpp"
 #include "fuzzy_tiled.cpp"
-#include "fuzzy_graphics.cpp"
+#include "fuzzy_renderer.cpp"
 #include "fuzzy_animations.cpp"
 
 global_variable const u32 FLIPPED_HORIZONTALLY_FLAG = 0x80000000;
@@ -398,10 +398,17 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         }
 
         {
-            GameState->BorderShaderProgram = CreateShaderProgram(Memory, GameState, "shaders/border.vert", "shaders/border.frag");
+            GameState->RectangleOutlineShaderProgram = CreateShaderProgram(Memory, GameState, "shaders/rectangle.vert", "shaders/rectangle_outline.frag");
 
-            u32 transformsUniformBlockIndex = Renderer->glGetUniformBlockIndex(GameState->DrawableEntitiesBorderShaderProgram.ProgramHandle, "transforms");
-            Renderer->glUniformBlockBinding(GameState->BorderShaderProgram.ProgramHandle, transformsUniformBlockIndex, transformsBindingPoint);
+            u32 transformsUniformBlockIndex = Renderer->glGetUniformBlockIndex(GameState->RectangleOutlineShaderProgram.ProgramHandle, "transforms");
+            Renderer->glUniformBlockBinding(GameState->RectangleOutlineShaderProgram.ProgramHandle, transformsUniformBlockIndex, transformsBindingPoint);
+        }
+
+        {
+            GameState->RectangleShaderProgram = CreateShaderProgram(Memory, GameState, "shaders/rectangle.vert", "shaders/rectangle.frag");
+
+            u32 transformsUniformBlockIndex = Renderer->glGetUniformBlockIndex(GameState->RectangleShaderProgram.ProgramHandle, "transforms");
+            Renderer->glUniformBlockBinding(GameState->RectangleShaderProgram.ProgramHandle, transformsUniformBlockIndex, transformsBindingPoint);
         }
 
 
@@ -1121,29 +1128,29 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
         #pragma region Border
 
-        GameState->BorderVertexBuffer = {};
-        GameState->BorderVertexBuffer.Size = QuadVerticesSize;
-        GameState->BorderVertexBuffer.Usage = GL_STATIC_DRAW;
+        GameState->RectangleVertexBuffer = {};
+        GameState->RectangleVertexBuffer.Size = QuadVerticesSize;
+        GameState->RectangleVertexBuffer.Usage = GL_STATIC_DRAW;
 
-        GameState->BorderVertexBuffer.DataLayout = PushStruct<vertex_buffer_data_layout>(&GameState->WorldArena);
-        GameState->BorderVertexBuffer.DataLayout->SubBufferCount = 1;
-        GameState->BorderVertexBuffer.DataLayout->SubBuffers = PushArray<vertex_sub_buffer>(
-            &GameState->WorldArena, GameState->BorderVertexBuffer.DataLayout->SubBufferCount);
+        GameState->RectangleVertexBuffer.DataLayout = PushStruct<vertex_buffer_data_layout>(&GameState->WorldArena);
+        GameState->RectangleVertexBuffer.DataLayout->SubBufferCount = 1;
+        GameState->RectangleVertexBuffer.DataLayout->SubBuffers = PushArray<vertex_sub_buffer>(
+            &GameState->WorldArena, GameState->RectangleVertexBuffer.DataLayout->SubBufferCount);
 
         {
-            vertex_sub_buffer *SubBuffer = GameState->BorderVertexBuffer.DataLayout->SubBuffers + 0;
+            vertex_sub_buffer *SubBuffer = GameState->RectangleVertexBuffer.DataLayout->SubBuffers + 0;
             SubBuffer->Offset = 0;
             SubBuffer->Size = QuadVerticesSize;
             SubBuffer->Data = QuadVertices;
         }
 
-        GameState->BorderVertexBuffer.AttributesLayout = PushStruct<vertex_buffer_attributes_layout>(&GameState->WorldArena);
-        GameState->BorderVertexBuffer.AttributesLayout->AttributeCount = 1;
-        GameState->BorderVertexBuffer.AttributesLayout->Attributes = PushArray<vertex_buffer_attribute>(
-            &GameState->WorldArena, GameState->BorderVertexBuffer.AttributesLayout->AttributeCount);
+        GameState->RectangleVertexBuffer.AttributesLayout = PushStruct<vertex_buffer_attributes_layout>(&GameState->WorldArena);
+        GameState->RectangleVertexBuffer.AttributesLayout->AttributeCount = 1;
+        GameState->RectangleVertexBuffer.AttributesLayout->Attributes = PushArray<vertex_buffer_attribute>(
+            &GameState->WorldArena, GameState->RectangleVertexBuffer.AttributesLayout->AttributeCount);
 
         {
-            vertex_buffer_attribute *Attribute = GameState->BorderVertexBuffer.AttributesLayout->Attributes + 0;
+            vertex_buffer_attribute *Attribute = GameState->RectangleVertexBuffer.AttributesLayout->Attributes + 0;
             Attribute->Index = 0;
             Attribute->Size = 4;
             Attribute->Type = GL_FLOAT;
@@ -1153,7 +1160,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             Attribute->OffsetPointer = (void *)0;
         }
 
-        SetupVertexBuffer(Renderer, &GameState->BorderVertexBuffer);
+        SetupVertexBuffer(Renderer, &GameState->RectangleVertexBuffer);
         #pragma endregion
 
         GameState->UpdateRate = 0.01f;   // 10 ms
@@ -1495,67 +1502,25 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     Renderer->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, GameState->TotalBoxCount);
 
     // draw some borders
-    Renderer->glUseProgram(GameState->BorderShaderProgram.ProgramHandle);
-    Renderer->glBindVertexArray(GameState->BorderVertexBuffer.VAO);
-    Renderer->glBindBuffer(GL_ARRAY_BUFFER, GameState->BorderVertexBuffer.VBO);
-
     {
-        shader_uniform *ModelUniform = GetUniform(&GameState->BorderShaderProgram, "u_Model");
-        shader_uniform *ColorUniform = GetUniform(&GameState->BorderShaderProgram, "u_Color");
-        shader_uniform *BorderWidthUniform = GetUniform(&GameState->BorderShaderProgram, "u_BorderWidth");
-        shader_uniform *WidthOverHeightUniform = GetUniform(&GameState->BorderShaderProgram, "u_WidthOverHeight");
-
-        vec2 BorderSize = vec2(GameState->ScreenWidthInMeters, GameState->ScreenHeightInMeters);
-        SetShaderUniform(Memory, WidthOverHeightUniform->Location, BorderSize.x / BorderSize.y);
-
-        mat4 Model = mat4(1.f);
-
-        Model = glm::translate(Model, vec3(GameState->Camera.x, -GameState->Camera.y, 0.f));
-        Model = glm::scale(Model, vec3(BorderSize, 0.f));
-
-        SetShaderUniform(Memory, ModelUniform->Location, Model);
-
+        vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y);
+        vec2 Size = vec2(GameState->ScreenWidthInMeters, GameState->ScreenHeightInMeters);
+        f32 Rotation = 0;
+        f32 Thickness = 0.2f;
         vec4 Color = vec4(0.f, 1.f, 0.f, 1.f);
-        SetShaderUniform(Memory, ColorUniform->Location, Color);
 
-        // meters to (0-1) uv-range
-        f32 BorderWidth = 0.2f / BorderSize.x;
-        SetShaderUniform(Memory, BorderWidthUniform->Location, BorderWidth);
-
-        Renderer->glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        DrawRectangleOutline(Memory, GameState, Position, Size, Rotation, Thickness, Color);
     }
 
     {
-        shader_uniform *ModelUniform = GetUniform(&GameState->BorderShaderProgram, "u_Model");
-        shader_uniform *ColorUniform = GetUniform(&GameState->BorderShaderProgram, "u_Color");
-        shader_uniform *BorderWidthUniform = GetUniform(&GameState->BorderShaderProgram, "u_BorderWidth");
-        shader_uniform *WidthOverHeightUniform = GetUniform(&GameState->BorderShaderProgram, "u_WidthOverHeight");
-
-        vec2 BorderSize = vec2(1.f, 1.f);
-        SetShaderUniform(Memory, WidthOverHeightUniform->Location, BorderSize.x / BorderSize.y);
-
-        mat4 Model = mat4(1.f);
-
         // todo: consolidate about game world coordinates ([0,0] is at the center)
-        Model = glm::translate(Model, vec3(GameState->ScreenWidthInMeters / 2.f, GameState->ScreenHeightInMeters / 2.f, 0.f));
-        Model = glm::translate(Model, vec3(6.f, 1.f, 0.f));
-        
-        Model = glm::scale(Model, vec3(BorderSize, 0.f));
-
-        Model = glm::translate(Model, vec3(BorderSize / 2.f, 0.f));
-        Model = glm::rotate(Model, glm::radians((f32)GameState->Time * 40.f), vec3(0.f, 0.f, 1.f));
-        Model = glm::translate(Model, vec3(-BorderSize / 2.f, 0.f));
-
-        SetShaderUniform(Memory, ModelUniform->Location, Model);
-
+        vec2 Position = vec2(GameState->ScreenWidthInMeters / 2.f, GameState->ScreenHeightInMeters / 2.f) + vec2(6.f, 1.f);
+        vec2 Size = vec2(1.f, 1.f);
+        f32 Rotation = glm::radians((f32)GameState->Time * 40.f);
+        f32 Thickness = 0.1f;
         vec4 Color = vec4(1.f, 1.f, 0.f, 1.f);
-        SetShaderUniform(Memory, ColorUniform->Location, Color);
 
-        // meters to (0-1) uv-range
-        f32 BorderWidth = 0.1f / BorderSize.x;
-        SetShaderUniform(Memory, BorderWidthUniform->Location, BorderWidth);
-
-        Renderer->glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        DrawRectangleOutline(Memory, GameState, Position, Size, Rotation, Thickness, Color);
     }
 
     u32 ParticlesSpawnPerFrame = 1;
@@ -1586,10 +1551,6 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     f32 dt = Params->Delta;
 
     // todo: test code
-    Renderer->glUseProgram(GameState->BorderShaderProgram.ProgramHandle);
-    Renderer->glBindVertexArray(GameState->BorderVertexBuffer.VAO);
-    Renderer->glBindBuffer(GL_ARRAY_BUFFER, GameState->BorderVertexBuffer.VBO);
-
     for (u32 ParticleIndex = 0; ParticleIndex < ArrayCount(GameState->Particles); ++ParticleIndex)
     {
         particle *Particle = GameState->Particles + ParticleIndex;
@@ -1599,32 +1560,12 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Particle->Color += dt * Particle->dColor;
 
         {
-            shader_uniform *ModelUniform = GetUniform(&GameState->BorderShaderProgram, "u_Model");
-            shader_uniform *ColorUniform = GetUniform(&GameState->BorderShaderProgram, "u_Color");
-            shader_uniform *BorderWidthUniform = GetUniform(&GameState->BorderShaderProgram, "u_BorderWidth");
-            shader_uniform *WidthOverHeightUniform = GetUniform(&GameState->BorderShaderProgram, "u_WidthOverHeight");
-
-            vec2 ParticleSize = vec2(0.1f);
-            SetShaderUniform(Memory, WidthOverHeightUniform->Location, ParticleSize.x / ParticleSize.y);
-
-            mat4 Model = mat4(1.f);
-
-            Model = glm::translate(Model, vec3(GameState->ScreenWidthInMeters / 2.f, GameState->ScreenHeightInMeters / 2.f, 0.f));
-            Model = glm::translate(Model, vec3(Particle->Position, 0.f));
-
-            Model = glm::scale(Model, vec3(ParticleSize, 0.f));
-
-            SetShaderUniform(Memory, ModelUniform->Location, Model);
-
+            vec2 Position = vec2(GameState->ScreenWidthInMeters / 2.f, GameState->ScreenHeightInMeters / 2.f) + Particle->Position;
+            vec2 Size = vec2(0.1f);
+            f32 Rotation = 0.f;
             vec4 Color = Particle->Color;
 
-            SetShaderUniform(Memory, ColorUniform->Location, Color);
-
-            // meters to (0-1) uv-range
-            f32 BorderWidth = 0.01f / ParticleSize.x;
-            SetShaderUniform(Memory, BorderWidthUniform->Location, BorderWidth);
-
-            Renderer->glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+            DrawRectangle(Memory, GameState, Position, Size, Rotation, Color);
         }
     }
 

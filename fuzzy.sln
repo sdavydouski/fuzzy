@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.27130.2024
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.28803.156
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "win32_fuzzy", "src\win32_fuzzy\win32_fuzzy.vcxproj", "{81B2D33D-A0A9-4B3E-8C28-836E0880785F}"
 	ProjectSection(ProjectDependencies) = postProject
@@ -28,13 +28,14 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "data", "data", "{40618B3B-D
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "shaders", "shaders", "{849DEA6D-56FE-4DD0-BF45-650BC17E3E72}"
 	ProjectSection(SolutionItems) = preProject
-		data\shaders\border.frag = data\shaders\border.frag
-		data\shaders\border.vert = data\shaders\border.vert
 		data\shaders\box.frag = data\shaders\box.frag
 		data\shaders\box.vert = data\shaders\box.vert
 		data\shaders\color.frag = data\shaders\color.frag
 		data\shaders\entity.frag = data\shaders\entity.frag
 		data\shaders\entity.vert = data\shaders\entity.vert
+		data\shaders\rectangle.frag = data\shaders\rectangle.frag
+		data\shaders\rectangle.vert = data\shaders\rectangle.vert
+		data\shaders\rectangle_outline.frag = data\shaders\rectangle_outline.frag
 		data\shaders\tile.frag = data\shaders\tile.frag
 		data\shaders\tile.vert = data\shaders\tile.vert
 	EndProjectSection
