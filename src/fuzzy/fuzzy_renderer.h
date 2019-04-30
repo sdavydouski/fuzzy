@@ -57,3 +57,9 @@ struct shader_program
 
     hash_table<shader_uniform> Uniforms;
 };
+
+struct rotation_info
+{
+    f32 AngleInRadians;
+    vec3 Axis;
+};

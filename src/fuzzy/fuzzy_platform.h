@@ -44,87 +44,87 @@ struct platform_api {
 
 #pragma region Renderer API
 
-#define GL_CREATE_SHADER(name) u32 name(GLenum ShaderType)
+#define GL_CREATE_SHADER(name) GLuint name(GLenum ShaderType)
 typedef GL_CREATE_SHADER(gl_create_shader);
 
-#define GL_SHADER_SOURCE(name) void name(u32 Shader, GLsizei Count, const GLchar *const *String, const s32 *Length)
+#define GL_SHADER_SOURCE(name) void name(GLuint Shader, GLsizei Count, const GLchar *const *String, const GLint *Length)
 typedef GL_SHADER_SOURCE(gl_shader_source);
 
-#define GL_COMPILE_SHADER(name) void name(u32 Shader)
+#define GL_COMPILE_SHADER(name) void name(GLuint Shader)
 typedef GL_COMPILE_SHADER(gl_compile_shader);
 
-#define GL_GET_SHADER_IV(name) void name(u32 Shader, GLenum Pname, s32 *Params)
+#define GL_GET_SHADER_IV(name) void name(GLuint Shader, GLenum Pname, GLint *Params)
 typedef GL_GET_SHADER_IV(gl_get_shader_iv);
 
-#define GL_GET_SHADER_INFO_LOG(name) void name(u32 Shader, GLsizei MaxLength, GLsizei *Length, GLchar *InfoLog)
+#define GL_GET_SHADER_INFO_LOG(name) void name(GLuint Shader, GLsizei MaxLength, GLsizei *Length, GLchar *InfoLog)
 typedef GL_GET_SHADER_INFO_LOG(gl_get_shader_info_log);
 
-#define GL_DELETE_SHADER(name) void name(u32 Shader)
+#define GL_DELETE_SHADER(name) void name(GLuint Shader)
 typedef GL_DELETE_SHADER(gl_delete_shader);
 
-#define GL_GET_UNIFORM_LOCATION(name) s32 name(u32 Program, const GLchar *Name)
+#define GL_GET_UNIFORM_LOCATION(name) GLint name(GLuint Program, const GLchar *Name)
 typedef GL_GET_UNIFORM_LOCATION(gl_get_uniform_location);
 
-#define GL_UNIFORM_1I(name) void name(s32 Location, s32 V0)
+#define GL_UNIFORM_1I(name) void name(GLint Location, GLint V0)
 typedef GL_UNIFORM_1I(gl_uniform_1i);
 
-#define GL_UNIFORM_1F(name) void name(s32 Location, f32 V0)
+#define GL_UNIFORM_1F(name) void name(GLint Location, GLfloat V0)
 typedef GL_UNIFORM_1F(gl_uniform_1f);
 
-#define GL_UNIFORM_2F(name) void name(s32 Location, f32 V0, f32 V1)
+#define GL_UNIFORM_2F(name) void name(GLint Location, GLfloat V0, GLfloat V1)
 typedef GL_UNIFORM_2F(gl_uniform_2f);
 
-#define GL_UNIFORM_3F(name) void name(s32 Location, f32 V0, f32 V1, f32 V2)
+#define GL_UNIFORM_3F(name) void name(GLint Location, GLfloat V0, GLfloat V1, GLfloat V2)
 typedef GL_UNIFORM_3F(gl_uniform_3f);
 
-#define GL_UNIFORM_4F(name) void name(s32 Location, f32 V0, f32 V1, f32 V2, f32 V3)
+#define GL_UNIFORM_4F(name) void name(GLint Location, GLfloat V0, GLfloat V1, GLfloat V2, GLfloat V3)
 typedef GL_UNIFORM_4F(gl_uniform_4f);
 
-#define GL_UNIFORM_MATRIX_4FV(name) void name(s32 Location, GLsizei Count, GLboolean Transpose, const f32 *Value)
+#define GL_UNIFORM_MATRIX_4FV(name) void name(GLint Location, GLsizei Count, GLboolean Transpose, const GLfloat *Value)
 typedef GL_UNIFORM_MATRIX_4FV(gl_uniform_matrix_4fv);
 
-#define GL_GEN_TEXTURES(name) void name(GLsizei N, u32 *Textures)
+#define GL_GEN_TEXTURES(name) void name(GLsizei N, GLuint *Textures)
 typedef GL_GEN_TEXTURES(gl_gen_textures);
 
-#define GL_BIND_TEXTURE(name) void name(GLenum Target, u32 Texture)
+#define GL_BIND_TEXTURE(name) void name(GLenum Target, GLuint Texture)
 typedef GL_BIND_TEXTURE(gl_bind_texture);
 
-#define GL_TEX_PARAMETER_I(name) void name(GLenum Target, GLenum Pname, s32 Param)
+#define GL_TEX_PARAMETER_I(name) void name(GLenum Target, GLenum Pname, GLint Param)
 typedef GL_TEX_PARAMETER_I(gl_tex_parameter_i);
 
-#define GL_TEX_IMAGE_2D(name) void name(GLenum Target, s32 Level, s32 InternalFormat,\
-                                        GLsizei Width, GLsizei Height, s32 Border,\
+#define GL_TEX_IMAGE_2D(name) void name(GLenum Target, GLint Level, GLint InternalFormat,\
+                                        GLsizei Width, GLsizei Height, GLint Border,\
                                         GLenum Format, GLenum Type, const GLvoid *Data)
 typedef GL_TEX_IMAGE_2D(gl_tex_image_2d);
 
-#define GL_CREATE_PROGRAM(name) u32 name(void)
+#define GL_CREATE_PROGRAM(name) GLuint name(void)
 typedef GL_CREATE_PROGRAM(gl_create_program);
 
-#define GL_ATTACH_SHADER(name) void name(u32 Program, u32 Shader)
+#define GL_ATTACH_SHADER(name) void name(GLuint Program, GLuint Shader)
 typedef GL_ATTACH_SHADER(gl_attach_shader);
 
-#define GL_LINK_PROGRAM(name) void name(u32 Program)
+#define GL_LINK_PROGRAM(name) void name(GLuint Program)
 typedef GL_LINK_PROGRAM(gl_link_program);
 
-#define GL_GET_PROGRAM_IV(name) void name(u32 Program, GLenum Pname, s32 *Params)
+#define GL_GET_PROGRAM_IV(name) void name(GLuint Program, GLenum Pname, GLint *Params)
 typedef GL_GET_PROGRAM_IV(gl_get_program_iv);
 
-#define GL_GET_PROGRAM_INFO_LOG(name) void name(u32 Program, GLsizei MaxLength, GLsizei *Length, GLchar *InfoLog)
+#define GL_GET_PROGRAM_INFO_LOG(name) void name(GLuint Program, GLsizei MaxLength, GLsizei *Length, GLchar *InfoLog)
 typedef GL_GET_PROGRAM_INFO_LOG(gl_get_program_info_log);
 
-#define GL_USE_PROGRAM(name) void name(u32 Program)
+#define GL_USE_PROGRAM(name) void name(GLuint Program)
 typedef GL_USE_PROGRAM(gl_use_program);
 
-#define GL_GET_VERTEX_ARRAYS(name) void name(GLsizei N, u32 *Arrays)
+#define GL_GET_VERTEX_ARRAYS(name) void name(GLsizei N, GLuint *Arrays)
 typedef GL_GET_VERTEX_ARRAYS(gl_get_vertex_arrays);
 
-#define GL_BIND_VERTEX_ARRAY(name) void name(u32 Array)
+#define GL_BIND_VERTEX_ARRAY(name) void name(GLuint Array)
 typedef GL_BIND_VERTEX_ARRAY(gl_bind_vertex_array);
 
-#define GL_GEN_BUFFERS(name) void name(GLsizei N, u32 *Buffers)
+#define GL_GEN_BUFFERS(name) void name(GLsizei N, GLuint *Buffers)
 typedef GL_GEN_BUFFERS(gl_gen_buffers);
 
-#define GL_BIND_BUFFER(name) void name(GLenum Target, u32 Buffer)
+#define GL_BIND_BUFFER(name) void name(GLenum Target, GLuint Buffer)
 typedef GL_BIND_BUFFER(gl_bind_buffer);
 
 #define GL_BUFFER_DATA(name) void name(GLenum Target, GLsizeiptr Size, const GLvoid *Data, GLenum Usage)
@@ -139,18 +139,18 @@ typedef GL_BIND_BUFFER_BASE(gl_bind_buffer_base);
 #define GL_BUFFER_SUB_DATA(name) void name(GLenum Target, GLintptr Offset, GLsizeiptr Size, const GLvoid *Data)
 typedef GL_BUFFER_SUB_DATA(gl_buffer_sub_data);
 
-#define GL_VERTEX_ATTRIB_POINTER(name) void name(u32 Index, s32 Size, GLenum Type,\
+#define GL_VERTEX_ATTRIB_POINTER(name) void name(GLuint Index, GLint Size, GLenum Type,\
                                                  GLboolean Normalized, GLsizei Stride, const GLvoid *Pointer)
 typedef GL_VERTEX_ATTRIB_POINTER(gl_vertex_attrib_pointer);
 
-#define GL_VERTEX_ATTRIBI_POINTER(name) void name(u32 Index, s32 Size, GLenum Type,\
+#define GL_VERTEX_ATTRIBI_POINTER(name) void name(GLuint Index, GLint Size, GLenum Type,\
                                                    GLsizei Stride, const GLvoid *Pointer)
 typedef GL_VERTEX_ATTRIBI_POINTER(gl_vertex_attribi_pointer);
 
-#define GL_ENABLE_VERTEX_ATTRIB_ARRAY(name) void name(u32 Index)
+#define GL_ENABLE_VERTEX_ATTRIB_ARRAY(name) void name(GLuint Index)
 typedef GL_ENABLE_VERTEX_ATTRIB_ARRAY(gl_enable_vertex_attrib_array);
 
-#define GL_VERTEX_ATTRIB_DIVISOR(name) void name(u32 Index, u32 Divisor)
+#define GL_VERTEX_ATTRIB_DIVISOR(name) void name(GLuint Index, GLuint Divisor)
 typedef GL_VERTEX_ATTRIB_DIVISOR(gl_vertex_attrib_divisor);
 
 #define GL_BLEND_FUNC(name) void name(GLenum Sfactor, GLenum Dfactor)
@@ -162,7 +162,7 @@ typedef GL_CLEAR_FUNC(gl_clear);
 #define GL_CLEAR_COLOR(name) void name(GLclampf Red, GLclampf Green, GLclampf Blue, GLclampf Alpha)
 typedef GL_CLEAR_COLOR(gl_clear_color);
 
-#define GL_DRAW_ARRAYS_INSTANCED(name) void name(GLenum Mode, s32 First, GLsizei Count, GLsizei Primcount)
+#define GL_DRAW_ARRAYS_INSTANCED(name) void name(GLenum Mode, GLint First, GLsizei Count, GLsizei Primcount)
 typedef GL_DRAW_ARRAYS_INSTANCED(gl_draw_arrays_instanced);
 
 #define GL_GET_ACTIVE_UNIFORM(name) void name(GLuint program, GLuint index, GLsizei bufSize, GLsizei *length, GLint *size, GLenum *type, GLchar *name)
@@ -174,10 +174,10 @@ typedef GL_POLYGON_MODE_FUNC(gl_polygon_mode);
 #define GL_DRAW_ARRAYS(name) void name(GLenum Mode, GLint First, GLsizei Count)
 typedef GL_DRAW_ARRAYS(gl_draw_arrays);
 
-#define GL_GET_UNIFORM_BLOCK_INDEX(name) u32 name(u32 program, const GLchar *uniformBlockName)
+#define GL_GET_UNIFORM_BLOCK_INDEX(name) GLuint name(GLuint program, const GLchar *uniformBlockName)
 typedef GL_GET_UNIFORM_BLOCK_INDEX(gl_get_uniform_block_index);
 
-#define GL_UNIFORM_BLOCK_BINDING_FUNC(name) void name(u32 program, u32 uniformBlockIndex, u32 uniformBlockBinding)
+#define GL_UNIFORM_BLOCK_BINDING_FUNC(name) void name(GLuint program, GLuint uniformBlockIndex, GLuint uniformBlockBinding)
 typedef GL_UNIFORM_BLOCK_BINDING_FUNC(gl_uniform_block_binding);
 
 #define GL_GET_STRING(name) const GLubyte* name(GLenum name)

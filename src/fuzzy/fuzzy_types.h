@@ -1,10 +1,10 @@
 #pragma once
 
 #include <stdint.h>
-#include <glad/glad.h>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <glm/mat4x4.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 #define global_variable static
 #define internal_function static
@@ -15,6 +15,12 @@
 #define U32Max UINT32_MAX;
 
 #pragma region GLM types
+using glm::translate;
+using glm::scale;
+using glm::rotate;
+using glm::ortho;
+using glm::radians;
+
 using vec2 = glm::vec2;
 using ivec2 = glm::ivec2;
 using vec3 = glm::vec3;
@@ -23,23 +29,19 @@ using mat2 = glm::mat2;
 using mat4 = glm::mat4;
 #pragma endregion
 
-#pragma region OpenGL types
-using s8 = GLbyte;
-using s16 = GLshort;
-using s32 = GLint;
-using s64 = GLint64;
+using s8 = int8_t;
+using s16 = int16_t;
+using s32 = int32_t;
+using s64 = int64_t;
 
-using u8 = GLubyte;
-using u16 = GLushort;
-using u32 = GLuint;
-using u64 = GLuint64;
+using u8 = uint8_t;
+using u16 = uint16_t;
+using u32 = uint32_t;
+using u64 = uint64_t;
 
 using b32 = s32;
 
-using f32 = GLfloat;
-using f64 = GLdouble;
-#pragma endregion
+using f32 = float;
+using f64 = double;
 
-#pragma region Game types
 using memory_index = size_t;
-#pragma endregion

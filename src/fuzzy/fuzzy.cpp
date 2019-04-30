@@ -17,6 +17,7 @@
 #include "fuzzy_renderer.cpp"
 #include "fuzzy_animations.cpp"
 
+
 global_variable const u32 FLIPPED_HORIZONTALLY_FLAG = 0x80000000;
 global_variable const u32 FLIPPED_VERTICALLY_FLAG = 0x40000000;
 global_variable const u32 FLIPPED_DIAGONALLY_FLAG = 0x20000000;
@@ -637,8 +638,8 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                             f32 TileXMeters = ScreenCenterInMeters.x + TileMapX * Tileset->TileWidthInMeters;
                             f32 TileYMeters = ScreenCenterInMeters.y - TileMapY * Tileset->TileHeightInMeters;
 
-                            *TileInstanceModel = glm::translate(*TileInstanceModel, vec3(TileXMeters, TileYMeters, 0.f));
-                            *TileInstanceModel = glm::scale(*TileInstanceModel,
+                            *TileInstanceModel = translate(*TileInstanceModel, vec3(TileXMeters, TileYMeters, 0.f));
+                            *TileInstanceModel = scale(*TileInstanceModel,
                                 vec3(Tileset->TileWidthInMeters, Tileset->TileHeightInMeters, 0.f));
 
                             // TileInstanceUVOffset01
@@ -673,9 +674,9 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                                     mat4 * BoxInstanceModel = BoxInstanceModels + BoxIndex;
                                     *BoxInstanceModel = mat4(1.f);
 
-                                    *BoxInstanceModel = glm::translate(*BoxInstanceModel,
+                                    *BoxInstanceModel = translate(*BoxInstanceModel,
                                         vec3(Box->Position.x, Box->Position.y, 0.f));
-                                    *BoxInstanceModel = glm::scale(*BoxInstanceModel,
+                                    *BoxInstanceModel = scale(*BoxInstanceModel,
                                         vec3(Box->Size.x, Box->Size.y, 0.f));
 
                                     ++BoxIndex;
@@ -742,9 +743,9 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                         f32 EntityWorldXInMeters = ScreenCenterInMeters.x + Entity->Position.x;
                         f32 EntityWorldYInMeters = ScreenCenterInMeters.y - Entity->Position.y;
 
-                        EntityRenderInfo->InstanceModel = glm::translate(EntityRenderInfo->InstanceModel,
+                        EntityRenderInfo->InstanceModel = translate(EntityRenderInfo->InstanceModel,
                             vec3(EntityWorldXInMeters, EntityWorldYInMeters, 0.f));
-                        EntityRenderInfo->InstanceModel = glm::scale(EntityRenderInfo->InstanceModel,
+                        EntityRenderInfo->InstanceModel = scale(EntityRenderInfo->InstanceModel,
                             vec3(Entity->Size.x, Entity->Size.y, 0.f));
 
                         // EntityInstanceUVOffset01
@@ -781,9 +782,9 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                                 mat4 * BoxInstanceModel = BoxInstanceModels + BoxIndex;
                                 *BoxInstanceModel = mat4(1.f);
 
-                                *BoxInstanceModel = glm::translate(*BoxInstanceModel,
+                                *BoxInstanceModel = translate(*BoxInstanceModel,
                                     vec3(Box->Position.x, Box->Position.y, 0.f));
-                                *BoxInstanceModel = glm::scale(*BoxInstanceModel,
+                                *BoxInstanceModel = scale(*BoxInstanceModel,
                                     vec3(Box->Size.x, Box->Size.y, 0.f));
 
                                 Entity->Boxes[CurrentBoxIndex].Box = Box;
@@ -1409,15 +1410,15 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         }
 
         // todo: store 1/size as well
-        GameState->Player->RenderInfo->InstanceModel = glm::scale(
+        GameState->Player->RenderInfo->InstanceModel = scale(
             GameState->Player->RenderInfo->InstanceModel, 
             vec3(1.f / GameState->Player->Size, 1.f)
         );
-        GameState->Player->RenderInfo->InstanceModel = glm::translate(
+        GameState->Player->RenderInfo->InstanceModel = translate(
             GameState->Player->RenderInfo->InstanceModel, 
             vec3(UpdatedMove, 0.f)
         );
-        GameState->Player->RenderInfo->InstanceModel = glm::scale(
+        GameState->Player->RenderInfo->InstanceModel = scale(
             GameState->Player->RenderInfo->InstanceModel, 
             vec3(GameState->Player->Size, 1.f)
         );
@@ -1428,9 +1429,9 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
             PlayerBox->Box->Position += UpdatedMove;
 
-            *PlayerBox->Model = glm::scale(*PlayerBox->Model, vec3(1.f / PlayerBox->Box->Size, 1.f));
-            *PlayerBox->Model = glm::translate(*PlayerBox->Model, vec3(UpdatedMove, 0.f));
-            *PlayerBox->Model = glm::scale(*PlayerBox->Model, vec3(PlayerBox->Box->Size, 1.f));
+            *PlayerBox->Model = scale(*PlayerBox->Model, vec3(1.f / PlayerBox->Box->Size, 1.f));
+            *PlayerBox->Model = translate(*PlayerBox->Model, vec3(UpdatedMove, 0.f));
+            *PlayerBox->Model = scale(*PlayerBox->Model, vec3(PlayerBox->Box->Size, 1.f));
         }
 
         // camera
@@ -1454,7 +1455,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
         GameState->Camera.y -= UpdatedMove.y;
 
-        GameState->Projection = glm::ortho(
+        GameState->Projection = ortho(
             -GameState->ScreenWidthInMeters / 2.f * GameState->Zoom, 
             GameState->ScreenWidthInMeters / 2.f * GameState->Zoom,
            -GameState->ScreenHeightInMeters / 2.f * GameState->Zoom,
@@ -1462,10 +1463,40 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         );
 
         mat4 View = mat4(1.f);
-        View = glm::translate(View, vec3(-GameState->Camera.x, GameState->Camera.y, 0.f));
-        View = glm::translate(View, vec3(-GameState->ScreenWidthInMeters / 2.f, -GameState->ScreenHeightInMeters / 2.f, 0.f));
+        View = translate(View, vec3(-GameState->Camera.x, GameState->Camera.y, 0.f));
+        View = translate(View, vec3(-GameState->ScreenWidthInMeters / 2.f, -GameState->ScreenHeightInMeters / 2.f, 0.f));
 
         GameState->VP = GameState->Projection * View;
+
+        u32 ParticlesSpawn = 2;
+        for (u32 ParticleSpawnIndex = 0; ParticleSpawnIndex < ParticlesSpawn; ++ParticleSpawnIndex)
+        {
+            particle *Particle = GameState->Particles + GameState->NextParticle++;
+
+            if (GameState->NextParticle >= ArrayCount(GameState->Particles))
+            {
+                GameState->NextParticle = 0;
+            }
+
+            Particle->Position = vec2(
+                RandomBetween(&GameState->Entropy, -0.1f, 0.1f) + 0.f, 
+                RandomBetween(&GameState->Entropy, 0.f, 0.1f)
+            );
+            Particle->Velocity = vec2(
+                RandomBetween(&GameState->Entropy, -0.5f, 0.5f), 
+                RandomBetween(&GameState->Entropy, 2.f, 2.2f)
+            );
+            Particle->Acceleration = vec2(0.f, -1.5f);
+            Particle->Color = vec4(
+                RandomBetween(&GameState->Entropy, 0.75f, 1.0f),
+                RandomBetween(&GameState->Entropy, 0.75f, 1.0f),
+                RandomBetween(&GameState->Entropy, 0.75f, 1.0f),
+                1.0f
+            );
+            Particle->dColor = vec4(0.f, 0.f, 0.f, -0.2f);
+            Particle->Size = vec2(0.1f);
+            Particle->dSize = vec2(-0.02f);
+        }
     }
 
     Renderer->glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -1575,15 +1606,15 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         SetShaderUniform(Memory, ColorUniform->Location, Color);
     }
 
-    f32 scale = 1.1f;
+    f32 scaleFactor = 1.1f;
 
     for (u32 DrawableEntityIndex = 0; DrawableEntityIndex < GameState->TotalDrawableObjectCount; ++DrawableEntityIndex)
     {
         entity *Entity = GameState->DrawableEntities + DrawableEntityIndex;
 
-        Entity->RenderInfo->InstanceModel = glm::translate(Entity->RenderInfo->InstanceModel, vec3(Entity->Size / 2.f, 1.f));
-        Entity->RenderInfo->InstanceModel = glm::scale(Entity->RenderInfo->InstanceModel, vec3(scale, scale, 1.f));
-        Entity->RenderInfo->InstanceModel = glm::translate(Entity->RenderInfo->InstanceModel, vec3(-Entity->Size / 2.f, 1.f));
+        Entity->RenderInfo->InstanceModel = translate(Entity->RenderInfo->InstanceModel, vec3(Entity->Size / 2.f, 1.f));
+        Entity->RenderInfo->InstanceModel = scale(Entity->RenderInfo->InstanceModel, vec3(scaleFactor, scaleFactor, 1.f));
+        Entity->RenderInfo->InstanceModel = translate(Entity->RenderInfo->InstanceModel, vec3(-Entity->Size / 2.f, 1.f));
 
         Renderer->glBufferSubData(
             GL_ARRAY_BUFFER, Entity->RenderInfo->Offset + StructOffset(entity_render_info, InstanceModel), 
@@ -1597,9 +1628,9 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     {
         entity *Entity = GameState->DrawableEntities + DrawableEntityIndex;
 
-        Entity->RenderInfo->InstanceModel = glm::translate(Entity->RenderInfo->InstanceModel, vec3(Entity->Size / 2.f, 1.f));
-        Entity->RenderInfo->InstanceModel = glm::scale(Entity->RenderInfo->InstanceModel, vec3(1.f / scale, 1.f / scale, 1.f));
-        Entity->RenderInfo->InstanceModel = glm::translate(Entity->RenderInfo->InstanceModel, vec3(-Entity->Size / 2.f, 1.f));
+        Entity->RenderInfo->InstanceModel = translate(Entity->RenderInfo->InstanceModel, vec3(Entity->Size / 2.f, 1.f));
+        Entity->RenderInfo->InstanceModel = scale(Entity->RenderInfo->InstanceModel, vec3(1.f / scaleFactor, 1.f / scaleFactor, 1.f));
+        Entity->RenderInfo->InstanceModel = translate(Entity->RenderInfo->InstanceModel, vec3(-Entity->Size / 2.f, 1.f));
 
         Renderer->glBufferSubData(
             GL_ARRAY_BUFFER, Entity->RenderInfo->Offset + StructOffset(entity_render_info, InstanceModel),
@@ -1631,52 +1662,26 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     {
         vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y);
         vec2 Size = vec2(GameState->ScreenWidthInMeters, GameState->ScreenHeightInMeters);
-        f32 Rotation = 0;
+        rotation_info Rotation = {};
+        Rotation.AngleInRadians = 0.f;
+        Rotation.Axis = vec3(0.f, 0.f, 1.f);
         f32 Thickness = 0.2f;
         vec4 Color = vec4(0.f, 1.f, 0.f, 1.f);
 
-        DrawRectangleOutline(Memory, GameState, Position, Size, Rotation, Thickness, Color);
+        DrawRectangleOutline(Memory, GameState, Position, Size, &Rotation, Thickness, Color);
     }
 
     {
         // todo: consolidate about game world coordinates ([0,0] is at the center)
         vec2 Position = vec2(GameState->ScreenWidthInMeters / 2.f, GameState->ScreenHeightInMeters / 2.f) + vec2(6.f, 1.f);
         vec2 Size = vec2(1.f, 1.f);
-        f32 Rotation = glm::radians((f32)GameState->Time * 40.f);
+        rotation_info Rotation = {};
+        Rotation.AngleInRadians = radians((f32)GameState->Time * 200.f);
+        Rotation.Axis = vec3(0.f, 1.f, 0.f);
         f32 Thickness = 0.1f;
         vec4 Color = vec4(1.f, 1.f, 0.f, 1.f);
 
-        DrawRectangleOutline(Memory, GameState, Position, Size, Rotation, Thickness, Color);
-    }
-
-    u32 ParticlesSpawnPerFrame = 3;
-    for (u32 ParticleSpawnIndex = 0; ParticleSpawnIndex < ParticlesSpawnPerFrame; ++ParticleSpawnIndex)
-    {
-        particle *Particle = GameState->Particles + GameState->NextParticle++;
-
-        if (GameState->NextParticle >= ArrayCount(GameState->Particles))
-        {
-            GameState->NextParticle = 0;
-        }
-
-        Particle->Position = vec2(
-            RandomBetween(&GameState->Entropy, -0.1f, 0.1f) + 0.f, 
-            RandomBetween(&GameState->Entropy, 0.f, 0.1f)
-        );
-        Particle->Velocity = vec2(
-            RandomBetween(&GameState->Entropy, -0.5f, 0.5f), 
-            RandomBetween(&GameState->Entropy, 2.f, 2.2f)
-        );
-        Particle->Acceleration = vec2(0.f, -1.5f);
-        Particle->Color = vec4(
-            RandomBetween(&GameState->Entropy, 0.75f, 1.0f),
-            RandomBetween(&GameState->Entropy, 0.75f, 1.0f),
-            RandomBetween(&GameState->Entropy, 0.75f, 1.0f),
-            1.0f
-        );
-        Particle->dColor = vec4(0.f, 0.f, 0.f, -0.2f);
-        Particle->Size = vec2(0.1f);
-        Particle->dSize = vec2(-0.02f);
+        DrawRectangleOutline(Memory, GameState, Position, Size, &Rotation, Thickness, Color);
     }
 
     f32 dt = Params->Delta;
@@ -1705,21 +1710,19 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
         {
             vec2 Position = vec2(GameState->ScreenWidthInMeters / 2.f, GameState->ScreenHeightInMeters / 2.f) + Particle->Position;
-            f32 Rotation = 0.f;
+            f32 Rotation = (f32)radians(GameState->Time * 250.f);
             vec4 Color = Particle->Color;
             vec2 Size = Particle->Size;
 
-            //DrawRectangle(Memory, GameState, Position, Size, Rotation, Color);
-
             Particle->RenderInfo->Model = mat4(1.f);
             // translation
-            Particle->RenderInfo->Model = glm::translate(Particle->RenderInfo->Model, vec3(Position, 0.f));
+            Particle->RenderInfo->Model = translate(Particle->RenderInfo->Model, vec3(Position, 0.f));
             // scaling
-            Particle->RenderInfo->Model = glm::scale(Particle->RenderInfo->Model, vec3(Size, 0.f));
+            Particle->RenderInfo->Model = scale(Particle->RenderInfo->Model, vec3(Size, 0.f));
             // rotation
-            //Particle->RenderInfo->Model = glm::translate(Particle->RenderInfo->Model, vec3(Size / 2.f, 0.f));
-            //Particle->RenderInfo->Model = glm::rotate(Particle->RenderInfo->Model, Rotation, vec3(0.f, 0.f, 1.f));
-            //Particle->RenderInfo->Model = glm::translate(Particle->RenderInfo->Model, vec3(-Size / 2.f, 0.f));
+            Particle->RenderInfo->Model = translate(Particle->RenderInfo->Model, vec3(Size / 2.f, 0.f));
+            Particle->RenderInfo->Model = rotate(Particle->RenderInfo->Model, Rotation, vec3(0.f, 0.f, 1.f));
+            Particle->RenderInfo->Model = translate(Particle->RenderInfo->Model, vec3(-Size / 2.f, 0.f));
 
             Particle->RenderInfo->Color = Color;
         }

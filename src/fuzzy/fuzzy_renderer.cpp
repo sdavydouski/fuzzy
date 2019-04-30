@@ -239,7 +239,7 @@ DrawRectangle(
     game_state *GameState, 
     vec2 Position, 
     vec2 Size, 
-    f32 Rotation,
+    rotation_info *Rotation,
     vec4 Color
 )
 {
@@ -261,7 +261,7 @@ DrawRectangle(
 
     // rotation
     Model = glm::translate(Model, vec3(Size / 2.f, 0.f));
-    Model = glm::rotate(Model, Rotation, vec3(0.f, 0.f, 1.f));
+    Model = glm::rotate(Model, Rotation->AngleInRadians, Rotation->Axis);
     Model = glm::translate(Model, vec3(-Size / 2.f, 0.f));
 
     SetShaderUniform(Memory, ModelUniform->Location, Model);
@@ -277,7 +277,7 @@ DrawRectangleOutline(
     game_state *GameState, 
     vec2 Position, 
     vec2 Size, 
-    f32 Rotation,
+    rotation_info *Rotation,
     f32 Thickness,
     vec4 Color
 )
@@ -304,7 +304,7 @@ DrawRectangleOutline(
 
     // rotation
     Model = glm::translate(Model, vec3(Size / 2.f, 0.f));
-    Model = glm::rotate(Model, Rotation, vec3(0.f, 0.f, 1.f));
+    Model = glm::rotate(Model, Rotation->AngleInRadians, Rotation->Axis);
     Model = glm::translate(Model, vec3(-Size / 2.f, 0.f));
 
     SetShaderUniform(Memory, ModelUniform->Location, Model);

@@ -7,7 +7,6 @@
 #include "..\..\generated\glad\src\glad.c"
 #include <GLFW/glfw3.h>
 
-#define STBI_FAILURE_USERMSG
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
@@ -198,7 +197,7 @@ s32 main(s32 Argc, char *Argv[])
     GameMemory.Platform.FreeFile = PlatformFreeFile;
     GameMemory.Platform.PrintOutput = PlatformPrintOutput;
 
-    // todo: stbi_load loads image into arbitrary location which is not good
+    // todo: these functions will be in asset builder
     GameMemory.Platform.ReadImageFile = stbi_load;
     GameMemory.Platform.FreeImageFile = stbi_image_free;
 
@@ -332,7 +331,7 @@ s32 main(s32 Argc, char *Argv[])
 
     glfwMakeContextCurrent(Window);
 
-#if 1
+#if 0
     glfwSwapInterval(1);
 #else
     glfwSwapInterval(0);
