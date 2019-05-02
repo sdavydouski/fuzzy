@@ -111,11 +111,11 @@ struct game_state
     u32 TotalDrawableObjectCount;
     entity *DrawableEntities;
 
-    vertex_buffer BoxesVertexBuffer;
     vertex_buffer TilesVertexBuffer;
+    vertex_buffer BoxesVertexBuffer;
     vertex_buffer DrawableEntitiesVertexBuffer;
-    vertex_buffer RectangleVertexBuffer;
     vertex_buffer ParticlesVertexBuffer;
+    vertex_buffer QuadVertexBuffer;
 
     shader_program TilesShaderProgram;
     shader_program BoxesShaderProgram;
@@ -124,6 +124,7 @@ struct game_state
     shader_program RectangleOutlineShaderProgram;
     shader_program RectangleShaderProgram;
     shader_program ParticlesShaderProgram;
+    shader_program SpriteShaderProgram;
 
     mat4 Projection;
     mat4 VP;

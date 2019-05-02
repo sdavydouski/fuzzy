@@ -17,7 +17,6 @@
 #include "fuzzy_renderer.cpp"
 #include "fuzzy_animations.cpp"
 
-
 global_variable const u32 FLIPPED_HORIZONTALLY_FLAG = 0x80000000;
 global_variable const u32 FLIPPED_VERTICALLY_FLAG = 0x40000000;
 global_variable const u32 FLIPPED_DIAGONALLY_FLAG = 0x20000000;
@@ -303,6 +302,20 @@ ProcessInput(game_state *GameState, game_input *Input, f32 Delta)
     }
 }
 
+internal_function inline vec2
+GetUVOffset01FromTileID(tileset *Tileset, u32 TileID)
+{
+    s32 TileX = TileID % Tileset->Columns;
+    s32 TileY = TileID / Tileset->Columns;
+
+    vec2 Result = vec2(
+        (f32)(TileX * (Tileset->TileWidthInPixels + Tileset->Spacing) + Tileset->Margin) / (f32)Tileset->Image.Width,
+        (f32)(TileY * (Tileset->TileHeightInPixels + Tileset->Spacing) + Tileset->Margin) / (f32)Tileset->Image.Height
+    );
+
+    return Result;
+}
+
 extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
     assert(sizeof(game_state) <= Memory->PermanentStorageSize);
@@ -361,7 +374,8 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         const u32 transformsBindingPoint = 0;
 
         {
-            GameState->TilesShaderProgram = CreateShaderProgram(Memory, GameState, "shaders/tile.vert", "shaders/tile.frag");
+            GameState->TilesShaderProgram = 
+                CreateShaderProgram(Memory, GameState, "shaders/tile_instanced.vert", "shaders/tile_instanced.frag");
 
             u32 transformsUniformBlockIndex = Renderer->glGetUniformBlockIndex(GameState->TilesShaderProgram.ProgramHandle, "transforms");
             Renderer->glUniformBlockBinding(GameState->TilesShaderProgram.ProgramHandle, transformsUniformBlockIndex, transformsBindingPoint);
@@ -373,14 +387,16 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         }
 
         {
-            GameState->BoxesShaderProgram = CreateShaderProgram(Memory, GameState, "shaders/box.vert", "shaders/box.frag");
+            GameState->BoxesShaderProgram = 
+                CreateShaderProgram(Memory, GameState, "shaders/box_instanced.vert", "shaders/box_instanced.frag");
 
             u32 transformsUniformBlockIndex = Renderer->glGetUniformBlockIndex(GameState->BoxesShaderProgram.ProgramHandle, "transforms");
             Renderer->glUniformBlockBinding(GameState->BoxesShaderProgram.ProgramHandle, transformsUniformBlockIndex, transformsBindingPoint);
         }
 
         {
-            GameState->DrawableEntitiesShaderProgram = CreateShaderProgram(Memory, GameState, "shaders/entity.vert", "shaders/entity.frag");
+            GameState->DrawableEntitiesShaderProgram = 
+                CreateShaderProgram(Memory, GameState, "shaders/entity_instanced.vert", "shaders/entity_instanced.frag");
 
             u32 transformsUniformBlockIndex = Renderer->glGetUniformBlockIndex(GameState->DrawableEntitiesShaderProgram.ProgramHandle, "transforms");
             Renderer->glUniformBlockBinding(GameState->DrawableEntitiesShaderProgram.ProgramHandle, transformsUniformBlockIndex, transformsBindingPoint);
@@ -392,28 +408,32 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         }
 
         {
-            GameState->DrawableEntitiesBorderShaderProgram = CreateShaderProgram(Memory, GameState, "shaders/entity.vert", "shaders/color.frag");
+            GameState->DrawableEntitiesBorderShaderProgram = 
+                CreateShaderProgram(Memory, GameState, "shaders/entity_instanced.vert", "shaders/color.frag");
 
             u32 transformsUniformBlockIndex = Renderer->glGetUniformBlockIndex(GameState->DrawableEntitiesBorderShaderProgram.ProgramHandle, "transforms");
             Renderer->glUniformBlockBinding(GameState->DrawableEntitiesBorderShaderProgram.ProgramHandle, transformsUniformBlockIndex, transformsBindingPoint);
         }
 
         {
-            GameState->RectangleOutlineShaderProgram = CreateShaderProgram(Memory, GameState, "shaders/rectangle.vert", "shaders/rectangle_outline.frag");
+            GameState->RectangleOutlineShaderProgram = 
+                CreateShaderProgram(Memory, GameState, "shaders/rectangle.vert", "shaders/rectangle_outline.frag");
 
             u32 transformsUniformBlockIndex = Renderer->glGetUniformBlockIndex(GameState->RectangleOutlineShaderProgram.ProgramHandle, "transforms");
             Renderer->glUniformBlockBinding(GameState->RectangleOutlineShaderProgram.ProgramHandle, transformsUniformBlockIndex, transformsBindingPoint);
         }
 
         {
-            GameState->RectangleShaderProgram = CreateShaderProgram(Memory, GameState, "shaders/rectangle.vert", "shaders/rectangle.frag");
+            GameState->RectangleShaderProgram = 
+                CreateShaderProgram(Memory, GameState, "shaders/rectangle.vert", "shaders/rectangle.frag");
 
             u32 transformsUniformBlockIndex = Renderer->glGetUniformBlockIndex(GameState->RectangleShaderProgram.ProgramHandle, "transforms");
             Renderer->glUniformBlockBinding(GameState->RectangleShaderProgram.ProgramHandle, transformsUniformBlockIndex, transformsBindingPoint);
         }
 
         {
-            GameState->ParticlesShaderProgram = CreateShaderProgram(Memory, GameState, "shaders/particle.vert", "shaders/particle.frag");
+            GameState->ParticlesShaderProgram = 
+                CreateShaderProgram(Memory, GameState, "shaders/particle_instanced.vert", "shaders/particle_instanced.frag");
 
             u32 transformsUniformBlockIndex = Renderer->glGetUniformBlockIndex(GameState->ParticlesShaderProgram.ProgramHandle, "transforms");
             Renderer->glUniformBlockBinding(GameState->ParticlesShaderProgram.ProgramHandle, transformsUniformBlockIndex, transformsBindingPoint);
@@ -422,6 +442,19 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
             /*shader_uniform *TileSizeUniform = GetUniform(&GameState->ParticlesShaderProgram, "u_TileSize");
             SetShaderUniform(Memory, TileSizeUniform->Location, TileSize01);*/
+        }
+
+        {
+            GameState->SpriteShaderProgram = 
+                CreateShaderProgram(Memory, GameState, "shaders/sprite.vert", "shaders/sprite.frag");
+
+            u32 transformsUniformBlockIndex = Renderer->glGetUniformBlockIndex(GameState->SpriteShaderProgram.ProgramHandle, "transforms");
+            Renderer->glUniformBlockBinding(GameState->SpriteShaderProgram.ProgramHandle, transformsUniformBlockIndex, transformsBindingPoint);
+
+            Renderer->glUseProgram(GameState->SpriteShaderProgram.ProgramHandle);
+
+            shader_uniform *TileSizeUniform = GetUniform(&GameState->SpriteShaderProgram, "u_TileSize");
+            SetShaderUniform(Memory, TileSizeUniform->Location, TileSize01);
         }
 
 
@@ -582,13 +615,9 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                         AnimationFrame->Width01 = (f32)Tileset.TileWidthInPixels / (f32)Tileset.Image.Width;
                         AnimationFrame->Height01 = (f32)Tileset.TileHeightInPixels / (f32)Tileset.Image.Height;
 
-                        s32 TileX = TileAnimationFrame->TileId % Tileset.Columns;
-                        s32 TileY = TileAnimationFrame->TileId / Tileset.Columns;
-
-                        AnimationFrame->XOffset01 = 
-                            (f32)(TileX * (Tileset.TileWidthInPixels + Tileset.Spacing) + Tileset.Margin) / (f32)Tileset.Image.Width;
-                        AnimationFrame->YOffset01 = 
-                            (f32)(TileY * (Tileset.TileHeightInPixels + Tileset.Spacing) + Tileset.Margin) / (f32)Tileset.Image.Height;
+                        vec2 UVOffset = GetUVOffset01FromTileID(&Tileset, TileAnimationFrame->TileId);
+                        AnimationFrame->XOffset01 = UVOffset.x;
+                        AnimationFrame->YOffset01 = UVOffset.y;
 
                         AnimationFrame->CurrentXOffset01 = AnimationFrame->XOffset01;
                         AnimationFrame->CurrentYOffset01 = AnimationFrame->YOffset01;
@@ -644,14 +673,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
                             // TileInstanceUVOffset01
                             vec2 * TileInstanceUVOffset01 = TileInstanceUVOffsets01 + TileInstanceIndex;
-
-                            s32 TileX = TileID % Tileset->Columns;
-                            s32 TileY = TileID / Tileset->Columns;
-
-                            *TileInstanceUVOffset01 = vec2(
-                                (f32)(TileX * (Tileset->TileWidthInPixels + Tileset->Spacing) + Tileset->Margin) / (f32)Tileset->Image.Width,
-                                (f32)(TileY * (Tileset->TileHeightInPixels + Tileset->Spacing) + Tileset->Margin) / (f32)Tileset->Image.Height
-                            );
+                            *TileInstanceUVOffset01 = GetUVOffset01FromTileID(Tileset, TileID);
 
                             tile_meta_info * TileInfo = GetTileMetaInfo(Tileset, TileID);
                             if (TileInfo)
@@ -749,13 +771,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                             vec3(Entity->Size.x, Entity->Size.y, 0.f));
 
                         // EntityInstanceUVOffset01
-                        s32 TileX = TileID % Tileset->Columns;
-                        s32 TileY = TileID / Tileset->Columns;
-
-                        EntityRenderInfo->InstanceUVOffset01 = vec2(
-                            (f32)(TileX * (Tileset->TileWidthInPixels + Tileset->Spacing) + Tileset->Margin) / (f32)Tileset->Image.Width,
-                            (f32)(TileY * (Tileset->TileHeightInPixels + Tileset->Spacing) + Tileset->Margin) / (f32)Tileset->Image.Height
-                        );
+                        EntityRenderInfo->InstanceUVOffset01 = GetUVOffset01FromTileID(Tileset, TileID);
 
                         tile_meta_info * EntityTileInfo = GetTileMetaInfo(Tileset, TileID);
 
@@ -1242,31 +1258,31 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         SetupVertexBuffer(Renderer, &GameState->ParticlesVertexBuffer);
         #pragma endregion
 
-        #pragma region Border
+        #pragma region Quad
 
-        GameState->RectangleVertexBuffer = {};
-        GameState->RectangleVertexBuffer.Size = QuadVerticesSize;
-        GameState->RectangleVertexBuffer.Usage = GL_STATIC_DRAW;
+        GameState->QuadVertexBuffer = {};
+        GameState->QuadVertexBuffer.Size = QuadVerticesSize;
+        GameState->QuadVertexBuffer.Usage = GL_STATIC_DRAW;
 
-        GameState->RectangleVertexBuffer.DataLayout = PushStruct<vertex_buffer_data_layout>(&GameState->WorldArena);
-        GameState->RectangleVertexBuffer.DataLayout->SubBufferCount = 1;
-        GameState->RectangleVertexBuffer.DataLayout->SubBuffers = PushArray<vertex_sub_buffer>(
-            &GameState->WorldArena, GameState->RectangleVertexBuffer.DataLayout->SubBufferCount);
+        GameState->QuadVertexBuffer.DataLayout = PushStruct<vertex_buffer_data_layout>(&GameState->WorldArena);
+        GameState->QuadVertexBuffer.DataLayout->SubBufferCount = 1;
+        GameState->QuadVertexBuffer.DataLayout->SubBuffers = PushArray<vertex_sub_buffer>(
+            &GameState->WorldArena, GameState->QuadVertexBuffer.DataLayout->SubBufferCount);
 
         {
-            vertex_sub_buffer *SubBuffer = GameState->RectangleVertexBuffer.DataLayout->SubBuffers + 0;
+            vertex_sub_buffer *SubBuffer = GameState->QuadVertexBuffer.DataLayout->SubBuffers + 0;
             SubBuffer->Offset = 0;
             SubBuffer->Size = QuadVerticesSize;
             SubBuffer->Data = QuadVertices;
         }
 
-        GameState->RectangleVertexBuffer.AttributesLayout = PushStruct<vertex_buffer_attributes_layout>(&GameState->WorldArena);
-        GameState->RectangleVertexBuffer.AttributesLayout->AttributeCount = 1;
-        GameState->RectangleVertexBuffer.AttributesLayout->Attributes = PushArray<vertex_buffer_attribute>(
-            &GameState->WorldArena, GameState->RectangleVertexBuffer.AttributesLayout->AttributeCount);
+        GameState->QuadVertexBuffer.AttributesLayout = PushStruct<vertex_buffer_attributes_layout>(&GameState->WorldArena);
+        GameState->QuadVertexBuffer.AttributesLayout->AttributeCount = 1;
+        GameState->QuadVertexBuffer.AttributesLayout->Attributes = PushArray<vertex_buffer_attribute>(
+            &GameState->WorldArena, GameState->QuadVertexBuffer.AttributesLayout->AttributeCount);
 
         {
-            vertex_buffer_attribute *Attribute = GameState->RectangleVertexBuffer.AttributesLayout->Attributes + 0;
+            vertex_buffer_attribute *Attribute = GameState->QuadVertexBuffer.AttributesLayout->Attributes + 0;
             Attribute->Index = 0;
             Attribute->Size = 4;
             Attribute->Type = GL_FLOAT;
@@ -1276,7 +1292,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             Attribute->OffsetPointer = (void *)0;
         }
 
-        SetupVertexBuffer(Renderer, &GameState->RectangleVertexBuffer);
+        SetupVertexBuffer(Renderer, &GameState->QuadVertexBuffer);
         #pragma endregion
 
         GameState->UpdateRate = 0.01f;   // 10 ms
@@ -1720,9 +1736,9 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             // scaling
             Particle->RenderInfo->Model = scale(Particle->RenderInfo->Model, vec3(Size, 0.f));
             // rotation
-            Particle->RenderInfo->Model = translate(Particle->RenderInfo->Model, vec3(Size / 2.f, 0.f));
+            /*Particle->RenderInfo->Model = translate(Particle->RenderInfo->Model, vec3(Size / 2.f, 0.f));
             Particle->RenderInfo->Model = rotate(Particle->RenderInfo->Model, Rotation, vec3(0.f, 0.f, 1.f));
-            Particle->RenderInfo->Model = translate(Particle->RenderInfo->Model, vec3(-Size / 2.f, 0.f));
+            Particle->RenderInfo->Model = translate(Particle->RenderInfo->Model, vec3(-Size / 2.f, 0.f));*/
 
             Particle->RenderInfo->Color = Color;
         }
@@ -1731,6 +1747,19 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     Renderer->glBufferSubData(GL_ARRAY_BUFFER, GameState->QuadVerticesSize, 
         ArrayCount(GameState->Particles) * sizeof(particle_render_info), GameState->ParticleRenderInfos);
     Renderer->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, ArrayCount(GameState->Particles));
+
+    // draw some test sprites
+    {
+        vec2 Size = vec2(1.f);
+        vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
+            + vec2(0.f, GameState->ScreenHeightInMeters - Size.y);
+        rotation_info Rotation = {};
+        Rotation.AngleInRadians = (f32)radians(-90.f);
+        Rotation.Axis = vec3(0.f, 0.f, 1.f);
+        vec2 UV = GetUVOffset01FromTileID(&GameState->Map.Tilesets[0].Source, 325);
+
+        DrawSprite(Memory, GameState, Position, Size, &Rotation, UV);
+    }
 
     //entity_state PlayerState = *Top(&GameState->Player->StatesStack);
 

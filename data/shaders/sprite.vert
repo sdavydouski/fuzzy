@@ -15,10 +15,12 @@ layout(std140) uniform transforms
 };
 
 uniform mat4 u_Model;
+uniform vec2 u_TileSize;
 
 void main()
 {
-    uv = in_Vertex.zw;
+    // todo: precalculate this in vertex buffer?
+    uv = in_Vertex.zw * u_TileSize;
 
     vec2 position = in_Vertex.xy;
     gl_Position = u_VP * u_Model * vec4(position, 0.f, 1.f);

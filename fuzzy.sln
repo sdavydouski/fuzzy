@@ -22,24 +22,23 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "misc", "misc", "{B8071DF9-9
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "data", "data", "{40618B3B-D41E-41B0-A0E0-30EAED9F756A}"
-	ProjectSection(SolutionItems) = preProject
-		data\animations.json = data\animations.json
-	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "shaders", "shaders", "{849DEA6D-56FE-4DD0-BF45-650BC17E3E72}"
 	ProjectSection(SolutionItems) = preProject
-		data\shaders\box.frag = data\shaders\box.frag
-		data\shaders\box.vert = data\shaders\box.vert
+		data\shaders\box_instanced.frag = data\shaders\box_instanced.frag
+		data\shaders\box_instanced.vert = data\shaders\box_instanced.vert
 		data\shaders\color.frag = data\shaders\color.frag
-		data\shaders\entity.frag = data\shaders\entity.frag
-		data\shaders\entity.vert = data\shaders\entity.vert
-		data\shaders\particle.frag = data\shaders\particle.frag
-		data\shaders\particle.vert = data\shaders\particle.vert
+		data\shaders\entity_instanced.frag = data\shaders\entity_instanced.frag
+		data\shaders\entity_instanced.vert = data\shaders\entity_instanced.vert
+		data\shaders\particle_instanced.frag = data\shaders\particle_instanced.frag
+		data\shaders\particle_instanced.vert = data\shaders\particle_instanced.vert
 		data\shaders\rectangle.frag = data\shaders\rectangle.frag
 		data\shaders\rectangle.vert = data\shaders\rectangle.vert
 		data\shaders\rectangle_outline.frag = data\shaders\rectangle_outline.frag
-		data\shaders\tile.frag = data\shaders\tile.frag
-		data\shaders\tile.vert = data\shaders\tile.vert
+		data\shaders\sprite.frag = data\shaders\sprite.frag
+		data\shaders\sprite.vert = data\shaders\sprite.vert
+		data\shaders\tile_instanced.frag = data\shaders\tile_instanced.frag
+		data\shaders\tile_instanced.vert = data\shaders\tile_instanced.vert
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fuzzy", "src\fuzzy\fuzzy.vcxproj", "{5C53446B-0425-4F9C-BD52-63191C214C6B}"
@@ -55,6 +54,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "maps", "maps", "{AFC518B3-3
 	ProjectSection(SolutionItems) = preProject
 		data\maps\map01.json = data\maps\map01.json
 	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "assets_builder", "src\assets_builder\assets_builder.vcxproj", "{28BF910A-F447-4D8B-AA7F-3430D2E1DAEF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -80,6 +81,14 @@ Global
 		{5C53446B-0425-4F9C-BD52-63191C214C6B}.Release|x64.Build.0 = Release|x64
 		{5C53446B-0425-4F9C-BD52-63191C214C6B}.Release|x86.ActiveCfg = Release|Win32
 		{5C53446B-0425-4F9C-BD52-63191C214C6B}.Release|x86.Build.0 = Release|Win32
+		{28BF910A-F447-4D8B-AA7F-3430D2E1DAEF}.Debug|x64.ActiveCfg = Debug|x64
+		{28BF910A-F447-4D8B-AA7F-3430D2E1DAEF}.Debug|x64.Build.0 = Debug|x64
+		{28BF910A-F447-4D8B-AA7F-3430D2E1DAEF}.Debug|x86.ActiveCfg = Debug|Win32
+		{28BF910A-F447-4D8B-AA7F-3430D2E1DAEF}.Debug|x86.Build.0 = Debug|Win32
+		{28BF910A-F447-4D8B-AA7F-3430D2E1DAEF}.Release|x64.ActiveCfg = Release|x64
+		{28BF910A-F447-4D8B-AA7F-3430D2E1DAEF}.Release|x64.Build.0 = Release|x64
+		{28BF910A-F447-4D8B-AA7F-3430D2E1DAEF}.Release|x86.ActiveCfg = Release|Win32
+		{28BF910A-F447-4D8B-AA7F-3430D2E1DAEF}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

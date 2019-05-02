@@ -176,7 +176,7 @@ CalculateFrameStats(GLFWwindow *Window, char *WindowTitle, f64 TotalTime)
 }
 
 //s32 CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, s32 nCmdShow)
-s32 main(s32 Argc, char *Argv[])
+int main(int argc, char *argv[])
 {
     win32_state Win32State = {};
     game_memory GameMemory = {};

@@ -245,8 +245,8 @@ DrawRectangle(
 {
     // todo: move out
     Memory->Renderer.glUseProgram(GameState->RectangleShaderProgram.ProgramHandle);
-    Memory->Renderer.glBindVertexArray(GameState->RectangleVertexBuffer.VAO);
-    Memory->Renderer.glBindBuffer(GL_ARRAY_BUFFER, GameState->RectangleVertexBuffer.VBO);
+    Memory->Renderer.glBindVertexArray(GameState->QuadVertexBuffer.VAO);
+    Memory->Renderer.glBindBuffer(GL_ARRAY_BUFFER, GameState->QuadVertexBuffer.VBO);
 
     shader_uniform *ModelUniform = GetUniform(&GameState->RectangleShaderProgram, "u_Model");
     shader_uniform *ColorUniform = GetUniform(&GameState->RectangleShaderProgram, "u_Color");
@@ -265,7 +265,6 @@ DrawRectangle(
     Model = glm::translate(Model, vec3(-Size / 2.f, 0.f));
 
     SetShaderUniform(Memory, ModelUniform->Location, Model);
-
     SetShaderUniform(Memory, ColorUniform->Location, Color);
 
     Memory->Renderer.glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -284,8 +283,8 @@ DrawRectangleOutline(
 {
     // todo: move out
     Memory->Renderer.glUseProgram(GameState->RectangleOutlineShaderProgram.ProgramHandle);
-    Memory->Renderer.glBindVertexArray(GameState->RectangleVertexBuffer.VAO);
-    Memory->Renderer.glBindBuffer(GL_ARRAY_BUFFER, GameState->RectangleVertexBuffer.VBO);
+    Memory->Renderer.glBindVertexArray(GameState->QuadVertexBuffer.VAO);
+    Memory->Renderer.glBindBuffer(GL_ARRAY_BUFFER, GameState->QuadVertexBuffer.VBO);
 
     shader_uniform *ModelUniform = GetUniform(&GameState->RectangleOutlineShaderProgram, "u_Model");
     shader_uniform *ColorUniform = GetUniform(&GameState->RectangleOutlineShaderProgram, "u_Color");
@@ -308,11 +307,47 @@ DrawRectangleOutline(
     Model = glm::translate(Model, vec3(-Size / 2.f, 0.f));
 
     SetShaderUniform(Memory, ModelUniform->Location, Model);
-
     SetShaderUniform(Memory, ColorUniform->Location, Color);
 
     // meters to (0-1) uv-range
     SetShaderUniform(Memory, ThicknessUniform->Location, Thickness / Size.x);
+
+    Memory->Renderer.glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+}
+
+void
+DrawSprite(
+    game_memory *Memory,
+    game_state *GameState,
+    vec2 Position,
+    vec2 Size,
+    rotation_info *Rotation,
+    vec2 UV
+)
+{
+    // todo: move out
+    Memory->Renderer.glUseProgram(GameState->SpriteShaderProgram.ProgramHandle);
+    Memory->Renderer.glBindVertexArray(GameState->QuadVertexBuffer.VAO);
+    Memory->Renderer.glBindBuffer(GL_ARRAY_BUFFER, GameState->QuadVertexBuffer.VBO);
+
+    shader_uniform *ModelUniform = GetUniform(&GameState->SpriteShaderProgram, "u_Model");
+    shader_uniform *UVUniform = GetUniform(&GameState->SpriteShaderProgram, "u_UVOffset");
+
+    mat4 Model = mat4(1.f);
+
+    // translation
+    Model = glm::translate(Model, vec3(Position, 0.f));
+
+    // scaling
+    Model = glm::scale(Model, vec3(Size, 0.f));
+
+    // rotation
+    Model = glm::translate(Model, vec3(Size / 2.f, 0.f));
+    Model = glm::rotate(Model, Rotation->AngleInRadians, Rotation->Axis);
+    Model = glm::translate(Model, vec3(-Size / 2.f, 0.f));
+
+    SetShaderUniform(Memory, ModelUniform->Location, Model);
+    SetShaderUniform(Memory, UVUniform->Location, UV);
 
     Memory->Renderer.glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
