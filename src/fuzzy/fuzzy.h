@@ -125,6 +125,7 @@ struct game_state
     shader_program RectangleShaderProgram;
     shader_program ParticlesShaderProgram;
     shader_program SpriteShaderProgram;
+    shader_program TextShaderProgram;
 
     mat4 Projection;
     mat4 VP;
@@ -151,4 +152,7 @@ struct game_state
     random_sequence Entropy;
 
     u32 QuadVerticesSize;
+
+    u32 TilesetTexture;
+    u32 FontTextureAtlas;
 };

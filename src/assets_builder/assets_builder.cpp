@@ -21,6 +21,7 @@ int main(int argc, char **argv)
     u8 *FontData = (u8 *)malloc(FileSize);
 
     fread(FontData, 1, FileSize, FontFile);
+    fclose(FontFile);
 
     stbtt_pack_context PackContext;
 
@@ -40,13 +41,20 @@ int main(int argc, char **argv)
     f32 FontSize = 72.f;
     s32 StartFrom = '!';
     s32 Count = '~' - '!' + 1;
-    //s32 Count = 2048;
     stbtt_packedchar *CharData = (stbtt_packedchar *)malloc(Count * sizeof(stbtt_packedchar));
     stbtt_PackFontRange(&PackContext, FontData, FontIndex, FontSize, StartFrom, Count, CharData);
 
     stbtt_PackEnd(&PackContext);
 
-    stbi_write_bmp("assets/font_atlas.bmp", Width, Height, 1, Pixels);
+    stbi_write_png("assets/font_atlas.png", Width, Height, 1, Pixels, 0);
+
+    FILE *FontMetricsFile = fopen("assets/font_metrics.azaza", "wb");
+    fwrite(CharData, sizeof(stbtt_packedchar), Count, FontMetricsFile);
+    fclose(FontMetricsFile);
+
+    free(FontData);
+    free(Pixels);
+    free(CharData);
 
     return 0;
 }

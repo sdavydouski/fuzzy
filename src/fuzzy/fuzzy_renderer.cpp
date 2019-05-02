@@ -352,4 +352,107 @@ DrawSprite(
     Memory->Renderer.glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
+void
+DrawTextString(
+    game_memory *Memory,
+    game_state *GameState,
+    char *String,
+    vec2 TextPosition,
+    f32 InvTextSize,
+    rotation_info *Rotation,
+    vec4 TextColor
+)
+{
+    // todo: clean this mess asap
+    Memory->Renderer.glUseProgram(GameState->TextShaderProgram.ProgramHandle);
+    Memory->Renderer.glBindVertexArray(GameState->QuadVertexBuffer.VAO);
+    Memory->Renderer.glBindBuffer(GL_ARRAY_BUFFER, GameState->QuadVertexBuffer.VBO);
+
+    shader_uniform *TextColorUniform = GetUniform(&GameState->TextShaderProgram, "u_TextColor");
+    SetShaderUniform(Memory, TextColorUniform->Location, TextColor);
+
+    FILE *FontMetricsFile = fopen("assets/font_metrics.azaza", "rb");
+
+    fseek(FontMetricsFile, 0, SEEK_END);
+    u32 FileSize = ftell(FontMetricsFile);
+    fseek(FontMetricsFile, 0, SEEK_SET);
+
+    stbtt_packedchar *FontMetricsData = (stbtt_packedchar *)malloc(FileSize);
+
+    s32 Count = '~' - '!' + 1;
+    fread(FontMetricsData, sizeof(stbtt_packedchar), Count, FontMetricsFile);
+
+    fclose(FontMetricsFile);
+
+    //stbtt_aligned_quad quad;
+
+    //stbtt_GetPackedQuad(&font_.charInfo.front(), font_.atlasWidth, font_.atlasHeight, 
+    //    character - font_.firstChar, &offsetX, &offsetY, &quad, 1);
+
+    //auto info = GlyphInfo();
+    //info.offsetX = offsetX;
+    //info.offsetY = offsetY;
+    //info.size = glm::vec2(quad.x1 - quad.x0, quad.y1 - quad.y0);
+    //info.uvs[0] = { quad.s0, quad.t1 };
+    //info.uvs[1] = { quad.s1, quad.t0 };
+
+    //void stbtt_GetPackedQuad(const stbtt_packedchar *chardata, int pw, int ph,  // same data as above
+    //    int char_index,             // character to display
+    //    float *xpos, float *ypos,   // pointers to current position in screen pixel space
+    //    stbtt_aligned_quad *q,      // output: quad to draw
+    //    int align_to_integer);
+
+    f32 AtX = TextPosition.x;
+
+    for(char *Character = String; *Character; ++Character)
+    {
+        vec2 Position = vec2(AtX, TextPosition.y);
+
+        stbtt_packedchar *GlyphInfo = FontMetricsData + *Character - '!';
+        vec2 GlyphSize = vec2(GlyphInfo->x1 - GlyphInfo->x0, GlyphInfo->y1 - GlyphInfo->y0);
+
+        if (*Character == ' ')
+        {
+            AtX += 42.f / InvTextSize;
+            continue;
+        }
+
+        shader_uniform *SpriteSizeUniform = GetUniform(&GameState->TextShaderProgram, "u_SpriteSize");
+
+        if (SpriteSizeUniform)
+        {
+            SetShaderUniform(Memory, SpriteSizeUniform->Location, GlyphSize / 1024.f);
+        }
+
+        vec2 Size = GlyphSize / InvTextSize;
+        vec2 UV = vec2(GlyphInfo->x0, GlyphInfo->y0) / 1024.f;
+
+        shader_uniform *ModelUniform = GetUniform(&GameState->TextShaderProgram, "u_Model");
+        shader_uniform *UVUniform = GetUniform(&GameState->TextShaderProgram, "u_UVOffset");
+
+        mat4 Model = mat4(1.f);
+
+        // translation
+        Model = glm::translate(Model, vec3(Position, 0.f));
+
+        // scaling
+        Model = glm::scale(Model, vec3(Size, 0.f));
+
+        // rotation
+        Model = glm::translate(Model, vec3(Size / 2.f, 0.f));
+        Model = glm::rotate(Model, Rotation->AngleInRadians, Rotation->Axis);
+        Model = glm::translate(Model, vec3(-Size / 2.f, 0.f));
+
+        SetShaderUniform(Memory, ModelUniform->Location, Model);
+        if (UVUniform)
+        {
+            SetShaderUniform(Memory, UVUniform->Location, UV);
+        }
+
+        Memory->Renderer.glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+        AtX += GlyphSize.x / InvTextSize;
+    }
+}
+
 #pragma endregion

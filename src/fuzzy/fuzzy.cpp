@@ -1,3 +1,7 @@
+#define _CRT_SECURE_NO_WARNINGS
+
+#include "stb_truetype.h"
+
 // todo: for defines and such - won't be needed in future
 #include "glad/glad.h"
 
@@ -355,9 +359,8 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Platform->PrintOutput(OpenGLVersion);
         Platform->PrintOutput("\n");
 
-        u32 texture;
-        Renderer->glGenTextures(1, &texture);
-        Renderer->glBindTexture(GL_TEXTURE_2D, texture);
+        Renderer->glGenTextures(1, &GameState->TilesetTexture);
+        Renderer->glBindTexture(GL_TEXTURE_2D, GameState->TilesetTexture);
 
         // note: default value for GL_TEXTURE_MIN_FILTER is GL_NEAREST_MIPMAP_LINEAR
         // since we do not use mipmaps we must override this value
@@ -366,6 +369,28 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
         Renderer->glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, Tileset->Image.Width, Tileset->Image.Height,
             0, GL_RGBA, GL_UNSIGNED_BYTE, Tileset->Image.Memory);
+
+
+        s32 FontTextureAtlasWidth;
+        s32 FontTextureAtlasHeight;
+        s32 FontTextureAtlasChannels;
+        u8 *FontTextureAtlas = Platform->ReadImageFile(
+            "assets/font_atlas.png", &FontTextureAtlasWidth, &FontTextureAtlasHeight, 
+            &FontTextureAtlasChannels, 0
+        );
+
+        Renderer->glGenTextures(1, &GameState->FontTextureAtlas);
+        Renderer->glBindTexture(GL_TEXTURE_2D, GameState->FontTextureAtlas);
+
+        // note: default value for GL_TEXTURE_MIN_FILTER is GL_NEAREST_MIPMAP_LINEAR
+        // since we do not use mipmaps we must override this value
+        Renderer->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        Renderer->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        Renderer->glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, FontTextureAtlasWidth, FontTextureAtlasHeight,
+            0, GL_RED, GL_UNSIGNED_BYTE, FontTextureAtlas);
+
+
 
         //Platform->FreeImageFile(textureImage);
         vec2 TileSize01 = vec2((f32)Tileset->TileWidthInPixels / (f32)Tileset->Image.Width,
@@ -455,6 +480,14 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
             shader_uniform *TileSizeUniform = GetUniform(&GameState->SpriteShaderProgram, "u_TileSize");
             SetShaderUniform(Memory, TileSizeUniform->Location, TileSize01);
+        }
+
+        {
+            GameState->TextShaderProgram = 
+                CreateShaderProgram(Memory, GameState, "shaders/text.vert", "shaders/text.frag");
+
+            u32 transformsUniformBlockIndex = Renderer->glGetUniformBlockIndex(GameState->TextShaderProgram.ProgramHandle, "transforms");
+            Renderer->glUniformBlockBinding(GameState->TextShaderProgram.ProgramHandle, transformsUniformBlockIndex, transformsBindingPoint);
         }
 
 
@@ -1321,6 +1354,8 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Renderer->glEnable(GL_STENCIL_TEST);
         Renderer->glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
 
+        //Renderer->glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
         Renderer->glClearColor(BackgroundColor.r, BackgroundColor.g, BackgroundColor.b, 1.f);
 
         GameState->IsInitialized = true;
@@ -1516,6 +1551,8 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
 
     Renderer->glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+    Renderer->glBindTexture(GL_TEXTURE_2D, GameState->TilesetTexture);
 
     Renderer->glBindBuffer(GL_UNIFORM_BUFFER, GameState->UBO);
     Renderer->glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(mat4), &GameState->VP);
@@ -1759,6 +1796,60 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         vec2 UV = GetUVOffset01FromTileID(&GameState->Map.Tilesets[0].Source, 325);
 
         DrawSprite(Memory, GameState, Position, Size, &Rotation, UV);
+    }
+
+    // draw text
+    Renderer->glBindTexture(GL_TEXTURE_2D, GameState->FontTextureAtlas);
+
+    {
+        vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
+            + vec2(1.f, GameState->ScreenHeightInMeters - 2.f);
+        rotation_info Rotation = {};
+        Rotation.AngleInRadians = 0.f;
+        Rotation.Axis = vec3(0.f, 0.f, 1.f);
+
+        DrawTextString(Memory, GameState, "If you can keep your head when all about you", Position, 150.f, &Rotation, vec4(1.f, 1.f, 0.f, 1.f));
+    }
+
+    {
+        vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
+            + vec2(1.f, GameState->ScreenHeightInMeters - 3.5f);
+        rotation_info Rotation = {};
+        Rotation.AngleInRadians = radians((f32)GameState->Time * 100.f);
+        Rotation.Axis = vec3(0.f, 1.f, 0.f);
+
+        DrawTextString(Memory, GameState, "Are losing theirs and blaming it on you,", Position, 160.f, &Rotation, vec4(0.f, 1.f, 1.f, 1.f));
+    }
+
+    {
+        vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
+            + vec2(1.f, GameState->ScreenHeightInMeters - 5.f);
+        rotation_info Rotation = {};
+        Rotation.AngleInRadians = 0.f;
+        Rotation.Axis = vec3(0.f, 0.f, 1.f);
+
+        DrawTextString(Memory, GameState, "If you can trust yourself when all men doubt you,", Position, 170.f, &Rotation, vec4(1.f, 0.f, 1.f, 1.f));
+    }
+
+    {
+        vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
+            + vec2(1.f, GameState->ScreenHeightInMeters - 6.5f);
+        rotation_info Rotation = {};
+        Rotation.AngleInRadians = 0.f;
+        Rotation.Axis = vec3(0.f, 0.f, 1.f);
+        f32 InvTextSize = 400.f * AbsoluteValue((f32)sin(GameState->Time) * 0.2f + 0.5f);
+
+        DrawTextString(Memory, GameState, "But make allowance for their doubting too;", Position, InvTextSize, &Rotation, vec4(0.f, 1.f, 0.f, 1.f));
+    }
+
+    {
+        vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
+            + vec2(1.f, GameState->ScreenHeightInMeters - 9.f);
+        rotation_info Rotation = {};
+        Rotation.AngleInRadians = 0.f;
+        Rotation.Axis = vec3(0.f, 0.f, 1.f);
+
+        DrawTextString(Memory, GameState, "1234567890-=!@#$%^&*()_+.,/", Position, 200.f, &Rotation, vec4(1.f, 1.f, 1.f, 1.f));
     }
 
     //entity_state PlayerState = *Top(&GameState->Player->StatesStack);
