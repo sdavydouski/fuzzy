@@ -3,6 +3,7 @@
 #include "fuzzy_types.h"
 #include "fuzzy_containers.h"
 
+// todo: move it somewhere else
 struct bitmap
 {
     s32 Width;

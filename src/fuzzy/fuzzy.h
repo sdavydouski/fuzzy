@@ -7,6 +7,7 @@
 #include "fuzzy_animations.h"
 #include "fuzzy_containers.h"
 #include "fuzzy_random.h"
+#include "assets.h"
 
 #define ArrayLength(Array) (sizeof(Array) / sizeof((Array)[0]))
 
@@ -155,4 +156,9 @@ struct game_state
 
     u32 TilesetTexture;
     u32 FontTextureAtlas;
+
+    font_asset Assets;
+
+    f32 PixelsToMeters;
+    f32 MetersToPixels;
 };

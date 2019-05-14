@@ -322,7 +322,8 @@ DrawSprite(
     vec2 Position,
     vec2 Size,
     rotation_info *Rotation,
-    vec2 UV
+    vec2 UV,
+    vec2 Alignment = vec2(0.f)
 )
 {
     // todo: move out
@@ -336,7 +337,7 @@ DrawSprite(
     mat4 Model = mat4(1.f);
 
     // translation
-    Model = glm::translate(Model, vec3(Position, 0.f));
+    Model = glm::translate(Model, vec3(Position + Alignment * Size, 0.f));
 
     // scaling
     Model = glm::scale(Model, vec3(Size, 0.f));
@@ -353,7 +354,7 @@ DrawSprite(
 }
 
 void
-DrawTextString(
+DrawTextLine(
     game_memory *Memory,
     game_state *GameState,
     char *String,
@@ -371,45 +372,16 @@ DrawTextString(
     shader_uniform *TextColorUniform = GetUniform(&GameState->TextShaderProgram, "u_TextColor");
     SetShaderUniform(Memory, TextColorUniform->Location, TextColor);
 
-    FILE *FontMetricsFile = fopen("assets/font_metrics.azaza", "rb");
-
-    fseek(FontMetricsFile, 0, SEEK_END);
-    u32 FileSize = ftell(FontMetricsFile);
-    fseek(FontMetricsFile, 0, SEEK_SET);
-
-    stbtt_packedchar *FontMetricsData = (stbtt_packedchar *)malloc(FileSize);
-
-    s32 Count = '~' - '!' + 1;
-    fread(FontMetricsData, sizeof(stbtt_packedchar), Count, FontMetricsFile);
-
-    fclose(FontMetricsFile);
-
-    //stbtt_aligned_quad quad;
-
-    //stbtt_GetPackedQuad(&font_.charInfo.front(), font_.atlasWidth, font_.atlasHeight, 
-    //    character - font_.firstChar, &offsetX, &offsetY, &quad, 1);
-
-    //auto info = GlyphInfo();
-    //info.offsetX = offsetX;
-    //info.offsetY = offsetY;
-    //info.size = glm::vec2(quad.x1 - quad.x0, quad.y1 - quad.y0);
-    //info.uvs[0] = { quad.s0, quad.t1 };
-    //info.uvs[1] = { quad.s1, quad.t0 };
-
-    //void stbtt_GetPackedQuad(const stbtt_packedchar *chardata, int pw, int ph,  // same data as above
-    //    int char_index,             // character to display
-    //    float *xpos, float *ypos,   // pointers to current position in screen pixel space
-    //    stbtt_aligned_quad *q,      // output: quad to draw
-    //    int align_to_integer);
-
     f32 AtX = TextPosition.x;
 
     for(char *Character = String; *Character; ++Character)
     {
         vec2 Position = vec2(AtX, TextPosition.y);
 
-        stbtt_packedchar *GlyphInfo = FontMetricsData + *Character - '!';
-        vec2 GlyphSize = vec2(GlyphInfo->x1 - GlyphInfo->x0, GlyphInfo->y1 - GlyphInfo->y0);
+        // todo: 
+        u32 GlyphIndex = *Character - '!';
+
+        glyph_info *GlyphInfo = GameState->Assets.Glyphs + GlyphIndex;
 
         if (*Character == ' ')
         {
@@ -421,11 +393,12 @@ DrawTextString(
 
         if (SpriteSizeUniform)
         {
-            SetShaderUniform(Memory, SpriteSizeUniform->Location, GlyphSize / 1024.f);
+            SetShaderUniform(Memory, SpriteSizeUniform->Location, GlyphInfo->Size / 1024.f);
         }
 
-        vec2 Size = GlyphSize / InvTextSize;
-        vec2 UV = vec2(GlyphInfo->x0, GlyphInfo->y0) / 1024.f;
+        //vec2 Size = GlyphInfo->Size * GameState->PixelsToMeters;
+        vec2 Size = vec2(GlyphInfo->x1 - GlyphInfo->x0, GlyphInfo->y1 - GlyphInfo->y0) * GameState->PixelsToMeters;
+        vec2 UV = GlyphInfo->UV;
 
         shader_uniform *ModelUniform = GetUniform(&GameState->TextShaderProgram, "u_Model");
         shader_uniform *UVUniform = GetUniform(&GameState->TextShaderProgram, "u_UVOffset");
@@ -433,7 +406,17 @@ DrawTextString(
         mat4 Model = mat4(1.f);
 
         // translation
-        Model = glm::translate(Model, vec3(Position, 0.f));
+        //vec2 Alignment = (GlyphInfo->Alignment + vec2(0.f, GameState->Assets.FontInfo.Descent)) * GameState->PixelsToMeters;
+        //vec2 Alignment = vec2(0.f, 0.f) * GameState->PixelsToMeters;
+
+        //if (*Character == 'y')
+        //{
+        //    Alignment = vec2(0.f, GameState->Assets.FontInfo.Descent) * GameState->PixelsToMeters;
+        //}
+        f32 Baseline = (f32)GameState->Assets.FontInfo.Ascent;
+
+        vec2 Alignment = GlyphInfo->Alignment * GameState->PixelsToMeters;
+        Model = glm::translate(Model, vec3(Position + Alignment, 0.f));
 
         // scaling
         Model = glm::scale(Model, vec3(Size, 0.f));
@@ -451,7 +434,7 @@ DrawTextString(
 
         Memory->Renderer.glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-        AtX += GlyphSize.x / InvTextSize;
+        AtX += Size.x;
     }
 }
 

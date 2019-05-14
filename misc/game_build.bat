@@ -1,6 +1,6 @@
 @echo off
 
-set include_paths=-I..\..\..\generated\glad\include\ -I..\..\..\externals\stb\ -I..\..\..\externals\glm\ -I..\..\..\externals\rapidjson\include\
+set include_paths=-I..\..\..\generated\glad\include\ -I..\..\..\externals\stb\ -I..\..\..\externals\glm\ -I..\..\..\externals\rapidjson\include\ -I..\..\..\src\assets_builder
 set compiler_flags=%include_paths% -MDd -nologo -Od -W3 -Zi -EHsc
 set linker_flags= -incremental:no -pdb:%random%_fuzzy.pdb opengl32.lib
 set build_dir=".\build\Debug\x64"

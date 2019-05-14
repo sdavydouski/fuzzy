@@ -20,5 +20,6 @@
     <None Include="fuzzy_containers.cpp" />
     <None Include="fuzzy_math.h" />
     <None Include="fuzzy_renderer.cpp" />
+    <None Include="fuzzy_assets.cpp" />
   </ItemGroup>
 </Project>

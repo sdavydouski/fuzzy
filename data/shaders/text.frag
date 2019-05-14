@@ -15,4 +15,5 @@ void main()
 {
     float ChannelValue = texture(u_FontTextureAtlas, uv + u_UVOffset).r;
     out_Color = vec4(1.f, 1.f, 1.f, ChannelValue) * u_TextColor;
+    //out_Color = u_TextColor;
 }

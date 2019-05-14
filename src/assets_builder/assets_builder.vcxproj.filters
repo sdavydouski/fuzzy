@@ -3,4 +3,7 @@
   <ItemGroup>
     <ClCompile Include="assets_builder.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="assets.h" />
+  </ItemGroup>
 </Project>

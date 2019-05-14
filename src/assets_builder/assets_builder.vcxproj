@@ -142,6 +142,9 @@
   <ItemGroup>
     <ClCompile Include="assets_builder.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="assets.h" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
