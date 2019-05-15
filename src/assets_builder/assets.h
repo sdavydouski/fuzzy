@@ -18,13 +18,11 @@ struct font_info
 
 struct glyph_info
 {
-    vec2 Size;
+    vec2 SpriteSize;
+    vec2 CharacterSize;
     // top-left
     vec2 UV;
     vec2 Alignment;
-
-    f32 x0,y0; // top-left
-    f32 x1,y1; // bottom-right
 };
 
 // todo: generalize to more assets (not just font)

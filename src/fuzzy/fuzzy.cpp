@@ -366,7 +366,8 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         char *OpenGLVersion = (char*)Renderer->glGetString(GL_VERSION);
         Platform->PrintOutput(OpenGLVersion);
         Platform->PrintOutput("\n");
-
+        
+        // tileset texture
         Renderer->glGenTextures(1, &GameState->TilesetTexture);
         Renderer->glBindTexture(GL_TEXTURE_2D, GameState->TilesetTexture);
 
@@ -378,29 +379,16 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Renderer->glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, Tileset->Image.Width, Tileset->Image.Height,
             0, GL_RGBA, GL_UNSIGNED_BYTE, Tileset->Image.Memory);
 
-
-        s32 FontTextureAtlasWidth;
-        s32 FontTextureAtlasHeight;
-        s32 FontTextureAtlasChannels;
-        u8 *FontTextureAtlas = Platform->ReadImageFile(
-            "assets/font_atlas.png", &FontTextureAtlasWidth, &FontTextureAtlasHeight, 
-            &FontTextureAtlasChannels, 0
-        );
-
+        // font atlas texture
         Renderer->glGenTextures(1, &GameState->FontTextureAtlas);
         Renderer->glBindTexture(GL_TEXTURE_2D, GameState->FontTextureAtlas);
 
-        // note: default value for GL_TEXTURE_MIN_FILTER is GL_NEAREST_MIPMAP_LINEAR
-        // since we do not use mipmaps we must override this value
         Renderer->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         Renderer->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-        Renderer->glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, FontTextureAtlasWidth, FontTextureAtlasHeight,
-            0, GL_RED, GL_UNSIGNED_BYTE, FontTextureAtlas);
+        Renderer->glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, GameState->Assets.FontInfo.TextureAtlas.Width, GameState->Assets.FontInfo.TextureAtlas.Height,
+            0, GL_RED, GL_UNSIGNED_BYTE, GameState->Assets.FontInfo.TextureAtlas.Memory);
 
-
-
-        //Platform->FreeImageFile(textureImage);
         vec2 TileSize01 = vec2((f32)Tileset->TileWidthInPixels / (f32)Tileset->Image.Width,
             (f32)Tileset->TileHeightInPixels / (f32)Tileset->Image.Height);
 
@@ -1817,27 +1805,27 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Rotation.AngleInRadians = 0.f;
         Rotation.Axis = vec3(0.f, 0.f, 1.f);
 
-        DrawTextLine(Memory, GameState, "If you can keep your head when all about you", Position, 150.f, &Rotation, vec4(1.f, 1.f, 0.f, 1.f));
+        DrawTextLine(Memory, GameState, "If_you_can_keep_your_head_when_all_about_you", Position, 0.5f, &Rotation, vec4(1.f, 1.f, 0.f, 1.f));
     }
 
     {
         vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
-            + vec2(1.f, GameState->ScreenHeightInMeters - 3.5f);
+            + vec2(1.f, GameState->ScreenHeightInMeters - 1.f);
         rotation_info Rotation = {};
         Rotation.AngleInRadians = 0.f; //radians((f32)GameState->Time * 100.f);
         Rotation.Axis = vec3(0.f, 1.f, 0.f);
 
-        DrawTextLine(Memory, GameState, "Are losing theirs and blaming it on you,", Position, 160.f, &Rotation, vec4(0.f, 1.f, 1.f, 1.f));
+        DrawTextLine(Memory, GameState, "Are_losing_theirs_and_blaming_it_on_you,", Position, 1.f, &Rotation, vec4(0.f, 1.f, 1.f, 1.f));
     }
 
     {
         vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
-            + vec2(1.f, GameState->ScreenHeightInMeters - 5.f);
+            + vec2(1.f, GameState->ScreenHeightInMeters - 2.5f);
         rotation_info Rotation = {};
         Rotation.AngleInRadians = 0.f;
         Rotation.Axis = vec3(0.f, 0.f, 1.f);
 
-        DrawTextLine(Memory, GameState, "If you can trust yourself when all men doubt you,", Position, 170.f, &Rotation, vec4(1.f, 0.f, 1.f, 1.f));
+        DrawTextLine(Memory, GameState, "If you can trust yourself when all men doubt you,", Position, 1.5f, &Rotation, vec4(1.f, 0.f, 1.f, 1.f));
     }
 
     //{
@@ -1858,7 +1846,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Rotation.AngleInRadians = 0.f;
         Rotation.Axis = vec3(0.f, 0.f, 1.f);
 
-        DrawTextLine(Memory, GameState, "AVAWAWVAWA pTp", Position, 70.f, &Rotation, vec4(1.f, 1.f, 1.f, 1.f));
+        DrawTextLine(Memory, GameState, "TeVy", Position, 3.f, &Rotation, vec4(1.f, 1.f, 1.f, 1.f));
     }
 
     {
@@ -1868,7 +1856,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Rotation.AngleInRadians = 0.f;
         Rotation.Axis = vec3(0.f, 0.f, 1.f);
 
-        DrawTextLine(Memory, GameState, "1234567890-=!@#$%^&*()_+.,/", Position, 200.f, &Rotation, vec4(1.f, 1.f, 1.f, 1.f));
+        DrawTextLine(Memory, GameState, "1234567890-=!@#$%^&*()_+.,/", Position, 0.3f, &Rotation, vec4(1.f, 1.f, 1.f, 1.f));
     }
 
     //entity_state PlayerState = *Top(&GameState->Player->StatesStack);

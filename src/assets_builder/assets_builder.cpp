@@ -2,6 +2,9 @@
 
 #include <stdio.h>
 
+#define STB_RECT_PACK_IMPLEMENTATION
+#include "stb_rect_pack.h"
+
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"
 
@@ -10,7 +13,9 @@
 
 #include "assets.h"
 
-int main(int argc, char **argv)
+constexpr auto ASSET_FILE_NAME = "assets/font.fasset";
+
+int main(int ArgCount, char **Args)
 {
     FILE *FontFile = fopen("c:/windows/fonts/arial.ttf", "rb");
 
@@ -53,7 +58,7 @@ int main(int argc, char **argv)
 
     s32 FontIndex = 0;
     f32 FontSize = 72.f;
-    s32 Start = '!';
+    s32 Start = ' ';
     s32 End = '~';
     s32 Count = End - Start + 1;
     stbtt_packedchar *CharData = (stbtt_packedchar *)malloc(Count * sizeof(stbtt_packedchar));
@@ -61,36 +66,14 @@ int main(int argc, char **argv)
 
     stbtt_PackEnd(&PackContext);
 
-    {
-        int x0, y0, x1, y1;
-        stbtt_GetFontBoundingBox(&FontInfo, &x0, &y0, &x1, &y1);
-
-        int b = 0;
-    }
-
     glyph_info *Glyphs = (glyph_info *)malloc(Count * sizeof(glyph_info));
     for (s32 GlyphIndex = 0; GlyphIndex < Count; ++GlyphIndex)
     {
         stbtt_packedchar *GlyphInfo = CharData + GlyphIndex;
 
-        if (GlyphIndex == ('A' - Start))
-        {
-            int a = 0;
-        }
-        if (GlyphIndex == ('y' - Start))
-        {
-            int b = 0;
-        }
-        if (GlyphIndex == ('a' - Start))
-        {
-            int b = 0;
-        }
-
         glyph_info *Glyph = Glyphs + GlyphIndex;
         *Glyph = {};
-        Glyph->Size = vec2(GlyphInfo->x1 - GlyphInfo->x0, GlyphInfo->y1 - GlyphInfo->y0);
-        Glyph->UV = vec2(GlyphInfo->x0, GlyphInfo->y0);
-        Glyph->Alignment = vec2(GlyphInfo->xoff, GlyphInfo->yoff);
+        Glyph->SpriteSize = vec2(GlyphInfo->x1 - GlyphInfo->x0, GlyphInfo->y1 - GlyphInfo->y0);
     }
 
     u32 HorizontalAdvanceTableCount = Count * Count;
@@ -104,6 +87,11 @@ int main(int argc, char **argv)
         AdvanceWidth = (s32)((f32)AdvanceWidth * Scale);
         LeftSideBearing = (s32)((f32)LeftSideBearing * Scale);
 
+        if (Character == 'I')
+        {
+            int b = 0;
+        }
+
         u32 AnotherCharacterIndex = 0;
         for(char AnotherCharacter = Start; AnotherCharacter <= End; ++AnotherCharacter)
         {
@@ -111,11 +99,6 @@ int main(int argc, char **argv)
             s32 Kerning = stbtt_GetCodepointKernAdvance(&FontInfo, Character, AnotherCharacter);
             Kerning = (s32)((f32)Kerning * Scale);
             
-            if (Kerning != 0)
-            {
-                int b = 0;
-            }
-
             *HorizontalAdvance = AdvanceWidth + Kerning;
 
             ++AnotherCharacterIndex;
@@ -135,12 +118,8 @@ int main(int argc, char **argv)
             stbtt_GetPackedQuad(CharData, Width, Height, Character - Start, &offsetX, &offsetY, &quad, 1);
 
             glyph_info *Glyph = Glyphs + GlyphIndex;
-            Glyph->x0 = quad.x0;
-            Glyph->x1 = quad.x1;
-            Glyph->y0 = quad.y0;
-            Glyph->y1 = quad.y1;
 
-            //Glyph->Size = vec2(quad.x1 - quad.x0, quad.y1 - quad.y0);
+            Glyph->CharacterSize = vec2(quad.x1 - quad.x0, quad.y1 - quad.y0);
             Glyph->UV = vec2(quad.s0, quad.t0);
             Glyph->Alignment = vec2(0, -quad.y1);
 
@@ -148,25 +127,25 @@ int main(int argc, char **argv)
         }
     }
 
-    font_asset FontAsset = {};
-    FontAsset.FontInfo.TextureAtlas = {};
-    FontAsset.FontInfo.TextureAtlas.Width = Width;
-    FontAsset.FontInfo.TextureAtlas.Height = Height;
-    FontAsset.FontInfo.TextureAtlas.Channels = Channels;
-    FontAsset.FontInfo.TextureAtlas.Memory = Pixels;
+    //font_asset FontAsset = {};
+    //FontAsset.FontInfo.TextureAtlas = {};
+    //FontAsset.FontInfo.TextureAtlas.Width = Width;
+    //FontAsset.FontInfo.TextureAtlas.Height = Height;
+    //FontAsset.FontInfo.TextureAtlas.Channels = Channels;
+    //FontAsset.FontInfo.TextureAtlas.Memory = Pixels;
 
-    FontAsset.FontInfo.VerticalAdvance = VerticalAdvance;
+    //FontAsset.FontInfo.VerticalAdvance = VerticalAdvance;
 
-    FontAsset.FontInfo.HorizontalAdvanceTableCount = HorizontalAdvanceTableCount;
-    FontAsset.FontInfo.HorizontalAdvanceTable = HorizontalAdvanceTable;
+    //FontAsset.FontInfo.HorizontalAdvanceTableCount = HorizontalAdvanceTableCount;
+    //FontAsset.FontInfo.HorizontalAdvanceTable = HorizontalAdvanceTable;
 
-    FontAsset.GlyphCount = Count;
-    FontAsset.Glyphs = Glyphs;
+    //FontAsset.GlyphCount = Count;
+    //FontAsset.Glyphs = Glyphs;
 
-    //stbi_write_png("assets/font_atlas.png", Width, Height, Channels, Pixels, 0);
-    //stbi_write_bmp("assets/font_atlas.bmp", Width, Height, Channels, Pixels);
+    // just for testing
+    stbi_write_png("assets/font_atlas.png", Width, Height, Channels, Pixels, 0);
 
-    FILE *FontAssetFile = fopen("assets/font.fasset", "wb");
+    FILE *FontAssetFile = fopen(ASSET_FILE_NAME, "wb");
 
     font_asset_header FontAssetHeader = {};
     FontAssetHeader.MagicValue = 0x451;
@@ -188,11 +167,8 @@ int main(int argc, char **argv)
     FontAssetHeader.Glyphs = FontAssetHeader.HorizontalAdvanceTable + HorizontalAdvanceTableCount * sizeof(s32);
 
     fwrite(&FontAssetHeader, sizeof(FontAssetHeader), 1, FontAssetFile);
-
     fwrite(Pixels, sizeof(u8), Width * Height * Channels, FontAssetFile);
-
     fwrite(HorizontalAdvanceTable, sizeof(s32), HorizontalAdvanceTableCount, FontAssetFile);
-
     fwrite(Glyphs, sizeof(glyph_info), Count, FontAssetFile);
     
     fclose(FontAssetFile);
@@ -202,28 +178,6 @@ int main(int argc, char **argv)
     free(CharData);
     free(HorizontalAdvanceTable);
     free(Glyphs);
-
-    //{
-    //    FILE *File = fopen("assets/font.fasset", "rb");
-
-    //    font_asset_header Header;
-    //    fread(&Header, 1, sizeof(Header), File);
-
-    //    u8 *TextureAtlas = (u8 *)malloc(Width * Height * Channels * sizeof(u8));
-    //    fread(TextureAtlas, Width * Height * Channels, sizeof(u8), File);
-
-    //    s32 *HorizontalAdvanceTable = (s32 *)malloc(HorizontalAdvanceTableCount * sizeof(s32));
-    //    fread(HorizontalAdvanceTable, HorizontalAdvanceTableCount, sizeof(s32), File);
-
-    //    glyph_info *Glyphs = (glyph_info *)malloc(Count * sizeof(glyph_info));
-    //    fread(Glyphs, Count, sizeof(glyph_info), File);
-
-    //    fclose(File);
-    //    free(TextureAtlas);
-    //    free(HorizontalAdvanceTable);
-    //    free(Glyphs);
-    //}
-
 
     return 0;
 }

@@ -153,6 +153,60 @@ SetShaderUniform(game_memory *Memory, s32 Location, const mat4& Value)
     Memory->Renderer.glUniformMatrix4fv(Location, 1, GL_FALSE, glm::value_ptr(Value));
 }
 
+inline void
+SetShaderUniform(game_memory *Memory, shader_uniform *Uniform, s32 Value)
+{
+    if (Uniform)
+    {
+        Memory->Renderer.glUniform1i(Uniform->Location, Value);
+    }
+}
+
+inline void
+SetShaderUniform(game_memory *Memory, shader_uniform *Uniform, f32 Value)
+{
+    if (Uniform)
+    {
+        Memory->Renderer.glUniform1f(Uniform->Location, Value);
+    }
+}
+
+inline void
+SetShaderUniform(game_memory *Memory, shader_uniform *Uniform, vec2 Value)
+{
+    if (Uniform)
+    {
+        Memory->Renderer.glUniform2f(Uniform->Location, Value.x, Value.y);
+    }
+}
+
+inline void
+SetShaderUniform(game_memory *Memory, shader_uniform *Uniform, vec3 Value)
+{
+    if (Uniform)
+    {
+        Memory->Renderer.glUniform3f(Uniform->Location, Value.x, Value.y, Value.z);
+    }
+}
+
+inline void
+SetShaderUniform(game_memory *Memory, shader_uniform *Uniform, vec4 Value)
+{
+    if (Uniform)
+    {
+        Memory->Renderer.glUniform4f(Uniform->Location, Value.x, Value.y, Value.z, Value.w);
+    }
+}
+
+inline void
+SetShaderUniform(game_memory *Memory, shader_uniform *Uniform, const mat4& Value)
+{
+    if (Uniform)
+    {
+        Memory->Renderer.glUniformMatrix4fv(Uniform->Location, 1, GL_FALSE, glm::value_ptr(Value));
+    }
+}
+
 shader_program
 CreateShaderProgram(game_memory *Memory, game_state *GameState, char *VertexShaderFileName, char *FragmentShaderFileName)
 {
@@ -264,8 +318,8 @@ DrawRectangle(
     Model = glm::rotate(Model, Rotation->AngleInRadians, Rotation->Axis);
     Model = glm::translate(Model, vec3(-Size / 2.f, 0.f));
 
-    SetShaderUniform(Memory, ModelUniform->Location, Model);
-    SetShaderUniform(Memory, ColorUniform->Location, Color);
+    SetShaderUniform(Memory, ModelUniform, Model);
+    SetShaderUniform(Memory, ColorUniform, Color);
 
     Memory->Renderer.glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
@@ -291,7 +345,7 @@ DrawRectangleOutline(
     shader_uniform *ThicknessUniform = GetUniform(&GameState->RectangleOutlineShaderProgram, "u_Thickness");
     shader_uniform *WidthOverHeightUniform = GetUniform(&GameState->RectangleOutlineShaderProgram, "u_WidthOverHeight");
 
-    SetShaderUniform(Memory, WidthOverHeightUniform->Location, Size.x / Size.y);
+    SetShaderUniform(Memory, WidthOverHeightUniform, Size.x / Size.y);
 
     mat4 Model = mat4(1.f);
 
@@ -306,11 +360,11 @@ DrawRectangleOutline(
     Model = glm::rotate(Model, Rotation->AngleInRadians, Rotation->Axis);
     Model = glm::translate(Model, vec3(-Size / 2.f, 0.f));
 
-    SetShaderUniform(Memory, ModelUniform->Location, Model);
-    SetShaderUniform(Memory, ColorUniform->Location, Color);
+    SetShaderUniform(Memory, ModelUniform, Model);
+    SetShaderUniform(Memory, ColorUniform, Color);
 
     // meters to (0-1) uv-range
-    SetShaderUniform(Memory, ThicknessUniform->Location, Thickness / Size.x);
+    SetShaderUniform(Memory, ThicknessUniform, Thickness / Size.x);
 
     Memory->Renderer.glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
@@ -347,10 +401,28 @@ DrawSprite(
     Model = glm::rotate(Model, Rotation->AngleInRadians, Rotation->Axis);
     Model = glm::translate(Model, vec3(-Size / 2.f, 0.f));
 
-    SetShaderUniform(Memory, ModelUniform->Location, Model);
-    SetShaderUniform(Memory, UVUniform->Location, UV);
+    SetShaderUniform(Memory, ModelUniform, Model);
+    SetShaderUniform(Memory, UVUniform, UV);
 
     Memory->Renderer.glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+}
+
+s32 inline
+GetHorizontalAdvanceForPair(font_asset *Font, char Character, char NextCharacter)
+{
+    // todo: add start character or something
+    s32 Start = ' ';
+    s32 End = '~';
+    s32 Count = End - Start + 1;
+
+    u32 RowIndex = Character - Start;
+    u32 ColumnIndex = NextCharacter - Start;
+
+    assert((RowIndex * Count + ColumnIndex) < Font->FontInfo.HorizontalAdvanceTableCount);
+    
+    s32 *Result = Font->FontInfo.HorizontalAdvanceTable + RowIndex * Count + ColumnIndex;
+
+    return *Result;
 }
 
 void
@@ -358,13 +430,13 @@ DrawTextLine(
     game_memory *Memory,
     game_state *GameState,
     char *String,
-    vec2 TextPosition,
-    f32 InvTextSize,
+    vec2 TextBaselinePosition,
+    f32 TextScale,
     rotation_info *Rotation,
     vec4 TextColor
 )
 {
-    // todo: clean this mess asap
+    TextScale = 1.f;
     Memory->Renderer.glUseProgram(GameState->TextShaderProgram.ProgramHandle);
     Memory->Renderer.glBindVertexArray(GameState->QuadVertexBuffer.VAO);
     Memory->Renderer.glBindBuffer(GL_ARRAY_BUFFER, GameState->QuadVertexBuffer.VBO);
@@ -372,32 +444,30 @@ DrawTextLine(
     shader_uniform *TextColorUniform = GetUniform(&GameState->TextShaderProgram, "u_TextColor");
     SetShaderUniform(Memory, TextColorUniform->Location, TextColor);
 
-    f32 AtX = TextPosition.x;
+    vec2 TextureAtlasSize = vec2(GameState->Assets.FontInfo.TextureAtlas.Width, GameState->Assets.FontInfo.TextureAtlas.Height);
+
+    f32 AtX = TextBaselinePosition.x;
 
     for(char *Character = String; *Character; ++Character)
     {
-        vec2 Position = vec2(AtX, TextPosition.y);
+        vec2 Position = vec2(AtX, TextBaselinePosition.y);
 
         // todo: 
-        u32 GlyphIndex = *Character - '!';
+        u32 GlyphIndex = *Character - ' ';
 
         glyph_info *GlyphInfo = GameState->Assets.Glyphs + GlyphIndex;
-
-        if (*Character == ' ')
-        {
-            AtX += 42.f / InvTextSize;
-            continue;
-        }
+        
+        // todo: handle space properly
+        //if (*Character == ' ')
+        //{
+        //    AtX += 42.f * TextScale * GameState->PixelsToMeters;
+        //    continue;
+        //}
 
         shader_uniform *SpriteSizeUniform = GetUniform(&GameState->TextShaderProgram, "u_SpriteSize");
+        SetShaderUniform(Memory, SpriteSizeUniform->Location, GlyphInfo->SpriteSize / TextureAtlasSize);
 
-        if (SpriteSizeUniform)
-        {
-            SetShaderUniform(Memory, SpriteSizeUniform->Location, GlyphInfo->Size / 1024.f);
-        }
-
-        //vec2 Size = GlyphInfo->Size * GameState->PixelsToMeters;
-        vec2 Size = vec2(GlyphInfo->x1 - GlyphInfo->x0, GlyphInfo->y1 - GlyphInfo->y0) * GameState->PixelsToMeters;
+        vec2 Size = GlyphInfo->CharacterSize * GameState->PixelsToMeters * TextScale;
         vec2 UV = GlyphInfo->UV;
 
         shader_uniform *ModelUniform = GetUniform(&GameState->TextShaderProgram, "u_Model");
@@ -405,17 +475,7 @@ DrawTextLine(
 
         mat4 Model = mat4(1.f);
 
-        // translation
-        //vec2 Alignment = (GlyphInfo->Alignment + vec2(0.f, GameState->Assets.FontInfo.Descent)) * GameState->PixelsToMeters;
-        //vec2 Alignment = vec2(0.f, 0.f) * GameState->PixelsToMeters;
-
-        //if (*Character == 'y')
-        //{
-        //    Alignment = vec2(0.f, GameState->Assets.FontInfo.Descent) * GameState->PixelsToMeters;
-        //}
-        f32 Baseline = (f32)GameState->Assets.FontInfo.Ascent;
-
-        vec2 Alignment = GlyphInfo->Alignment * GameState->PixelsToMeters;
+        vec2 Alignment = vec2(0.f, GlyphInfo->Alignment.y) * GameState->PixelsToMeters * TextScale;
         Model = glm::translate(Model, vec3(Position + Alignment, 0.f));
 
         // scaling
@@ -427,14 +487,18 @@ DrawTextLine(
         Model = glm::translate(Model, vec3(-Size / 2.f, 0.f));
 
         SetShaderUniform(Memory, ModelUniform->Location, Model);
-        if (UVUniform)
-        {
-            SetShaderUniform(Memory, UVUniform->Location, UV);
-        }
+        SetShaderUniform(Memory, UVUniform->Location, UV);
 
         Memory->Renderer.glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-        AtX += Size.x;
+        s32 HorizontalAdvance = 0;
+        if (*(Character + 1))
+        {
+            HorizontalAdvance = GetHorizontalAdvanceForPair(&GameState->Assets, *Character, *(Character + 1));
+        }
+
+        AtX += HorizontalAdvance * GameState->PixelsToMeters * TextScale;
+        //AtX += Size.x + HorizontalAdvance * GameState->PixelsToMeters * TextScale;
     }
 }
 
