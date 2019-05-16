@@ -18,8 +18,8 @@ LoadGameAssets(platform_api *Platform, game_state *GameState)
     u8 *TextureAtlas = (u8 *)malloc(Header.TextureAtlasWidth * Header.TextureAtlasHeight * Header.TextureAtlasChannels * sizeof(u8));
     fread(TextureAtlas, Header.TextureAtlasWidth * Header.TextureAtlasHeight * Header.TextureAtlasChannels, sizeof(u8), File);
 
-    s32 *HorizontalAdvanceTable = (s32 *)malloc(Header.HorizontalAdvanceTableCount * sizeof(s32));
-    fread(HorizontalAdvanceTable, Header.HorizontalAdvanceTableCount, sizeof(s32), File);
+    f32 *HorizontalAdvanceTable = (f32 *)malloc(Header.HorizontalAdvanceTableCount * sizeof(f32));
+    fread(HorizontalAdvanceTable, Header.HorizontalAdvanceTableCount, sizeof(f32), File);
 
     glyph_info *Glyphs = (glyph_info *)malloc(Header.GlyphCount * sizeof(glyph_info));
     fread(Glyphs, Header.GlyphCount, sizeof(glyph_info), File);

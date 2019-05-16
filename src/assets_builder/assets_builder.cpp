@@ -1,4 +1,4 @@
-#define _CRT_SECURE_NO_WARNINGS
+﻿#define _CRT_SECURE_NO_WARNINGS
 
 #include <stdio.h>
 
@@ -31,7 +31,7 @@ int main(int ArgCount, char **Args)
     stbtt_fontinfo FontInfo;
     stbtt_InitFont(&FontInfo, FontBuffer, 0);
 
-    f32 FontHeight = 72.f;
+    f32 FontHeight = 70.f;
     f32 Scale = stbtt_ScaleForPixelHeight(&FontInfo, FontHeight);
 
     s32 Ascent, Descent, LineGap;
@@ -57,90 +57,79 @@ int main(int ArgCount, char **Args)
     stbtt_PackSetOversampling(&PackContext, hOverSample, vOverSample);
 
     s32 FontIndex = 0;
-    f32 FontSize = 72.f;
-    s32 Start = ' ';
-    s32 End = '~';
-    s32 Count = End - Start + 1;
-    stbtt_packedchar *CharData = (stbtt_packedchar *)malloc(Count * sizeof(stbtt_packedchar));
-    stbtt_PackFontRange(&PackContext, FontBuffer, FontIndex, FontSize, Start, Count, CharData);
+    f32 FontSize = FontHeight;
+
+    font_range English = {};
+    English.CodepointStart = ' ';
+    English.CodepointEnd = '~';
+    s32 EnglishCount = GetFontRangeCount(&English);
+
+    font_range Russian = {};
+    Russian.CodepointStart = 0x410;
+    Russian.CodepointEnd = 0x44F;
+    s32 RussianCount = GetFontRangeCount(&Russian);
+
+    s32 TotalCount = EnglishCount + RussianCount;
+
+    stbtt_packedchar *EnglishCharData = (stbtt_packedchar *)malloc(EnglishCount * sizeof(stbtt_packedchar));
+    stbtt_PackFontRange(&PackContext, FontBuffer, FontIndex, FontSize, English.CodepointStart, EnglishCount, EnglishCharData);
+
+    stbtt_packedchar *RussianCharData = (stbtt_packedchar *)malloc(RussianCount * sizeof(stbtt_packedchar));
+    stbtt_PackFontRange(&PackContext, FontBuffer, FontIndex, FontSize, Russian.CodepointStart, RussianCount, RussianCharData);
 
     stbtt_PackEnd(&PackContext);
 
-    glyph_info *Glyphs = (glyph_info *)malloc(Count * sizeof(glyph_info));
-    for (s32 GlyphIndex = 0; GlyphIndex < Count; ++GlyphIndex)
+    glyph_info *EnglishGlyphs = (glyph_info *)malloc(EnglishCount * sizeof(glyph_info));
+    for(s32 GlyphIndex = 0; GlyphIndex < EnglishCount; ++GlyphIndex)
     {
-        stbtt_packedchar *GlyphInfo = CharData + GlyphIndex;
+        stbtt_packedchar *GlyphInfo = EnglishCharData + GlyphIndex;
 
-        glyph_info *Glyph = Glyphs + GlyphIndex;
+        glyph_info *Glyph = EnglishGlyphs + GlyphIndex;
         *Glyph = {};
         Glyph->SpriteSize = vec2(GlyphInfo->x1 - GlyphInfo->x0, GlyphInfo->y1 - GlyphInfo->y0);
     }
 
-    u32 HorizontalAdvanceTableCount = Count * Count;
-    s32 *HorizontalAdvanceTable = (s32 *)malloc(HorizontalAdvanceTableCount * sizeof(s32));
+    glyph_info *RussianGlyphs = (glyph_info *)malloc(RussianCount * sizeof(glyph_info));
+    for(s32 GlyphIndex = 0; GlyphIndex < RussianCount; ++GlyphIndex)
+    {
+        stbtt_packedchar *GlyphInfo = RussianCharData + GlyphIndex;
+
+        glyph_info *Glyph = RussianGlyphs + GlyphIndex;
+        *Glyph = {};
+        Glyph->SpriteSize = vec2(GlyphInfo->x1 - GlyphInfo->x0, GlyphInfo->y1 - GlyphInfo->y0);
+    }
+
+    u32 HorizontalAdvanceTableCount = EnglishCount * EnglishCount;
+    f32 *HorizontalAdvanceTable = (f32 *)malloc(HorizontalAdvanceTableCount * sizeof(f32));
 
     u32 CharacterIndex = 0;
-    for(char Character = Start; Character <= End; ++Character)
+    for(char Character = English.CodepointStart; Character <= English.CodepointEnd; ++Character)
     {
-        s32 AdvanceWidth, LeftSideBearing;
-        stbtt_GetCodepointHMetrics(&FontInfo, Character, &AdvanceWidth, &LeftSideBearing);
-        AdvanceWidth = (s32)((f32)AdvanceWidth * Scale);
-        LeftSideBearing = (s32)((f32)LeftSideBearing * Scale);
+        f32 OffsetX = 0;
+        f32 OffsetY = 0;
+        stbtt_aligned_quad Quad;
+        stbtt_GetPackedQuad(EnglishCharData, Width, Height, Character - English.CodepointStart, &OffsetX, &OffsetY, &Quad, 1);
 
-        if (Character == 'I')
+        glyph_info *Glyph = EnglishGlyphs + CharacterIndex;
+
+        Glyph->CharacterSize = vec2(Quad.x1 - Quad.x0, Quad.y1 - Quad.y0);
+        Glyph->UV = vec2(Quad.s0, Quad.t0);
+        Glyph->Alignment = vec2(Quad.x0, -Quad.y1);
+
+        u32 OtherCharacterIndex = 0;
+        for(char OtherCharacter = English.CodepointStart; OtherCharacter <= English.CodepointEnd; ++OtherCharacter)
         {
-            int b = 0;
-        }
+            f32 *HorizontalAdvance = HorizontalAdvanceTable + CharacterIndex * EnglishCount + OtherCharacterIndex;
+            f32 Kerning = (f32)stbtt_GetCodepointKernAdvance(&FontInfo, Character, OtherCharacter);
+            Kerning = Kerning * Scale;
 
-        u32 AnotherCharacterIndex = 0;
-        for(char AnotherCharacter = Start; AnotherCharacter <= End; ++AnotherCharacter)
-        {
-            s32 *HorizontalAdvance = HorizontalAdvanceTable + CharacterIndex * Count + AnotherCharacterIndex;
-            s32 Kerning = stbtt_GetCodepointKernAdvance(&FontInfo, Character, AnotherCharacter);
-            Kerning = (s32)((f32)Kerning * Scale);
-            
-            *HorizontalAdvance = AdvanceWidth + Kerning;
+            *HorizontalAdvance = OffsetX + Kerning;
 
-            ++AnotherCharacterIndex;
+            ++OtherCharacterIndex;
         }
 
         ++CharacterIndex;
     }
-
-    {
-        f32 offsetX = 0;
-        f32 offsetY = 0;
-
-        u32 GlyphIndex = 0;
-        for(char Character = Start; Character <= End; ++Character)
-        {
-            stbtt_aligned_quad quad;
-            stbtt_GetPackedQuad(CharData, Width, Height, Character - Start, &offsetX, &offsetY, &quad, 1);
-
-            glyph_info *Glyph = Glyphs + GlyphIndex;
-
-            Glyph->CharacterSize = vec2(quad.x1 - quad.x0, quad.y1 - quad.y0);
-            Glyph->UV = vec2(quad.s0, quad.t0);
-            Glyph->Alignment = vec2(0, -quad.y1);
-
-            ++GlyphIndex;
-        }
-    }
-
-    //font_asset FontAsset = {};
-    //FontAsset.FontInfo.TextureAtlas = {};
-    //FontAsset.FontInfo.TextureAtlas.Width = Width;
-    //FontAsset.FontInfo.TextureAtlas.Height = Height;
-    //FontAsset.FontInfo.TextureAtlas.Channels = Channels;
-    //FontAsset.FontInfo.TextureAtlas.Memory = Pixels;
-
-    //FontAsset.FontInfo.VerticalAdvance = VerticalAdvance;
-
-    //FontAsset.FontInfo.HorizontalAdvanceTableCount = HorizontalAdvanceTableCount;
-    //FontAsset.FontInfo.HorizontalAdvanceTable = HorizontalAdvanceTable;
-
-    //FontAsset.GlyphCount = Count;
-    //FontAsset.Glyphs = Glyphs;
 
     // just for testing
     stbi_write_png("assets/font_atlas.png", Width, Height, Channels, Pixels, 0);
@@ -163,21 +152,23 @@ int main(int ArgCount, char **Args)
     FontAssetHeader.HorizontalAdvanceTableCount = HorizontalAdvanceTableCount;
     FontAssetHeader.HorizontalAdvanceTable = FontAssetHeader.TextureAtlas + Width * Height * Channels * sizeof(u8);
 
-    FontAssetHeader.GlyphCount = Count;
+    FontAssetHeader.GlyphCount = EnglishCount;
     FontAssetHeader.Glyphs = FontAssetHeader.HorizontalAdvanceTable + HorizontalAdvanceTableCount * sizeof(s32);
 
     fwrite(&FontAssetHeader, sizeof(FontAssetHeader), 1, FontAssetFile);
     fwrite(Pixels, sizeof(u8), Width * Height * Channels, FontAssetFile);
-    fwrite(HorizontalAdvanceTable, sizeof(s32), HorizontalAdvanceTableCount, FontAssetFile);
-    fwrite(Glyphs, sizeof(glyph_info), Count, FontAssetFile);
+    fwrite(HorizontalAdvanceTable, sizeof(f32), HorizontalAdvanceTableCount, FontAssetFile);
+    fwrite(EnglishGlyphs, sizeof(glyph_info), EnglishCount, FontAssetFile);
     
     fclose(FontAssetFile);
 
     free(FontBuffer);
     free(Pixels);
-    free(CharData);
+    free(EnglishCharData);
+    free(RussianCharData);
     free(HorizontalAdvanceTable);
-    free(Glyphs);
+    free(EnglishGlyphs);
+    free(RussianGlyphs);
 
     return 0;
 }

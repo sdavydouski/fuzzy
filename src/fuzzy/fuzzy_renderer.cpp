@@ -407,22 +407,27 @@ DrawSprite(
     Memory->Renderer.glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
-s32 inline
+f32 inline
 GetHorizontalAdvanceForPair(font_asset *Font, char Character, char NextCharacter)
 {
     // todo: add start character or something
+    f32 Result = 0.f;
+
     s32 Start = ' ';
     s32 End = '~';
     s32 Count = End - Start + 1;
 
-    u32 RowIndex = Character - Start;
-    u32 ColumnIndex = NextCharacter - Start;
+    s32 RowIndex = Character - Start;
+    s32 ColumnIndex = NextCharacter - Start;
 
-    assert((RowIndex * Count + ColumnIndex) < Font->FontInfo.HorizontalAdvanceTableCount);
-    
-    s32 *Result = Font->FontInfo.HorizontalAdvanceTable + RowIndex * Count + ColumnIndex;
+    if (RowIndex >= 0 && ColumnIndex >= 0)
+    {
+        assert((RowIndex * Count + ColumnIndex) < (s32)Font->FontInfo.HorizontalAdvanceTableCount);
 
-    return *Result;
+        Result = *(Font->FontInfo.HorizontalAdvanceTable + RowIndex * Count + ColumnIndex);
+    }
+
+    return Result;
 }
 
 void
@@ -436,7 +441,6 @@ DrawTextLine(
     vec4 TextColor
 )
 {
-    TextScale = 1.f;
     Memory->Renderer.glUseProgram(GameState->TextShaderProgram.ProgramHandle);
     Memory->Renderer.glBindVertexArray(GameState->QuadVertexBuffer.VAO);
     Memory->Renderer.glBindBuffer(GL_ARRAY_BUFFER, GameState->QuadVertexBuffer.VBO);
@@ -448,22 +452,18 @@ DrawTextLine(
 
     f32 AtX = TextBaselinePosition.x;
 
-    for(char *Character = String; *Character; ++Character)
+    for(char *At = String; *At; ++At)
     {
+        char Character = *At;
+        char NextCharacter = *(At + 1);
+
         vec2 Position = vec2(AtX, TextBaselinePosition.y);
 
         // todo: 
-        u32 GlyphIndex = *Character - ' ';
+        u32 GlyphIndex = Character - ' ';
 
         glyph_info *GlyphInfo = GameState->Assets.Glyphs + GlyphIndex;
         
-        // todo: handle space properly
-        //if (*Character == ' ')
-        //{
-        //    AtX += 42.f * TextScale * GameState->PixelsToMeters;
-        //    continue;
-        //}
-
         shader_uniform *SpriteSizeUniform = GetUniform(&GameState->TextShaderProgram, "u_SpriteSize");
         SetShaderUniform(Memory, SpriteSizeUniform->Location, GlyphInfo->SpriteSize / TextureAtlasSize);
 
@@ -475,7 +475,7 @@ DrawTextLine(
 
         mat4 Model = mat4(1.f);
 
-        vec2 Alignment = vec2(0.f, GlyphInfo->Alignment.y) * GameState->PixelsToMeters * TextScale;
+        vec2 Alignment = GlyphInfo->Alignment * GameState->PixelsToMeters * TextScale;
         Model = glm::translate(Model, vec3(Position + Alignment, 0.f));
 
         // scaling
@@ -491,14 +491,9 @@ DrawTextLine(
 
         Memory->Renderer.glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-        s32 HorizontalAdvance = 0;
-        if (*(Character + 1))
-        {
-            HorizontalAdvance = GetHorizontalAdvanceForPair(&GameState->Assets, *Character, *(Character + 1));
-        }
+        f32 HorizontalAdvance = GetHorizontalAdvanceForPair(&GameState->Assets, Character, NextCharacter);
 
         AtX += HorizontalAdvance * GameState->PixelsToMeters * TextScale;
-        //AtX += Size.x + HorizontalAdvance * GameState->PixelsToMeters * TextScale;
     }
 }
 

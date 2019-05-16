@@ -1846,7 +1846,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Rotation.AngleInRadians = 0.f;
         Rotation.Axis = vec3(0.f, 0.f, 1.f);
 
-        DrawTextLine(Memory, GameState, "TeVy", Position, 3.f, &Rotation, vec4(1.f, 1.f, 1.f, 1.f));
+        DrawTextLine(Memory, GameState, "TeVyTe WVAWTyYsWe", Position, 3.f, &Rotation, vec4(1.f, 1.f, 1.f, 1.f));
     }
 
     {

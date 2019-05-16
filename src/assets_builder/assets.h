@@ -3,6 +3,22 @@
 #include "fuzzy_types.h"
 #include "fuzzy_tiled.h"
 
+struct font_range
+{
+    s32 CodepointStart;
+    s32 CodepointEnd;
+};
+
+inline s32
+GetFontRangeCount(font_range *Range)
+{
+    s32 Result = Range->CodepointEnd - Range->CodepointStart + 1;
+
+    assert(Result > 0);
+
+    return Result;
+}
+
 // todo: save as normalised(0-1 range) coordinates?
 struct font_info
 {
@@ -13,7 +29,7 @@ struct font_info
     s32 Descent;
 
     u32 HorizontalAdvanceTableCount;
-    s32 *HorizontalAdvanceTable;
+    f32 *HorizontalAdvanceTable;
 };
 
 struct glyph_info
