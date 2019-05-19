@@ -1805,7 +1805,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Rotation.AngleInRadians = 0.f;
         Rotation.Axis = vec3(0.f, 0.f, 1.f);
 
-        DrawTextLine(Memory, GameState, "If_you_can_keep_your_head_when_all_about_you", Position, 0.5f, &Rotation, vec4(1.f, 1.f, 0.f, 1.f));
+        DrawTextLine(Memory, GameState, L"If_you_can_keep_your_head_when_all_about_you", Position, 0.5f, &Rotation, vec4(1.f, 1.f, 0.f, 1.f));
     }
 
     {
@@ -1815,7 +1815,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Rotation.AngleInRadians = 0.f; //radians((f32)GameState->Time * 100.f);
         Rotation.Axis = vec3(0.f, 1.f, 0.f);
 
-        DrawTextLine(Memory, GameState, "Are_losing_theirs_and_blaming_it_on_you,", Position, 1.f, &Rotation, vec4(0.f, 1.f, 1.f, 1.f));
+        DrawTextLine(Memory, GameState, L"Are_losing_theirs_and_blaming_it_on_you,", Position, 1.f, &Rotation, vec4(0.f, 1.f, 1.f, 1.f));
     }
 
     {
@@ -1825,19 +1825,19 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Rotation.AngleInRadians = 0.f;
         Rotation.Axis = vec3(0.f, 0.f, 1.f);
 
-        DrawTextLine(Memory, GameState, "If you can trust yourself when all men doubt you,", Position, 1.5f, &Rotation, vec4(1.f, 0.f, 1.f, 1.f));
+        DrawTextLine(Memory, GameState, L"If you can trust yourself when all men doubt you,", Position, 1.5f, &Rotation, vec4(1.f, 0.f, 1.f, 1.f));
     }
 
-    //{
-    //    vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
-    //        + vec2(1.f, GameState->ScreenHeightInMeters - 6.5f);
-    //    rotation_info Rotation = {};
-    //    Rotation.AngleInRadians = 0.f;
-    //    Rotation.Axis = vec3(0.f, 0.f, 1.f);
-    //    f32 InvTextSize = 400.f; //* AbsoluteValue((f32)sin(GameState->Time) * 0.2f + 0.5f);
+    ////{
+    ////    vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
+    ////        + vec2(1.f, GameState->ScreenHeightInMeters - 6.5f);
+    ////    rotation_info Rotation = {};
+    ////    Rotation.AngleInRadians = 0.f;
+    ////    Rotation.Axis = vec3(0.f, 0.f, 1.f);
+    ////    f32 InvTextSize = 400.f; //* AbsoluteValue((f32)sin(GameState->Time) * 0.2f + 0.5f);
 
-    //    DrawTextString(Memory, GameState, "But make allowance for their doubting too;", Position, InvTextSize, &Rotation, vec4(0.f, 1.f, 0.f, 1.f));
-    //}
+    ////    DrawTextString(Memory, GameState, "But make allowance for their doubting too;", Position, InvTextSize, &Rotation, vec4(0.f, 1.f, 0.f, 1.f));
+    ////}
 
     {
         vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
@@ -1846,7 +1846,17 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Rotation.AngleInRadians = 0.f;
         Rotation.Axis = vec3(0.f, 0.f, 1.f);
 
-        DrawTextLine(Memory, GameState, "TeVyTe WVAWTyYsWe", Position, 3.f, &Rotation, vec4(1.f, 1.f, 1.f, 1.f));
+        DrawTextLine(Memory, GameState, L"TeVyTe WVAWTyYsWe", Position, 2.5f, &Rotation, vec4(1.f, 1.f, 1.f, 1.f));
+    }
+
+    {
+        vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
+            + vec2(1.f, GameState->ScreenHeightInMeters - 8.f);
+        rotation_info Rotation = {};
+        Rotation.AngleInRadians = 0.f;
+        Rotation.Axis = vec3(0.f, 0.f, 1.f);
+
+        DrawTextLine(Memory, GameState, L"Раз, ТуТеТо, беседка, жук, Щи", Position, 2.f, &Rotation, vec4(1.f, 0.f, 0.f, 1.f));
     }
 
     {
@@ -1856,7 +1866,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Rotation.AngleInRadians = 0.f;
         Rotation.Axis = vec3(0.f, 0.f, 1.f);
 
-        DrawTextLine(Memory, GameState, "1234567890-=!@#$%^&*()_+.,/", Position, 0.3f, &Rotation, vec4(1.f, 1.f, 1.f, 1.f));
+        DrawTextLine(Memory, GameState, L"1234567890-=!@#$%^&*()_+.,/", Position, 0.3f, &Rotation, vec4(1.f, 1.f, 1.f, 1.f));
     }
 
     //entity_state PlayerState = *Top(&GameState->Player->StatesStack);

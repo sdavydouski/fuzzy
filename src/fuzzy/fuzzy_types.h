@@ -44,4 +44,6 @@ using b32 = s32;
 using f32 = float;
 using f64 = double;
 
+using wchar = wchar_t;
+
 using memory_index = size_t;

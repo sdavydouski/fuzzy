@@ -24,6 +24,9 @@ LoadGameAssets(platform_api *Platform, game_state *GameState)
     glyph_info *Glyphs = (glyph_info *)malloc(Header.GlyphCount * sizeof(glyph_info));
     fread(Glyphs, Header.GlyphCount, sizeof(glyph_info), File);
 
+    codepoints_range *CodepointsRanges = (codepoints_range *)malloc(Header.CodepointsRangeCount * sizeof(codepoints_range));
+    fread(CodepointsRanges, Header.CodepointsRangeCount, sizeof(codepoints_range), File);
+
     fclose(File);
     //free(TextureAtlas);
     //free(HorizontalAdvanceTable);
@@ -37,13 +40,16 @@ LoadGameAssets(platform_api *Platform, game_state *GameState)
     GameState->Assets.FontInfo.TextureAtlas.Memory = TextureAtlas;
 
     GameState->Assets.FontInfo.VerticalAdvance = Header.VerticalAdvance;
-    GameState->Assets.FontInfo.Ascent = Header.Ascent;
-    GameState->Assets.FontInfo.Descent = Header.Descent;
+    //GameState->Assets.FontInfo.Ascent = Header.Ascent;
+    //GameState->Assets.FontInfo.Descent = Header.Descent;
 
     GameState->Assets.FontInfo.HorizontalAdvanceTableCount = Header.HorizontalAdvanceTableCount;
     GameState->Assets.FontInfo.HorizontalAdvanceTable = HorizontalAdvanceTable;
 
     GameState->Assets.GlyphCount = Header.GlyphCount;
     GameState->Assets.Glyphs = Glyphs;
+
+    GameState->Assets.FontInfo.CodepointsRangeCount = Header.CodepointsRangeCount;
+    GameState->Assets.FontInfo.CodepointsRanges = CodepointsRanges;
 #endif
 }

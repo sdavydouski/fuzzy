@@ -3,35 +3,39 @@
 #include "fuzzy_types.h"
 #include "fuzzy_tiled.h"
 
-struct font_range
+struct codepoints_range
 {
-    s32 CodepointStart;
-    s32 CodepointEnd;
+    u32 Start;
+    u32 End;
+    u32 Count;
 };
 
-inline s32
-GetFontRangeCount(font_range *Range)
+inline u32
+GetCodepointsRangeCount(codepoints_range *Range)
 {
-    s32 Result = Range->CodepointEnd - Range->CodepointStart + 1;
+    u32 Result = (Range->End - Range->Start) + 1;
 
     assert(Result > 0);
 
     return Result;
 }
 
-// todo: save as normalised(0-1 range) coordinates?
 struct font_info
 {
     bitmap TextureAtlas;
 
     s32 VerticalAdvance;
-    s32 Ascent;
-    s32 Descent;
+    //s32 Ascent;
+    //s32 Descent;
 
     u32 HorizontalAdvanceTableCount;
     f32 *HorizontalAdvanceTable;
+
+    u32 CodepointsRangeCount;
+    codepoints_range *CodepointsRanges;
 };
 
+// todo: just glyph?
 struct glyph_info
 {
     vec2 SpriteSize;
@@ -53,11 +57,14 @@ struct font_asset_header
     u64 TextureAtlas;
 
     s32 VerticalAdvance;
-    s32 Ascent;
-    s32 Descent;
+    //s32 Ascent;
+    //s32 Descent;
 
     u32 HorizontalAdvanceTableCount;
     u64 HorizontalAdvanceTable;
+
+    u32 CodepointsRangeCount;
+    u64 CodepointsRanges;
 
     u32 GlyphCount;
     u64 Glyphs;

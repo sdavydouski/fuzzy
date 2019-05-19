@@ -74,6 +74,7 @@
     <LibraryPath>$(SolutionDir)\build\libs\;$(LibraryPath)</LibraryPath>
     <OutDir>$(SolutionDir)\build\$(Configuration)\$(Platform)\</OutDir>
     <IntDir>$(SolutionDir)\build\$(Configuration)\$(Platform)\$(ProjectName)\intermediate\</IntDir>
+    <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LibraryPath>$(SolutionDir)\build\libs\;$(LibraryPath)</LibraryPath>
@@ -96,19 +97,20 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir)\externals\json\src\;$(SolutionDir)\externals\stb\;$(SolutionDir)\externals\glm\;$(SolutionDir)\generated\glad\include;$(SolutionDir)\externals\glfw\include;%(AdditionalIncludeDirectories);D:\C++\VisualStudio\fuzzy\src\fuzzy</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\externals\glm\;$(SolutionDir)\externals\stb\;$(SolutionDir)\generated\glad\include\;$(SolutionDir)\externals\glfw\include;$(SolutionDir)\src\fuzzy;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <MinimalRebuild>false</MinimalRebuild>
       <PreprocessorDefinitions>%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <CallingConvention>Cdecl</CallingConvention>
       <LanguageStandard>stdcpplatest</LanguageStandard>
-      <TreatWarningAsError>true</TreatWarningAsError>
+      <TreatWarningAsError>false</TreatWarningAsError>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>glfw3.lib;shell32.lib;gdi32.lib;user32.lib;kernel32.lib</AdditionalDependencies>
+      <AdditionalDependencies>glfw3.lib;shell32.lib;gdi32.lib;user32.lib;kernel32.lib;opengl32.lib;</AdditionalDependencies>
       <EntryPointSymbol>
       </EntryPointSymbol>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <BuildLog>
       <Path>$(SolutionDir)\build\$(Configuration)\$(Platform)\$(MSBuildProjectName).log</Path>
@@ -146,7 +148,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir)\externals\json\include\;$(SolutionDir)\externals\stb\;$(SolutionDir)\externals\glm\;$(SolutionDir)\generated\glad\include;$(SolutionDir)\externals\glfw\include;%(AdditionalIncludeDirectories);D:\C++\VisualStudio\fuzzy\src\fuzzy</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\externals\glm\;$(SolutionDir)\externals\stb\;$(SolutionDir)\generated\glad\include\;$(SolutionDir)\externals\glfw\include;$(SolutionDir)\src\fuzzy;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <PreprocessorDefinitions>%(PreprocessorDefinitions)</PreprocessorDefinitions>

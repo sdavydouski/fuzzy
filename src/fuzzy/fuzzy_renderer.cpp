@@ -407,34 +407,64 @@ DrawSprite(
     Memory->Renderer.glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
-f32 inline
-GetHorizontalAdvanceForPair(font_asset *Font, char Character, char NextCharacter)
+inline u32
+GetCharacterGlyphIndex(font_asset *Font, wchar Character)
 {
-    // todo: add start character or something
+    u32 GlyphIndex = 0;
+
+    for (u32 CodepointsRangeIndex = 0; CodepointsRangeIndex < Font->FontInfo.CodepointsRangeCount; ++CodepointsRangeIndex)
+    {
+        codepoints_range *CodepointsRange = Font->FontInfo.CodepointsRanges + CodepointsRangeIndex;
+
+        u32 Index = Character - CodepointsRange->Start;
+
+        if (Index < CodepointsRange->Count)
+        {
+            GlyphIndex += Index;
+            break;
+        }
+        else
+        {
+            GlyphIndex += CodepointsRange->Count;
+        }
+    }
+
+    return GlyphIndex;
+}
+
+f32 inline
+GetHorizontalAdvanceForPair(font_asset *Font, wchar Character, wchar NextCharacter)
+{
     f32 Result = 0.f;
 
-    s32 Start = ' ';
-    s32 End = '~';
-    s32 Count = End - Start + 1;
-
-    s32 RowIndex = Character - Start;
-    s32 ColumnIndex = NextCharacter - Start;
+    s32 RowIndex = GetCharacterGlyphIndex(Font, Character);
+    s32 ColumnIndex = GetCharacterGlyphIndex(Font, NextCharacter);
 
     if (RowIndex >= 0 && ColumnIndex >= 0)
     {
-        assert((RowIndex * Count + ColumnIndex) < (s32)Font->FontInfo.HorizontalAdvanceTableCount);
+        assert((RowIndex * Font->GlyphCount + ColumnIndex) < (s32)Font->FontInfo.HorizontalAdvanceTableCount);
 
-        Result = *(Font->FontInfo.HorizontalAdvanceTable + RowIndex * Count + ColumnIndex);
+        Result = *(Font->FontInfo.HorizontalAdvanceTable + RowIndex * Font->GlyphCount + ColumnIndex);
     }
 
     return Result;
 }
 
+inline glyph_info *
+GetCharacterGlyph(font_asset *Font, wchar Character)
+{
+    u32 GlyphIndex = GetCharacterGlyphIndex(Font, Character);
+    glyph_info *Result = Font->Glyphs + GlyphIndex;
+
+    return Result;
+}
+
+
 void
 DrawTextLine(
     game_memory *Memory,
     game_state *GameState,
-    char *String,
+    wchar *String,
     vec2 TextBaselinePosition,
     f32 TextScale,
     rotation_info *Rotation,
@@ -452,17 +482,14 @@ DrawTextLine(
 
     f32 AtX = TextBaselinePosition.x;
 
-    for(char *At = String; *At; ++At)
+    for(wchar *At = String; *At; ++At)
     {
-        char Character = *At;
-        char NextCharacter = *(At + 1);
+        wchar Character = *At;
+        wchar NextCharacter = *(At + 1);
 
         vec2 Position = vec2(AtX, TextBaselinePosition.y);
 
-        // todo: 
-        u32 GlyphIndex = Character - ' ';
-
-        glyph_info *GlyphInfo = GameState->Assets.Glyphs + GlyphIndex;
+        glyph_info *GlyphInfo = GetCharacterGlyph(&GameState->Assets, Character);
         
         shader_uniform *SpriteSizeUniform = GetUniform(&GameState->TextShaderProgram, "u_SpriteSize");
         SetShaderUniform(Memory, SpriteSizeUniform->Location, GlyphInfo->SpriteSize / TextureAtlasSize);
