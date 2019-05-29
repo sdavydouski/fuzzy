@@ -13,9 +13,15 @@
 
 #include "assets.h"
 
-int main(int ArgCount, char **Args)
+void
+PrepareFontAsset(
+    char *FontFileName,
+    f32 FontHeight,
+    char *FontTextureAtlasFileName, 
+    font_asset *FontAsset
+)
 {
-    FILE *FontFile = fopen("c:/windows/fonts/arial.ttf", "rb");
+    FILE *FontFile = fopen(FontFileName, "rb");
 
     fseek(FontFile, 0, SEEK_END);
     u32 FileSize = ftell(FontFile);
@@ -30,7 +36,6 @@ int main(int ArgCount, char **Args)
     stbtt_fontinfo FontInfo;
     stbtt_InitFont(&FontInfo, FontBuffer, 0);
 
-    f32 FontHeight = 70.f;
     f32 Scale = stbtt_ScaleForPixelHeight(&FontInfo, FontHeight);
 
     s32 Ascent, Descent, LineGap;
@@ -80,11 +85,11 @@ int main(int ArgCount, char **Args)
 
     stbtt_PackEnd(&PackContext);
 
-    glyph_info *Glyphs = (glyph_info *)malloc(TotalCodepointCount * sizeof(glyph_info));
+    glyph *Glyphs = (glyph *)malloc(TotalCodepointCount * sizeof(glyph));
 
     for(u32 GlyphIndex = 0; GlyphIndex < TotalCodepointCount; ++GlyphIndex)
     {
-        glyph_info *Glyph = Glyphs + GlyphIndex;
+        glyph *Glyph = Glyphs + GlyphIndex;
 
         stbtt_packedchar *GlyphInfo = nullptr;
 
@@ -135,14 +140,14 @@ int main(int ArgCount, char **Args)
             InvalidCodePath;
         }
 
-        wchar_t Character = Encoding->Start + CharacterIndex;
+        wchar Character = Encoding->Start + CharacterIndex;
 
         f32 OffsetX = 0;
         f32 OffsetY = 0;
         stbtt_aligned_quad Quad;
         stbtt_GetPackedQuad(CharData, TextureWidth, TextureHeight, Character - Encoding->Start, &OffsetX, &OffsetY, &Quad, 1);
 
-        glyph_info *Glyph = Glyphs + CodepointIndex;
+        glyph *Glyph = Glyphs + CodepointIndex;
 
         Glyph->CharacterSize = vec2(Quad.x1 - Quad.x0, Quad.y1 - Quad.y0);
         Glyph->UV = vec2(Quad.s0, Quad.t0);
@@ -170,7 +175,7 @@ int main(int ArgCount, char **Args)
                 InvalidCodePath;
             }
 
-            wchar_t OtherCharacter = Encoding->Start + OtherCharacterIndex;
+            wchar OtherCharacter = Encoding->Start + OtherCharacterIndex;
 
             f32 *HorizontalAdvance = HorizontalAdvanceTable + CodepointIndex * TotalCodepointCount + OtherCodepointIndex;
             f32 Kerning = (f32)stbtt_GetCodepointKernAdvance(&FontInfo, Character, OtherCharacter);
@@ -184,50 +189,129 @@ int main(int ArgCount, char **Args)
         ++CodepointIndex;
     }
 
-    // just for testing
-    stbi_write_png("assets/font_atlas.png", TextureWidth, TextureHeight, TextureChannels, Pixels, 0);
+    // for testing
+    stbi_write_png(FontTextureAtlasFileName, TextureWidth, TextureHeight, TextureChannels, Pixels, 0);
 
-    FILE *FontAssetFile = fopen("assets/font.fasset", "wb");
+    //FILE *FontAssetFile = fopen(FontAssetFileName, "wb");
 
-    font_asset_header FontAssetHeader = {};
-    FontAssetHeader.MagicValue = 0x451;
-    FontAssetHeader.Version = 1;
-
-    u32 PixelCount = TextureWidth * TextureHeight * TextureChannels;
-
-    FontAssetHeader.TextureAtlasWidth = TextureWidth;
-    FontAssetHeader.TextureAtlasHeight = TextureHeight;
-    FontAssetHeader.TextureAtlasChannels = TextureChannels;
-    FontAssetHeader.TextureAtlas = sizeof(FontAssetHeader);
-
-    FontAssetHeader.VerticalAdvance = VerticalAdvance;
-    //FontAssetHeader.Ascent = Ascent;
-    //FontAssetHeader.Descent = Descent;
-
-    FontAssetHeader.HorizontalAdvanceTableCount = HorizontalAdvanceTableCount;
-    FontAssetHeader.HorizontalAdvanceTable = FontAssetHeader.TextureAtlas + PixelCount * sizeof(u8);
-
-    FontAssetHeader.GlyphCount = TotalCodepointCount;
-    FontAssetHeader.Glyphs = FontAssetHeader.HorizontalAdvanceTable + HorizontalAdvanceTableCount * sizeof(s32);
-
-    FontAssetHeader.CodepointsRangeCount = CodepointsRangeCount;
-    FontAssetHeader.CodepointsRanges = FontAssetHeader.Glyphs + TotalCodepointCount * sizeof(glyph_info);
-
-    fwrite(&FontAssetHeader, sizeof(FontAssetHeader), 1, FontAssetFile);
-    fwrite(Pixels, sizeof(u8), PixelCount, FontAssetFile);
-    fwrite(HorizontalAdvanceTable, sizeof(f32), HorizontalAdvanceTableCount, FontAssetFile);
-    fwrite(Glyphs, sizeof(glyph_info), TotalCodepointCount, FontAssetFile);
-    fwrite(CodepointsRanges, sizeof(codepoints_range), CodepointsRangeCount, FontAssetFile);
+    //FontAsset->Name = FontName;
     
-    fclose(FontAssetFile);
+    FontAsset->TextureAtlas.Width = TextureWidth;
+    FontAsset->TextureAtlas.Height = TextureHeight;
+    FontAsset->TextureAtlas.Channels = TextureChannels;
+    FontAsset->TextureAtlas.Memory = Pixels;
 
+    FontAsset->VerticalAdvance = VerticalAdvance;
+    FontAsset->Ascent = Ascent;
+    FontAsset->Descent = Descent;
+
+    FontAsset->CodepointsRangeCount = CodepointsRangeCount;
+    FontAsset->CodepointsRanges = CodepointsRanges;
+
+    FontAsset->HorizontalAdvanceTableCount = HorizontalAdvanceTableCount;
+    FontAsset->HorizontalAdvanceTable = HorizontalAdvanceTable;
+
+    FontAsset->GlyphCount = TotalCodepointCount;
+    FontAsset->Glyphs = Glyphs;
+
+    
     free(FontBuffer);
-    free(Pixels);
-    free(LatinCharData);
-    free(CyrillicCharData);
-    free(HorizontalAdvanceTable);
-    free(Glyphs);
-    free(CodepointsRanges);
+    //free(Pixels);
+    //free(LatinCharData);
+    //free(CyrillicCharData);
+    //free(HorizontalAdvanceTable);
+    //free(Glyphs);
+    //free(CodepointsRanges);
+}
+
+// todo: check for memory leaks (do i care?)
+void
+PackFonts()
+{
+    u32 FontAssetCount = 2;
+    font_asset *FontAssets = (font_asset *)malloc(FontAssetCount * sizeof(font_asset));
+
+    PrepareFontAsset((char *)"c:/windows/fonts/arial.ttf", 70.f, (char *)"assets/font_arial.png", FontAssets + 0);
+    PrepareFontAsset((char *)"c:/windows/fonts/lucon.ttf", 60.f, (char *)"assets/font_lucida.png", FontAssets + 1);
+
+    asset_header Header = {};
+    Header.MagicValue = 0x451;
+    Header.Version = 1;
+
+    Header.FontCount = FontAssetCount;
+    Header.FontsOffset = sizeof(asset_header);
+
+    FILE *AssetFile = fopen("assets/data.fasset", "wb");
+
+    fwrite(&Header, sizeof(asset_header), 1, AssetFile);
+
+    for (u32 FontAssetIndex = 0; FontAssetIndex < FontAssetCount; ++FontAssetIndex) {
+        font_asset *FontAsset = FontAssets + FontAssetIndex;
+
+        font_asset_header FontAssetHeader = {};
+
+        s32 PixelCount = FontAsset->TextureAtlas.Width * FontAsset->TextureAtlas.Height * FontAsset->TextureAtlas.Channels;
+
+        FontAssetHeader.TextureAtlasWidth = FontAsset->TextureAtlas.Width;
+        FontAssetHeader.TextureAtlasHeight = FontAsset->TextureAtlas.Height;
+        FontAssetHeader.TextureAtlasChannels = FontAsset->TextureAtlas.Channels;
+        FontAssetHeader.TextureAtlasOffset = Header.FontsOffset + FontAssetIndex * sizeof(font_asset_header);
+
+        FontAssetHeader.VerticalAdvance = FontAsset->VerticalAdvance;
+        FontAssetHeader.Ascent = FontAsset->Ascent;
+        FontAssetHeader.Descent = FontAsset->Descent;
+
+        FontAssetHeader.CodepointsRangeCount = FontAsset->CodepointsRangeCount;
+        FontAssetHeader.CodepointsRangesOffset = FontAssetHeader.TextureAtlasOffset + PixelCount * sizeof(u8);
+
+        FontAssetHeader.HorizontalAdvanceTableCount = FontAsset->HorizontalAdvanceTableCount;
+        FontAssetHeader.HorizontalAdvanceTableOffset = FontAssetHeader.CodepointsRangesOffset + FontAsset->CodepointsRangeCount * sizeof(codepoints_range);
+
+        FontAssetHeader.GlyphCount = FontAsset->GlyphCount;
+        FontAssetHeader.GlyphsOffset = FontAssetHeader.HorizontalAdvanceTableOffset + FontAsset->HorizontalAdvanceTableCount * sizeof(f32);
+
+        fwrite(&FontAssetHeader, sizeof(FontAssetHeader), 1, AssetFile);
+        fwrite(FontAsset->TextureAtlas.Memory, sizeof(u8), PixelCount, AssetFile);
+        fwrite(FontAsset->HorizontalAdvanceTable, sizeof(f32), FontAsset->HorizontalAdvanceTableCount, AssetFile);
+        fwrite(FontAsset->CodepointsRanges, sizeof(codepoints_range), FontAsset->CodepointsRangeCount, AssetFile);
+        fwrite(FontAsset->Glyphs, sizeof(glyph), FontAsset->GlyphCount, AssetFile);
+    }
+
+    fclose(AssetFile);
+    free(FontAssets);
+
+#if 0
+    {
+        FILE *File = fopen("assets/data.fasset", "rb");
+
+        asset_header AssetHeader;
+        fread(&AssetHeader, 1, sizeof(asset_header), File);
+
+        for (u32 FontAssetIndex = 0; FontAssetIndex < AssetHeader.FontCount; ++FontAssetIndex) {
+            font_asset_header FontAssetHeader;
+            fread(&FontAssetHeader, 1, sizeof(font_asset_header), File);
+
+            u8 *TextureAtlas = (u8 *)malloc(FontAssetHeader.TextureAtlasWidth * FontAssetHeader.TextureAtlasHeight * FontAssetHeader.TextureAtlasChannels * sizeof(u8));
+            fread(TextureAtlas, FontAssetHeader.TextureAtlasWidth * FontAssetHeader.TextureAtlasHeight * FontAssetHeader.TextureAtlasChannels, sizeof(u8), File);
+
+            f32 *HorizontalAdvanceTable = (f32 *)malloc(FontAssetHeader.HorizontalAdvanceTableCount * sizeof(f32));
+            fread(HorizontalAdvanceTable, FontAssetHeader.HorizontalAdvanceTableCount, sizeof(f32), File);
+
+            codepoints_range *CodepointsRanges = (codepoints_range *)malloc(FontAssetHeader.CodepointsRangeCount * sizeof(codepoints_range));
+            fread(CodepointsRanges, FontAssetHeader.CodepointsRangeCount, sizeof(codepoints_range), File);
+
+            glyph *Glyphs = (glyph *)malloc(FontAssetHeader.GlyphCount * sizeof(glyph));
+            fread(Glyphs, FontAssetHeader.GlyphCount, sizeof(glyph), File);
+        }
+
+        fclose(File);
+    }
+#endif
+}
+
+int main(int ArgCount, char **Args)
+{
+    PackFonts();
 
     return 0;
 }

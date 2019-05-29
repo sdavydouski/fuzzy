@@ -20,60 +20,57 @@ GetCodepointsRangeCount(codepoints_range *Range)
     return Result;
 }
 
-struct font_info
-{
-    bitmap TextureAtlas;
-
-    s32 VerticalAdvance;
-    //s32 Ascent;
-    //s32 Descent;
-
-    u32 HorizontalAdvanceTableCount;
-    f32 *HorizontalAdvanceTable;
-
-    u32 CodepointsRangeCount;
-    codepoints_range *CodepointsRanges;
-};
-
-// todo: just glyph?
-struct glyph_info
+struct glyph
 {
     vec2 SpriteSize;
     vec2 CharacterSize;
-    // top-left
     vec2 UV;
     vec2 Alignment;
 };
 
-// todo: generalize to more assets (not just font)
-struct font_asset_header
+struct font_asset
 {
-    s32 MagicValue;
-    s32 Version;
-    
+    bitmap TextureAtlas;
+
+    s32 VerticalAdvance;
+    s32 Ascent;
+    s32 Descent;
+
+    u32 CodepointsRangeCount;
+    codepoints_range *CodepointsRanges;
+
+    u32 HorizontalAdvanceTableCount;
+    f32 *HorizontalAdvanceTable;
+
+    u32 GlyphCount;
+    glyph *Glyphs;
+};
+
+struct font_asset_header {
     s32 TextureAtlasWidth;
     s32 TextureAtlasHeight;
     s32 TextureAtlasChannels;
-    u64 TextureAtlas;
+    u64 TextureAtlasOffset;
 
     s32 VerticalAdvance;
-    //s32 Ascent;
-    //s32 Descent;
-
-    u32 HorizontalAdvanceTableCount;
-    u64 HorizontalAdvanceTable;
+    s32 Ascent;
+    s32 Descent;
 
     u32 CodepointsRangeCount;
-    u64 CodepointsRanges;
+    u64 CodepointsRangesOffset;
+
+    u32 HorizontalAdvanceTableCount;
+    u64 HorizontalAdvanceTableOffset;
 
     u32 GlyphCount;
-    u64 Glyphs;
+    u64 GlyphsOffset;
 };
 
-struct font_asset
+struct asset_header
 {
-    font_info FontInfo;
+    s32 MagicValue;
+    s32 Version;
 
-    u32 GlyphCount;
-    glyph_info *Glyphs;
+    u32 FontCount;
+    u64 FontsOffset;
 };

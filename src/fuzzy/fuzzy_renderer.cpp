@@ -412,9 +412,9 @@ GetCharacterGlyphIndex(font_asset *Font, wchar Character)
 {
     u32 GlyphIndex = 0;
 
-    for (u32 CodepointsRangeIndex = 0; CodepointsRangeIndex < Font->FontInfo.CodepointsRangeCount; ++CodepointsRangeIndex)
+    for (u32 CodepointsRangeIndex = 0; CodepointsRangeIndex < Font->CodepointsRangeCount; ++CodepointsRangeIndex)
     {
-        codepoints_range *CodepointsRange = Font->FontInfo.CodepointsRanges + CodepointsRangeIndex;
+        codepoints_range *CodepointsRange = Font->CodepointsRanges + CodepointsRangeIndex;
 
         u32 Index = Character - CodepointsRange->Start;
 
@@ -442,19 +442,19 @@ GetHorizontalAdvanceForPair(font_asset *Font, wchar Character, wchar NextCharact
 
     if (RowIndex >= 0 && ColumnIndex >= 0)
     {
-        assert((RowIndex * Font->GlyphCount + ColumnIndex) < (s32)Font->FontInfo.HorizontalAdvanceTableCount);
+        assert((RowIndex * Font->GlyphCount + ColumnIndex) < (s32)Font->HorizontalAdvanceTableCount);
 
-        Result = *(Font->FontInfo.HorizontalAdvanceTable + RowIndex * Font->GlyphCount + ColumnIndex);
+        Result = *(Font->HorizontalAdvanceTable + RowIndex * Font->GlyphCount + ColumnIndex);
     }
 
     return Result;
 }
 
-inline glyph_info *
+inline glyph *
 GetCharacterGlyph(font_asset *Font, wchar Character)
 {
     u32 GlyphIndex = GetCharacterGlyphIndex(Font, Character);
-    glyph_info *Result = Font->Glyphs + GlyphIndex;
+    glyph *Result = Font->Glyphs + GlyphIndex;
 
     return Result;
 }
@@ -468,7 +468,8 @@ DrawTextLine(
     vec2 TextBaselinePosition,
     f32 TextScale,
     rotation_info *Rotation,
-    vec4 TextColor
+    vec4 TextColor,
+    font_asset *Font
 )
 {
     Memory->Renderer.glUseProgram(GameState->TextShaderProgram.ProgramHandle);
@@ -478,7 +479,7 @@ DrawTextLine(
     shader_uniform *TextColorUniform = GetUniform(&GameState->TextShaderProgram, "u_TextColor");
     SetShaderUniform(Memory, TextColorUniform->Location, TextColor);
 
-    vec2 TextureAtlasSize = vec2(GameState->Assets.FontInfo.TextureAtlas.Width, GameState->Assets.FontInfo.TextureAtlas.Height);
+    vec2 TextureAtlasSize = vec2(Font->TextureAtlas.Width, Font->TextureAtlas.Height);
 
     f32 AtX = TextBaselinePosition.x;
 
@@ -489,7 +490,7 @@ DrawTextLine(
 
         vec2 Position = vec2(AtX, TextBaselinePosition.y);
 
-        glyph_info *GlyphInfo = GetCharacterGlyph(&GameState->Assets, Character);
+        glyph *GlyphInfo = GetCharacterGlyph(Font, Character);
         
         shader_uniform *SpriteSizeUniform = GetUniform(&GameState->TextShaderProgram, "u_SpriteSize");
         SetShaderUniform(Memory, SpriteSizeUniform->Location, GlyphInfo->SpriteSize / TextureAtlasSize);
@@ -518,7 +519,7 @@ DrawTextLine(
 
         Memory->Renderer.glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-        f32 HorizontalAdvance = GetHorizontalAdvanceForPair(&GameState->Assets, Character, NextCharacter);
+        f32 HorizontalAdvance = GetHorizontalAdvanceForPair(Font, Character, NextCharacter);
 
         AtX += HorizontalAdvance * GameState->PixelsToMeters * TextScale;
     }

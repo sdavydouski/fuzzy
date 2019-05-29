@@ -157,7 +157,10 @@ struct game_state
     u32 TilesetTexture;
     u32 FontTextureAtlas;
 
-    font_asset Assets;
+    u32 FontAssetCount;
+    font_asset *FontAssets;
+
+    font_asset *CurrentFont;
 
     f32 PixelsToMeters;
     f32 MetersToPixels;

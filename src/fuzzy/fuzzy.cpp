@@ -1,4 +1,4 @@
-#define _CRT_SECURE_NO_WARNINGS
+ï»¿#define _CRT_SECURE_NO_WARNINGS
 
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"
@@ -345,6 +345,8 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
         LoadGameAssets(&Memory->Platform, GameState);
 
+        GameState->CurrentFont = GameState->FontAssets + 1;
+
         GameState->ScreenWidthInMeters = 20.f;
         f32 MetersToPixels = (f32)ScreenWidth / GameState->ScreenWidthInMeters;
         f32 PixelsToMeters = 1.f / MetersToPixels;
@@ -386,8 +388,8 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Renderer->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         Renderer->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-        Renderer->glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, GameState->Assets.FontInfo.TextureAtlas.Width, GameState->Assets.FontInfo.TextureAtlas.Height,
-            0, GL_RED, GL_UNSIGNED_BYTE, GameState->Assets.FontInfo.TextureAtlas.Memory);
+        Renderer->glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, GameState->CurrentFont->TextureAtlas.Width, GameState->CurrentFont->TextureAtlas.Height,
+            0, GL_RED, GL_UNSIGNED_BYTE, GameState->CurrentFont->TextureAtlas.Memory);
 
         vec2 TileSize01 = vec2((f32)Tileset->TileWidthInPixels / (f32)Tileset->Image.Width,
             (f32)Tileset->TileHeightInPixels / (f32)Tileset->Image.Height);
@@ -1805,7 +1807,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Rotation.AngleInRadians = 0.f;
         Rotation.Axis = vec3(0.f, 0.f, 1.f);
 
-        DrawTextLine(Memory, GameState, L"If_you_can_keep_your_head_when_all_about_you", Position, 0.5f, &Rotation, vec4(1.f, 1.f, 0.f, 1.f));
+        DrawTextLine(Memory, GameState, L"If_you_can_keep_your_head_when_all_about_you", Position, 0.5f, &Rotation, vec4(1.f, 1.f, 0.f, 1.f), GameState->CurrentFont);
     }
 
     {
@@ -1815,7 +1817,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Rotation.AngleInRadians = 0.f; //radians((f32)GameState->Time * 100.f);
         Rotation.Axis = vec3(0.f, 1.f, 0.f);
 
-        DrawTextLine(Memory, GameState, L"Are_losing_theirs_and_blaming_it_on_you,", Position, 1.f, &Rotation, vec4(0.f, 1.f, 1.f, 1.f));
+        DrawTextLine(Memory, GameState, L"Are_losing_theirs_and_blaming_it_on_you,", Position, 1.f, &Rotation, vec4(0.f, 1.f, 1.f, 1.f), GameState->CurrentFont);
     }
 
     {
@@ -1825,7 +1827,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Rotation.AngleInRadians = 0.f;
         Rotation.Axis = vec3(0.f, 0.f, 1.f);
 
-        DrawTextLine(Memory, GameState, L"If you can trust yourself when all men doubt you,", Position, 1.5f, &Rotation, vec4(1.f, 0.f, 1.f, 1.f));
+        DrawTextLine(Memory, GameState, L"If you can trust yourself when all men doubt you,", Position, 1.5f, &Rotation, vec4(1.f, 0.f, 1.f, 1.f), GameState->CurrentFont);
     }
 
     ////{
@@ -1836,7 +1838,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     ////    Rotation.Axis = vec3(0.f, 0.f, 1.f);
     ////    f32 InvTextSize = 400.f; //* AbsoluteValue((f32)sin(GameState->Time) * 0.2f + 0.5f);
 
-    ////    DrawTextString(Memory, GameState, "But make allowance for their doubting too;", Position, InvTextSize, &Rotation, vec4(0.f, 1.f, 0.f, 1.f));
+    ////    DrawTextString(Memory, GameState, "But make allowance for their doubting too;", Position, InvTextSize, &Rotation, vec4(0.f, 1.f, 0.f, 1.f), GameState->CurrentFont);
     ////}
 
     {
@@ -1846,7 +1848,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Rotation.AngleInRadians = 0.f;
         Rotation.Axis = vec3(0.f, 0.f, 1.f);
 
-        DrawTextLine(Memory, GameState, L"TeVyTe WVAWTyYsWe", Position, 2.5f, &Rotation, vec4(1.f, 1.f, 1.f, 1.f));
+        DrawTextLine(Memory, GameState, L"TeVyTe WVAWTyYsWe", Position, 2.5f, &Rotation, vec4(1.f, 1.f, 1.f, 1.f), GameState->CurrentFont);
     }
 
     {
@@ -1856,7 +1858,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Rotation.AngleInRadians = 0.f;
         Rotation.Axis = vec3(0.f, 0.f, 1.f);
 
-        DrawTextLine(Memory, GameState, L"Ðàç, ÒóÒåÒî, áåñåäêà, æóê, Ùè", Position, 2.f, &Rotation, vec4(1.f, 0.f, 0.f, 1.f));
+        DrawTextLine(Memory, GameState, L"Ð¢ÐµÐ¢Ñƒ Ð™Ð–Ð´Ð¢Ð’Ð—Ð®ÑÑ‹", Position, 2.f, &Rotation, vec4(1.f, 0.f, 0.f, 1.f), GameState->CurrentFont);
     }
 
     {
@@ -1866,7 +1868,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Rotation.AngleInRadians = 0.f;
         Rotation.Axis = vec3(0.f, 0.f, 1.f);
 
-        DrawTextLine(Memory, GameState, L"1234567890-=!@#$%^&*()_+.,/", Position, 0.3f, &Rotation, vec4(1.f, 1.f, 1.f, 1.f));
+        DrawTextLine(Memory, GameState, L"1234567890-=!@#$%^&*()_+.,/", Position, 1.f, &Rotation, vec4(1.f, 1.f, 1.f, 1.f), GameState->CurrentFont);
     }
 
     //entity_state PlayerState = *Top(&GameState->Player->StatesStack);

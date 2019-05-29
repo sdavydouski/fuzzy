@@ -10,46 +10,51 @@ LoadGameAssets(platform_api *Platform, game_state *GameState)
 
     // todo: implement without STL
 #else
-    FILE *File = fopen("assets/font.fasset", "rb");
+    FILE *File = fopen("assets/data.fasset", "rb");
 
-    font_asset_header Header;
-    fread(&Header, 1, sizeof(Header), File);
+    asset_header AssetHeader;
+    fread(&AssetHeader, 1, sizeof(asset_header), File);
 
-    u8 *TextureAtlas = (u8 *)malloc(Header.TextureAtlasWidth * Header.TextureAtlasHeight * Header.TextureAtlasChannels * sizeof(u8));
-    fread(TextureAtlas, Header.TextureAtlasWidth * Header.TextureAtlasHeight * Header.TextureAtlasChannels, sizeof(u8), File);
+    GameState->FontAssetCount = AssetHeader.FontCount;
+    GameState->FontAssets = (font_asset *)malloc(AssetHeader.FontCount * sizeof(font_asset));
 
-    f32 *HorizontalAdvanceTable = (f32 *)malloc(Header.HorizontalAdvanceTableCount * sizeof(f32));
-    fread(HorizontalAdvanceTable, Header.HorizontalAdvanceTableCount, sizeof(f32), File);
+    for (u32 FontAssetIndex = 0; FontAssetIndex < AssetHeader.FontCount; ++FontAssetIndex) {
+        font_asset *FontAsset = GameState->FontAssets + FontAssetIndex;
 
-    glyph_info *Glyphs = (glyph_info *)malloc(Header.GlyphCount * sizeof(glyph_info));
-    fread(Glyphs, Header.GlyphCount, sizeof(glyph_info), File);
+        font_asset_header FontAssetHeader;
+        fread(&FontAssetHeader, 1, sizeof(font_asset_header), File);
 
-    codepoints_range *CodepointsRanges = (codepoints_range *)malloc(Header.CodepointsRangeCount * sizeof(codepoints_range));
-    fread(CodepointsRanges, Header.CodepointsRangeCount, sizeof(codepoints_range), File);
+        u8 *TextureAtlas = (u8 *)malloc(FontAssetHeader.TextureAtlasWidth * FontAssetHeader.TextureAtlasHeight * FontAssetHeader.TextureAtlasChannels * sizeof(u8));
+        fread(TextureAtlas, FontAssetHeader.TextureAtlasWidth * FontAssetHeader.TextureAtlasHeight * FontAssetHeader.TextureAtlasChannels, sizeof(u8), File);
+
+        f32 *HorizontalAdvanceTable = (f32 *)malloc(FontAssetHeader.HorizontalAdvanceTableCount * sizeof(f32));
+        fread(HorizontalAdvanceTable, FontAssetHeader.HorizontalAdvanceTableCount, sizeof(f32), File);
+
+        codepoints_range *CodepointsRanges = (codepoints_range *)malloc(FontAssetHeader.CodepointsRangeCount * sizeof(codepoints_range));
+        fread(CodepointsRanges, FontAssetHeader.CodepointsRangeCount, sizeof(codepoints_range), File);
+
+        glyph *Glyphs = (glyph *)malloc(FontAssetHeader.GlyphCount * sizeof(glyph));
+        fread(Glyphs, FontAssetHeader.GlyphCount, sizeof(glyph), File);
+
+        FontAsset->TextureAtlas.Width = FontAssetHeader.TextureAtlasWidth;
+        FontAsset->TextureAtlas.Height = FontAssetHeader.TextureAtlasHeight;
+        FontAsset->TextureAtlas.Channels = FontAssetHeader.TextureAtlasChannels;
+        FontAsset->TextureAtlas.Memory = TextureAtlas;
+
+        FontAsset->VerticalAdvance = FontAssetHeader.VerticalAdvance;
+        FontAsset->Ascent = FontAssetHeader.Ascent;
+        FontAsset->Descent = FontAssetHeader.Descent;
+
+        FontAsset->CodepointsRangeCount = FontAssetHeader.CodepointsRangeCount;
+        FontAsset->CodepointsRanges = CodepointsRanges;
+
+        FontAsset->HorizontalAdvanceTableCount = FontAssetHeader.HorizontalAdvanceTableCount;
+        FontAsset->HorizontalAdvanceTable = HorizontalAdvanceTable;
+
+        FontAsset->GlyphCount = FontAssetHeader.GlyphCount;
+        FontAsset->Glyphs = Glyphs;
+    }
 
     fclose(File);
-    //free(TextureAtlas);
-    //free(HorizontalAdvanceTable);
-    //free(Glyphs);
-
-    GameState->Assets = {};
-    GameState->Assets.FontInfo.TextureAtlas = {};
-    GameState->Assets.FontInfo.TextureAtlas.Width = Header.TextureAtlasWidth;
-    GameState->Assets.FontInfo.TextureAtlas.Height = Header.TextureAtlasHeight;
-    GameState->Assets.FontInfo.TextureAtlas.Channels = Header.TextureAtlasChannels;
-    GameState->Assets.FontInfo.TextureAtlas.Memory = TextureAtlas;
-
-    GameState->Assets.FontInfo.VerticalAdvance = Header.VerticalAdvance;
-    //GameState->Assets.FontInfo.Ascent = Header.Ascent;
-    //GameState->Assets.FontInfo.Descent = Header.Descent;
-
-    GameState->Assets.FontInfo.HorizontalAdvanceTableCount = Header.HorizontalAdvanceTableCount;
-    GameState->Assets.FontInfo.HorizontalAdvanceTable = HorizontalAdvanceTable;
-
-    GameState->Assets.GlyphCount = Header.GlyphCount;
-    GameState->Assets.Glyphs = Glyphs;
-
-    GameState->Assets.FontInfo.CodepointsRangeCount = Header.CodepointsRangeCount;
-    GameState->Assets.FontInfo.CodepointsRanges = CodepointsRanges;
 #endif
 }
