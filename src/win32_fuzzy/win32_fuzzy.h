@@ -1,5 +1,4 @@
 #pragma once
-
 #define WIN32_FILE_PATH MAX_PATH
 
 struct win32_state
@@ -27,14 +26,16 @@ PLATFORM_PRINT_OUTPUT(PlatformPrintOutput)
 
 PLATFORM_FREE_FILE(PlatformFreeFile)
 {
-    if (Memory)
+    if (File.Contents)
     {
-        VirtualFree(Memory, 0, MEM_RELEASE);
+        VirtualFree(File.Contents, 0, MEM_RELEASE);
     }
 }
 
+// todo: pass memory arena?
 PLATFORM_READ_FILE(PlatformReadFile)
 {
+    // todo: more logging
     read_file_result Result = {};
 
     HANDLE FileHandle = CreateFileA(FileName, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
@@ -54,7 +55,7 @@ PLATFORM_READ_FILE(PlatformReadFile)
                 }
                 else
                 {
-                    PlatformFreeFile(Result.Contents);
+                    PlatformFreeFile(Result);
                     Result.Size = 0;
                 }
             }

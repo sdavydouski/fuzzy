@@ -343,7 +343,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             (u8*)Memory->PermanentStorage + sizeof(game_state)
         );
 
-        LoadGameAssets(&Memory->Platform, GameState);
+        LoadGameAssets(&Memory->Platform, GameState, &GameState->WorldArena);
 
         GameState->CurrentFont = GameState->FontAssets + 1;
 
@@ -356,7 +356,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
         GameState->ScreenHeightInMeters = ScreenHeight * PixelsToMeters;
 
-        char *MapJson = (char*)Platform->ReadFile("maps/map01.json").Contents;
+        char *MapJson = (char *)Platform->ReadFile("maps/map01.json").Contents;
         GameState->Map = {};
         LoadMap(&GameState->Map, MapJson, &GameState->WorldArena, Platform);
 
@@ -1361,10 +1361,10 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     Renderer->glViewport(0, 0, ScreenWidth, ScreenHeight);
 
-    GameState->Time += Params->Delta;
-    GameState->Lag += Params->Delta;
+    GameState->Time += Params->msPerFrame;
+    GameState->Lag += Params->msPerFrame;
 
-    ProcessInput(GameState, &Params->Input, Params->Delta);
+    ProcessInput(GameState, &Params->Input, Params->msPerFrame);
 
     while (GameState->Lag >= GameState->UpdateRate)
     {
@@ -1629,7 +1629,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             Entity->RenderInfo->InstanceUVOffset01.x = CurrentFrame->CurrentXOffset01;
             Entity->RenderInfo->InstanceUVOffset01.y = CurrentFrame->CurrentYOffset01;
 
-            Animation->CurrentTime += Params->Delta;
+            Animation->CurrentTime += Params->msPerFrame;
         }
     }
 
@@ -1735,7 +1735,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         DrawRectangleOutline(Memory, GameState, Position, Size, &Rotation, Thickness, Color);
     }
 
-    f32 dt = Params->Delta;
+    f32 dt = Params->msPerFrame;
 
     Renderer->glUseProgram(GameState->ParticlesShaderProgram.ProgramHandle);
     Renderer->glBindVertexArray(GameState->ParticlesVertexBuffer.VAO);
@@ -1771,9 +1771,10 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             // scaling
             Particle->RenderInfo->Model = scale(Particle->RenderInfo->Model, vec3(Size, 0.f));
             // rotation
-            /*Particle->RenderInfo->Model = translate(Particle->RenderInfo->Model, vec3(Size / 2.f, 0.f));
-            Particle->RenderInfo->Model = rotate(Particle->RenderInfo->Model, Rotation, vec3(0.f, 0.f, 1.f));
-            Particle->RenderInfo->Model = translate(Particle->RenderInfo->Model, vec3(-Size / 2.f, 0.f));*/
+            //Particle->RenderInfo->Model = translate(Particle->RenderInfo->Model, vec3(Size / 2.f, 0.f));
+            //Particle->RenderInfo->Model = rotate(Particle->RenderInfo->Model, Rotation, vec3(0.f, 0.f, 1.f));
+            //Particle->RenderInfo->Model = translate(Particle->RenderInfo->Model, vec3(-Size / 2.f, 0.f));3
+
 
             Particle->RenderInfo->Color = Color;
         }
@@ -1801,34 +1802,63 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     {
         vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
-            + vec2(0.f, GameState->ScreenHeightInMeters);
-        Position.y += 0.f;
+            + vec2(0.5f, GameState->ScreenHeightInMeters - 1.f);
         rotation_info Rotation = {};
         Rotation.AngleInRadians = 0.f;
-        Rotation.Axis = vec3(0.f, 0.f, 1.f);
-
-        DrawTextLine(Memory, GameState, L"If_you_can_keep_your_head_when_all_about_you", Position, 0.5f, &Rotation, vec4(1.f, 1.f, 0.f, 1.f), GameState->CurrentFont);
-    }
-
-    {
-        vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
-            + vec2(1.f, GameState->ScreenHeightInMeters - 1.f);
-        rotation_info Rotation = {};
-        Rotation.AngleInRadians = 0.f; //radians((f32)GameState->Time * 100.f);
         Rotation.Axis = vec3(0.f, 1.f, 0.f);
+        f32 TextScale = 0.5f;
 
-        DrawTextLine(Memory, GameState, L"Are_losing_theirs_and_blaming_it_on_you,", Position, 1.f, &Rotation, vec4(0.f, 1.f, 1.f, 1.f), GameState->CurrentFont);
+        wchar FrameFps[32];
+        FormatString(FrameFps, ArrayCount(FrameFps), L"fps: %.1f", 1000.f / (Params->msPerFrame * 1000.f));
+
+        wchar FrameTime[32];
+        FormatString(FrameTime, ArrayCount(FrameTime), L"ms: %.4f", Params->msPerFrame * 1000.f);
+
+#define str(x) #x
+#define xstr(x) str(x)
+
+        char PlayerStateString[32];
+        GetEntityStateString(*Top(&GameState->Player->StatesStack), PlayerStateString, ArrayCount(PlayerStateString));
+
+        wchar PlayerState[32];
+        FormatString(PlayerState, ArrayCount(PlayerState), L"player state: %S", PlayerStateString);
+
+        f32 NextLineAdvance = GameState->CurrentFont->VerticalAdvance * GameState->PixelsToMeters * TextScale;
+        DrawTextLine(Memory, GameState, FrameFps, Position, TextScale, &Rotation, vec4(0.f, 1.f, 1.f, 1.f), GameState->CurrentFont);
+        DrawTextLine(Memory, GameState, FrameTime, Position - vec2(0.f, 1.f * NextLineAdvance), TextScale, &Rotation, vec4(0.f, 1.f, 1.f, 1.f), GameState->CurrentFont);
+        DrawTextLine(Memory, GameState, PlayerState, Position - vec2(0.f, 2.f * NextLineAdvance), TextScale, &Rotation, vec4(0.f, 1.f, 1.f, 1.f), GameState->CurrentFont);
     }
 
-    {
-        vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
-            + vec2(1.f, GameState->ScreenHeightInMeters - 2.5f);
-        rotation_info Rotation = {};
-        Rotation.AngleInRadians = 0.f;
-        Rotation.Axis = vec3(0.f, 0.f, 1.f);
+    //{
+    //    vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
+    //        + vec2(0.f, GameState->ScreenHeightInMeters);
+    //    Position.y += 0.f;
+    //    rotation_info Rotation = {};
+    //    Rotation.AngleInRadians = 0.f;
+    //    Rotation.Axis = vec3(0.f, 0.f, 1.f);
 
-        DrawTextLine(Memory, GameState, L"If you can trust yourself when all men doubt you,", Position, 1.5f, &Rotation, vec4(1.f, 0.f, 1.f, 1.f), GameState->CurrentFont);
-    }
+    //    DrawTextLine(Memory, GameState, L"If_you_can_keep_your_head_when_all_about_you", Position, 0.5f, &Rotation, vec4(1.f, 1.f, 0.f, 1.f), GameState->CurrentFont);
+    //}
+
+    //{
+    //    vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
+    //        + vec2(1.f, GameState->ScreenHeightInMeters - 1.f);
+    //    rotation_info Rotation = {};
+    //    Rotation.AngleInRadians = 0.f; //radians((f32)GameState->Time * 100.f);
+    //    Rotation.Axis = vec3(0.f, 1.f, 0.f);
+
+    //    DrawTextLine(Memory, GameState, L"Are_losing_theirs_and_blaming_it_on_you,", Position, 1.f, &Rotation, vec4(0.f, 1.f, 1.f, 1.f), GameState->CurrentFont);
+    //}
+
+    //{
+    //    vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
+    //        + vec2(1.f, GameState->ScreenHeightInMeters - 2.5f);
+    //    rotation_info Rotation = {};
+    //    Rotation.AngleInRadians = 0.f;
+    //    Rotation.Axis = vec3(0.f, 0.f, 1.f);
+
+    //    DrawTextLine(Memory, GameState, L"If you can trust yourself when all men doubt you,", Position, 1.5f, &Rotation, vec4(1.f, 0.f, 1.f, 1.f), GameState->CurrentFont);
+    //}
 
     ////{
     ////    vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
@@ -1841,35 +1871,35 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     ////    DrawTextString(Memory, GameState, "But make allowance for their doubting too;", Position, InvTextSize, &Rotation, vec4(0.f, 1.f, 0.f, 1.f), GameState->CurrentFont);
     ////}
 
-    {
-        vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
-            + vec2(1.f, GameState->ScreenHeightInMeters - 6.5f);
-        rotation_info Rotation = {};
-        Rotation.AngleInRadians = 0.f;
-        Rotation.Axis = vec3(0.f, 0.f, 1.f);
+    //{
+    //    vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
+    //        + vec2(1.f, GameState->ScreenHeightInMeters - 6.5f);
+    //    rotation_info Rotation = {};
+    //    Rotation.AngleInRadians = 0.f;
+    //    Rotation.Axis = vec3(0.f, 0.f, 1.f);
 
-        DrawTextLine(Memory, GameState, L"TeVyTe WVAWTyYsWe", Position, 2.5f, &Rotation, vec4(1.f, 1.f, 1.f, 1.f), GameState->CurrentFont);
-    }
+    //    DrawTextLine(Memory, GameState, L"TeVyTe WVAWTyYsWe", Position, 2.5f, &Rotation, vec4(1.f, 1.f, 1.f, 1.f), GameState->CurrentFont);
+    //}
 
-    {
-        vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
-            + vec2(1.f, GameState->ScreenHeightInMeters - 8.f);
-        rotation_info Rotation = {};
-        Rotation.AngleInRadians = 0.f;
-        Rotation.Axis = vec3(0.f, 0.f, 1.f);
+    //{
+    //    vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
+    //        + vec2(1.f, GameState->ScreenHeightInMeters - 8.f);
+    //    rotation_info Rotation = {};
+    //    Rotation.AngleInRadians = 0.f;
+    //    Rotation.Axis = vec3(0.f, 0.f, 1.f);
 
-        DrawTextLine(Memory, GameState, L"ТеТу ЙЖдТВЗЮяы", Position, 2.f, &Rotation, vec4(1.f, 0.f, 0.f, 1.f), GameState->CurrentFont);
-    }
+    //    DrawTextLine(Memory, GameState, L"ТеТу ЙЖдТВЗЮяы", Position, 2.f, &Rotation, vec4(1.f, 0.f, 0.f, 1.f), GameState->CurrentFont);
+    //}
 
-    {
-        vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
-            + vec2(1.f, GameState->ScreenHeightInMeters - 9.f);
-        rotation_info Rotation = {};
-        Rotation.AngleInRadians = 0.f;
-        Rotation.Axis = vec3(0.f, 0.f, 1.f);
+    //{
+    //    vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
+    //        + vec2(1.f, GameState->ScreenHeightInMeters - 9.f);
+    //    rotation_info Rotation = {};
+    //    Rotation.AngleInRadians = 0.f;
+    //    Rotation.Axis = vec3(0.f, 0.f, 1.f);
 
-        DrawTextLine(Memory, GameState, L"1234567890-=!@#$%^&*()_+.,/", Position, 1.f, &Rotation, vec4(1.f, 1.f, 1.f, 1.f), GameState->CurrentFont);
-    }
+    //    DrawTextLine(Memory, GameState, L"1234567890-=!@#$%^&*()_+.,/", Position, 1.f, &Rotation, vec4(1.f, 1.f, 1.f, 1.f), GameState->CurrentFont);
+    //}
 
     //entity_state PlayerState = *Top(&GameState->Player->StatesStack);
 

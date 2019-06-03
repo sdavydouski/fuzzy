@@ -152,31 +152,8 @@ Win32InitOpenGLRenderer(game_memory *GameMemory)
     GameMemory->Renderer.glDisable = glDisable;
 }
 
-internal_function void
-CalculateFrameStats(GLFWwindow *Window, char *WindowTitle, f64 TotalTime)
-{
-    local_persist s32 FrameCount = 0;
-    local_persist f32 TimeElapsed = 0.f;
-
-    ++FrameCount;
-
-    // Compute averages over one second period.
-    if ((TotalTime - TimeElapsed) >= 1.f) {
-        f32 FPS = (f32)FrameCount;
-        f32 MsPerFrame = 1000.f / FPS;
-
-        char WindowText[64];
-        snprintf(WindowText, sizeof(WindowText), "%s    fps: %f    ms: %f", WindowTitle, FPS, MsPerFrame);
-        FormatString(WindowText, sizeof(WindowText), "%s    fps: %f    ms: %f", WindowTitle, FPS, MsPerFrame);
-        glfwSetWindowTitle(Window, WindowText);
-
-        FrameCount = 0;
-        TimeElapsed += 1.f;
-    }
-}
-
-//s32 CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, s32 nCmdShow)
-int main(int argc, char *argv[])
+s32 CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, s32 nCmdShow)
+//int main(int argc, char *argv[])
 {
     win32_state Win32State = {};
     game_memory GameMemory = {};
@@ -222,7 +199,7 @@ int main(int argc, char *argv[])
     GameParams.ScreenWidth = 1920;
     GameParams.ScreenHeight = 1080;
 #endif
-    
+
     if (!glfwInit()) 
     {
         OutputDebugStringA("Failed to initialize GLFW\n");
@@ -358,11 +335,10 @@ int main(int argc, char *argv[])
         }
 
         TotalTime = glfwGetTime();
-        GameParams.Delta = (f32) (TotalTime - LastTime);
+        // todo: is it seconds per frame?
+        GameParams.msPerFrame = (f32) (TotalTime - LastTime);
         LastTime = TotalTime;
         
-        CalculateFrameStats(Window, WindowTitle, TotalTime);
-
         if (GameCode.IsValid) 
         {
             GameCode.UpdateAndRender(&GameMemory, &GameParams);

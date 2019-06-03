@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string.h>
+#include <stdio.h>
 #include "fuzzy_types.h"
 
 #define EXPORT __declspec(dllexport)
@@ -21,7 +22,7 @@ struct read_file_result
 #define PLATFORM_READ_FILE(name) read_file_result name(char *FileName)
 typedef PLATFORM_READ_FILE(platform_read_file);
 
-#define PLATFORM_FREE_FILE(name) void name(void *Memory)
+#define PLATFORM_FREE_FILE(name) void name(read_file_result File)
 typedef PLATFORM_FREE_FILE(platform_free_file);
 
 #define PLATFORM_READ_IMAGE_FILE(name) u8 *name(const char *Filename, s32 *X, s32 *Y, s32 *Comp, s32 ReqComp)
@@ -32,7 +33,8 @@ typedef PLATFORM_FREE_IMAGE_FILE(platform_free_image_file);
 
 #pragma endregion
 
-struct platform_api {
+struct platform_api
+{
     platform_print_output *PrintOutput;
 
     platform_read_file *ReadFile;
@@ -203,7 +205,8 @@ typedef GL_DISABLE(gl_disable);
 
 #pragma endregion
 
-struct renderer_api {
+struct renderer_api
+{
     gl_disable *glDisable;
     gl_stencil_mask *glStencilMask;
     gl_stencil_func *glStencilFunc;
@@ -257,7 +260,8 @@ struct renderer_api {
     gl_uniform_block_binding *glUniformBlockBinding;
 };
 
-struct game_memory {
+struct game_memory
+{
     u64 PermanentStorageSize;
     void *PermanentStorage;
 
@@ -268,12 +272,14 @@ struct game_memory {
     renderer_api Renderer;
 };
 
-struct key_state {
+struct key_state
+{
     b32 isPressed;
     b32 isProcessed;
 };
 
-struct game_input {
+struct game_input
+{
     key_state Up;
     key_state Down;
     key_state Left;
@@ -286,11 +292,12 @@ struct game_input {
     f32 ScrollY;
 };
 
-struct game_params {
+struct game_params
+{
     u32 ScreenWidth;
     u32 ScreenHeight;
 
-    f32 Delta;
+    f32 msPerFrame;
 
     game_input Input;
 };
@@ -353,4 +360,20 @@ FormatString(char *String, u32 Size, char *Format, ...)
     va_start(ArgPtr, Format);
     vsnprintf(String, Size, Format, ArgPtr);
     va_end(ArgPtr);
+}
+
+inline void
+FormatString(wchar *String, u32 Size, wchar *Format, ...)
+{
+    va_list ArgPtr;
+
+    va_start(ArgPtr, Format);
+    _vsnwprintf_s(String, Size, Size, Format, ArgPtr);
+    va_end(ArgPtr);
+}
+
+inline void
+CopyMemoryBlock(void *Source, void *Dest, u64 Count)
+{
+    memcpy(Dest, Source, Count);
 }

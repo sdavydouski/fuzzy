@@ -13,6 +13,47 @@
 
 #include "assets.h"
 
+struct char_info
+{
+    u32 CharacterIndex;
+    stbtt_packedchar *GlyphInfo;
+    codepoints_range *Encoding;
+    stbtt_packedchar *CharData;
+};
+
+inline char_info
+GetCharInfo(
+    u32 CodepointIndex, 
+    codepoints_range *Latin, 
+    codepoints_range *Cyrillic, 
+    stbtt_packedchar *LatinCharData,
+    stbtt_packedchar *CyrillicCharData
+)
+{
+    char_info Result = {};
+
+    if (CodepointIndex < Latin->Count)
+    {
+        Result.CharacterIndex = CodepointIndex;
+        Result.GlyphInfo = LatinCharData + Result.CharacterIndex;
+        Result.Encoding = Latin;
+        Result.CharData = LatinCharData;
+    }
+    else if (Latin->Count <= CodepointIndex && CodepointIndex < Latin->Count + Cyrillic->Count)
+    {
+        Result.CharacterIndex = CodepointIndex - Latin->Count;
+        Result.GlyphInfo = CyrillicCharData + Result.CharacterIndex;
+        Result.Encoding = Cyrillic;
+        Result.CharData = CyrillicCharData;
+    }
+    else
+    {
+        InvalidCodePath;
+    }
+
+    return Result;
+}
+
 void
 PrepareFontAsset(
     char *FontFileName,
@@ -91,23 +132,8 @@ PrepareFontAsset(
     {
         glyph *Glyph = Glyphs + GlyphIndex;
 
-        stbtt_packedchar *GlyphInfo = nullptr;
-
-        // todo:
-        if (GlyphIndex < Latin->Count)
-        {
-            u32 Index = GlyphIndex;
-            GlyphInfo = LatinCharData + Index;
-        }
-        else if (Latin->Count <= GlyphIndex && GlyphIndex < Latin->Count + Cyrillic->Count)
-        {
-            u32 Index = GlyphIndex - Latin->Count;
-            GlyphInfo = CyrillicCharData + Index;
-        }
-        else
-        {
-            InvalidCodePath;
-        }
+        char_info CharInfo = GetCharInfo(GlyphIndex, Latin, Cyrillic, LatinCharData, CyrillicCharData);
+        stbtt_packedchar *GlyphInfo = CharInfo.GlyphInfo;
 
         Glyph->SpriteSize = vec2(GlyphInfo->x1 - GlyphInfo->x0, GlyphInfo->y1 - GlyphInfo->y0);
     }
@@ -118,27 +144,11 @@ PrepareFontAsset(
     u32 CodepointIndex = 0;
     while (CodepointIndex < TotalCodepointCount)
     {
-        stbtt_packedchar *CharData = nullptr;
-        codepoints_range *Encoding = nullptr;
-        s32 CharacterIndex;
+        char_info CharInfo = GetCharInfo(CodepointIndex, Latin, Cyrillic, LatinCharData, CyrillicCharData);
 
-        // todo:
-        if (CodepointIndex < Latin->Count)
-        {
-            Encoding = Latin;
-            CharData = LatinCharData;
-            CharacterIndex = CodepointIndex;
-        }
-        else if (Latin->Count <= CodepointIndex && CodepointIndex < Latin->Count + Cyrillic->Count)
-        {
-            Encoding = Cyrillic;
-            CharData = CyrillicCharData;
-            CharacterIndex = CodepointIndex - Latin->Count;
-        }
-        else
-        {
-            InvalidCodePath;
-        }
+        stbtt_packedchar *CharData = CharInfo.CharData;
+        codepoints_range *Encoding = CharInfo.Encoding;
+        s32 CharacterIndex = CharInfo.CharacterIndex;
 
         wchar Character = Encoding->Start + CharacterIndex;
 
@@ -150,30 +160,20 @@ PrepareFontAsset(
         glyph *Glyph = Glyphs + CodepointIndex;
 
         Glyph->CharacterSize = vec2(Quad.x1 - Quad.x0, Quad.y1 - Quad.y0);
+        if (Glyph->CharacterSize.x == 0.5f)
+        {
+            int b = 0;
+        }
         Glyph->UV = vec2(Quad.s0, Quad.t0);
         Glyph->Alignment = vec2(Quad.x0, -Quad.y1);
 
         u32 OtherCodepointIndex = 0;
         while (OtherCodepointIndex < TotalCodepointCount)
         {
-            codepoints_range *Encoding = nullptr;
-            s32 OtherCharacterIndex;
+            char_info CharInfo = GetCharInfo(OtherCodepointIndex, Latin, Cyrillic, LatinCharData, CyrillicCharData);
 
-            // todo:
-            if (OtherCodepointIndex < Latin->Count)
-            {
-                Encoding = Latin;
-                OtherCharacterIndex = OtherCodepointIndex;
-            }
-            else if (Latin->Count <= OtherCodepointIndex && OtherCodepointIndex < Latin->Count + Cyrillic->Count)
-            {
-                Encoding = Cyrillic;
-                OtherCharacterIndex = OtherCodepointIndex - Latin->Count;
-            }
-            else
-            {
-                InvalidCodePath;
-            }
+            codepoints_range *Encoding = CharInfo.Encoding;
+            s32 OtherCharacterIndex = CharInfo.CharacterIndex;
 
             wchar OtherCharacter = Encoding->Start + OtherCharacterIndex;
 
@@ -192,10 +192,6 @@ PrepareFontAsset(
     // for testing
     stbi_write_png(FontTextureAtlasFileName, TextureWidth, TextureHeight, TextureChannels, Pixels, 0);
 
-    //FILE *FontAssetFile = fopen(FontAssetFileName, "wb");
-
-    //FontAsset->Name = FontName;
-    
     FontAsset->TextureAtlas.Width = TextureWidth;
     FontAsset->TextureAtlas.Height = TextureHeight;
     FontAsset->TextureAtlas.Channels = TextureChannels;
@@ -213,39 +209,28 @@ PrepareFontAsset(
 
     FontAsset->GlyphCount = TotalCodepointCount;
     FontAsset->Glyphs = Glyphs;
-
     
     free(FontBuffer);
+    free(LatinCharData);
+    free(CyrillicCharData);
+
+    // todo: check for memory leaks (do i care?)
     //free(Pixels);
-    //free(LatinCharData);
-    //free(CyrillicCharData);
+    //free(CodepointsRanges);
     //free(HorizontalAdvanceTable);
     //free(Glyphs);
-    //free(CodepointsRanges);
 }
 
-// todo: check for memory leaks (do i care?)
 void
-PackFonts()
+PackFonts(asset_header *Header, FILE *AssetFile)
 {
-    u32 FontAssetCount = 2;
-    font_asset *FontAssets = (font_asset *)malloc(FontAssetCount * sizeof(font_asset));
+    font_asset *FontAssets = (font_asset *)malloc(Header->FontCount * sizeof(font_asset));
 
     PrepareFontAsset((char *)"c:/windows/fonts/arial.ttf", 70.f, (char *)"assets/font_arial.png", FontAssets + 0);
-    PrepareFontAsset((char *)"c:/windows/fonts/lucon.ttf", 60.f, (char *)"assets/font_lucida.png", FontAssets + 1);
+    PrepareFontAsset((char *)"c:/windows/fonts/consola.ttf", 70.f, (char *)"assets/font_consolas.png", FontAssets + 1);
 
-    asset_header Header = {};
-    Header.MagicValue = 0x451;
-    Header.Version = 1;
-
-    Header.FontCount = FontAssetCount;
-    Header.FontsOffset = sizeof(asset_header);
-
-    FILE *AssetFile = fopen("assets/data.fasset", "wb");
-
-    fwrite(&Header, sizeof(asset_header), 1, AssetFile);
-
-    for (u32 FontAssetIndex = 0; FontAssetIndex < FontAssetCount; ++FontAssetIndex) {
+    u64 FontAssetHeaderOffset = Header->FontsOffset;
+    for (u32 FontAssetIndex = 0; FontAssetIndex < Header->FontCount; ++FontAssetIndex) {
         font_asset *FontAsset = FontAssets + FontAssetIndex;
 
         font_asset_header FontAssetHeader = {};
@@ -255,7 +240,7 @@ PackFonts()
         FontAssetHeader.TextureAtlasWidth = FontAsset->TextureAtlas.Width;
         FontAssetHeader.TextureAtlasHeight = FontAsset->TextureAtlas.Height;
         FontAssetHeader.TextureAtlasChannels = FontAsset->TextureAtlas.Channels;
-        FontAssetHeader.TextureAtlasOffset = Header.FontsOffset + FontAssetIndex * sizeof(font_asset_header);
+        FontAssetHeader.TextureAtlasOffset = FontAssetHeaderOffset + sizeof(font_asset_header);
 
         FontAssetHeader.VerticalAdvance = FontAsset->VerticalAdvance;
         FontAssetHeader.Ascent = FontAsset->Ascent;
@@ -270,48 +255,36 @@ PackFonts()
         FontAssetHeader.GlyphCount = FontAsset->GlyphCount;
         FontAssetHeader.GlyphsOffset = FontAssetHeader.HorizontalAdvanceTableOffset + FontAsset->HorizontalAdvanceTableCount * sizeof(f32);
 
+        FontAssetHeaderOffset += sizeof(font_asset_header) + 
+            PixelCount * sizeof(u8) + FontAsset->CodepointsRangeCount * sizeof(codepoints_range) +
+            FontAsset->HorizontalAdvanceTableCount * sizeof(f32) + FontAsset->GlyphCount * sizeof(glyph);
+
         fwrite(&FontAssetHeader, sizeof(FontAssetHeader), 1, AssetFile);
         fwrite(FontAsset->TextureAtlas.Memory, sizeof(u8), PixelCount, AssetFile);
-        fwrite(FontAsset->HorizontalAdvanceTable, sizeof(f32), FontAsset->HorizontalAdvanceTableCount, AssetFile);
         fwrite(FontAsset->CodepointsRanges, sizeof(codepoints_range), FontAsset->CodepointsRangeCount, AssetFile);
+        fwrite(FontAsset->HorizontalAdvanceTable, sizeof(f32), FontAsset->HorizontalAdvanceTableCount, AssetFile);
         fwrite(FontAsset->Glyphs, sizeof(glyph), FontAsset->GlyphCount, AssetFile);
     }
 
-    fclose(AssetFile);
     free(FontAssets);
-
-#if 0
-    {
-        FILE *File = fopen("assets/data.fasset", "rb");
-
-        asset_header AssetHeader;
-        fread(&AssetHeader, 1, sizeof(asset_header), File);
-
-        for (u32 FontAssetIndex = 0; FontAssetIndex < AssetHeader.FontCount; ++FontAssetIndex) {
-            font_asset_header FontAssetHeader;
-            fread(&FontAssetHeader, 1, sizeof(font_asset_header), File);
-
-            u8 *TextureAtlas = (u8 *)malloc(FontAssetHeader.TextureAtlasWidth * FontAssetHeader.TextureAtlasHeight * FontAssetHeader.TextureAtlasChannels * sizeof(u8));
-            fread(TextureAtlas, FontAssetHeader.TextureAtlasWidth * FontAssetHeader.TextureAtlasHeight * FontAssetHeader.TextureAtlasChannels, sizeof(u8), File);
-
-            f32 *HorizontalAdvanceTable = (f32 *)malloc(FontAssetHeader.HorizontalAdvanceTableCount * sizeof(f32));
-            fread(HorizontalAdvanceTable, FontAssetHeader.HorizontalAdvanceTableCount, sizeof(f32), File);
-
-            codepoints_range *CodepointsRanges = (codepoints_range *)malloc(FontAssetHeader.CodepointsRangeCount * sizeof(codepoints_range));
-            fread(CodepointsRanges, FontAssetHeader.CodepointsRangeCount, sizeof(codepoints_range), File);
-
-            glyph *Glyphs = (glyph *)malloc(FontAssetHeader.GlyphCount * sizeof(glyph));
-            fread(Glyphs, FontAssetHeader.GlyphCount, sizeof(glyph), File);
-        }
-
-        fclose(File);
-    }
-#endif
 }
 
 int main(int ArgCount, char **Args)
 {
-    PackFonts();
+    asset_header Header = {};
+    Header.MagicValue = 0x451;
+    Header.Version = 1;
+
+    FILE *AssetFile = fopen("assets/data.fasset", "wb");
+
+    Header.FontCount = 2;
+    Header.FontsOffset = sizeof(asset_header);
+
+    fwrite(&Header, sizeof(asset_header), 1, AssetFile);
+
+    PackFonts(&Header, AssetFile);
+
+    fclose(AssetFile);
 
     return 0;
 }

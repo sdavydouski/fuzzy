@@ -3,58 +3,73 @@
 #include "fuzzy.h"
 
 internal_function void
-LoadGameAssets(platform_api *Platform, game_state *GameState)
+LoadGameAssets(platform_api *Platform, game_state *GameState, memory_arena *Arena)
 {
-#if 0
-    read_file_result AssetsFile = Platform->ReadFile("assets/font.fasset");
+    read_file_result AssetFile = Platform->ReadFile("assets/data.fasset");
 
-    // todo: implement without STL
-#else
-    FILE *File = fopen("assets/data.fasset", "rb");
+    asset_header *AssetHeader = (asset_header *)AssetFile.Contents;
 
-    asset_header AssetHeader;
-    fread(&AssetHeader, 1, sizeof(asset_header), File);
+    assert(AssetHeader->MagicValue == 0x451);
 
-    GameState->FontAssetCount = AssetHeader.FontCount;
-    GameState->FontAssets = (font_asset *)malloc(AssetHeader.FontCount * sizeof(font_asset));
+    GameState->FontAssetCount = AssetHeader->FontCount;
+    GameState->FontAssets = PushArray<font_asset>(Arena, GameState->FontAssetCount);
 
-    for (u32 FontAssetIndex = 0; FontAssetIndex < AssetHeader.FontCount; ++FontAssetIndex) {
+    u64 FontAssetHeaderOffset = AssetHeader->FontsOffset;
+    for (u32 FontAssetIndex = 0; FontAssetIndex < GameState->FontAssetCount; ++FontAssetIndex)
+    {
         font_asset *FontAsset = GameState->FontAssets + FontAssetIndex;
 
-        font_asset_header FontAssetHeader;
-        fread(&FontAssetHeader, 1, sizeof(font_asset_header), File);
+        font_asset_header *FontAssetHeader = (font_asset_header *)((u8 *)AssetFile.Contents + FontAssetHeaderOffset);
 
-        u8 *TextureAtlas = (u8 *)malloc(FontAssetHeader.TextureAtlasWidth * FontAssetHeader.TextureAtlasHeight * FontAssetHeader.TextureAtlasChannels * sizeof(u8));
-        fread(TextureAtlas, FontAssetHeader.TextureAtlasWidth * FontAssetHeader.TextureAtlasHeight * FontAssetHeader.TextureAtlasChannels, sizeof(u8), File);
+        u32 PixelCount = FontAssetHeader->TextureAtlasWidth * FontAssetHeader->TextureAtlasHeight * FontAssetHeader->TextureAtlasChannels;
+        u8 *TextureAtlas = PushArray<u8>(Arena, PixelCount);
+        CopyMemoryBlock(
+            (u8 *)AssetFile.Contents + FontAssetHeader->TextureAtlasOffset, 
+            TextureAtlas, PixelCount * sizeof(u8)
+        );
 
-        f32 *HorizontalAdvanceTable = (f32 *)malloc(FontAssetHeader.HorizontalAdvanceTableCount * sizeof(f32));
-        fread(HorizontalAdvanceTable, FontAssetHeader.HorizontalAdvanceTableCount, sizeof(f32), File);
+        codepoints_range *CodepointsRanges = PushArray<codepoints_range>(Arena, FontAssetHeader->CodepointsRangeCount);
+        CopyMemoryBlock(
+            (u8 *)AssetFile.Contents + FontAssetHeader->CodepointsRangesOffset, 
+            CodepointsRanges, FontAssetHeader->CodepointsRangeCount * sizeof(codepoints_range)
+        );
 
-        codepoints_range *CodepointsRanges = (codepoints_range *)malloc(FontAssetHeader.CodepointsRangeCount * sizeof(codepoints_range));
-        fread(CodepointsRanges, FontAssetHeader.CodepointsRangeCount, sizeof(codepoints_range), File);
+        f32 *HorizontalAdvanceTable = PushArray<f32>(Arena, FontAssetHeader->HorizontalAdvanceTableCount);
+        CopyMemoryBlock(
+            (u8 *)AssetFile.Contents + FontAssetHeader->HorizontalAdvanceTableOffset, 
+            HorizontalAdvanceTable, FontAssetHeader->HorizontalAdvanceTableCount * sizeof(f32)
+        );
 
-        glyph *Glyphs = (glyph *)malloc(FontAssetHeader.GlyphCount * sizeof(glyph));
-        fread(Glyphs, FontAssetHeader.GlyphCount, sizeof(glyph), File);
+        glyph *Glyphs = PushArray<glyph>(Arena, FontAssetHeader->GlyphCount);
+        CopyMemoryBlock(
+            (u8 *)AssetFile.Contents + FontAssetHeader->GlyphsOffset, 
+            Glyphs, FontAssetHeader->GlyphCount * sizeof(glyph)
+        );
 
-        FontAsset->TextureAtlas.Width = FontAssetHeader.TextureAtlasWidth;
-        FontAsset->TextureAtlas.Height = FontAssetHeader.TextureAtlasHeight;
-        FontAsset->TextureAtlas.Channels = FontAssetHeader.TextureAtlasChannels;
+        FontAssetHeaderOffset += (FontAssetIndex + 1) * (
+            sizeof(font_asset_header) + 
+            PixelCount * sizeof(u8) + FontAssetHeader->CodepointsRangeCount * sizeof(codepoints_range) +
+            FontAssetHeader->HorizontalAdvanceTableCount * sizeof(f32) + FontAssetHeader->GlyphCount * sizeof(glyph)
+        );
+
+        FontAsset->TextureAtlas.Width = FontAssetHeader->TextureAtlasWidth;
+        FontAsset->TextureAtlas.Height = FontAssetHeader->TextureAtlasHeight;
+        FontAsset->TextureAtlas.Channels = FontAssetHeader->TextureAtlasChannels;
         FontAsset->TextureAtlas.Memory = TextureAtlas;
 
-        FontAsset->VerticalAdvance = FontAssetHeader.VerticalAdvance;
-        FontAsset->Ascent = FontAssetHeader.Ascent;
-        FontAsset->Descent = FontAssetHeader.Descent;
+        FontAsset->VerticalAdvance = FontAssetHeader->VerticalAdvance;
+        FontAsset->Ascent = FontAssetHeader->Ascent;
+        FontAsset->Descent = FontAssetHeader->Descent;
 
-        FontAsset->CodepointsRangeCount = FontAssetHeader.CodepointsRangeCount;
+        FontAsset->CodepointsRangeCount = FontAssetHeader->CodepointsRangeCount;
         FontAsset->CodepointsRanges = CodepointsRanges;
 
-        FontAsset->HorizontalAdvanceTableCount = FontAssetHeader.HorizontalAdvanceTableCount;
+        FontAsset->HorizontalAdvanceTableCount = FontAssetHeader->HorizontalAdvanceTableCount;
         FontAsset->HorizontalAdvanceTable = HorizontalAdvanceTable;
 
-        FontAsset->GlyphCount = FontAssetHeader.GlyphCount;
+        FontAsset->GlyphCount = FontAssetHeader->GlyphCount;
         FontAsset->Glyphs = Glyphs;
     }
 
-    fclose(File);
-#endif
+    Platform->FreeFile(AssetFile);
 }
