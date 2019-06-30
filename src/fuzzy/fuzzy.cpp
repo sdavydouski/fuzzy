@@ -13,29 +13,68 @@
 
 #include "fuzzy_types.h"
 #include "fuzzy_platform.h"
-#include "fuzzy.h"
 
-#include "fuzzy_math.h"
-#include "fuzzy_random.h"
+#include "fuzzy_math.cpp"
+#include "fuzzy_random.cpp"
 #include "fuzzy_containers.cpp"
 #include "fuzzy_tiled.cpp"
 #include "fuzzy_renderer.cpp"
 #include "fuzzy_animations.cpp"
 #include "fuzzy_assets.cpp"
 
-global_variable const u32 FLIPPED_HORIZONTALLY_FLAG = 0x80000000;
-global_variable const u32 FLIPPED_VERTICALLY_FLAG = 0x40000000;
-global_variable const u32 FLIPPED_DIAGONALLY_FLAG = 0x20000000;
+#include "fuzzy.h"
 
-internal_function inline vec3
+global const u32 FLIPPED_HORIZONTALLY_FLAG = 0x80000000;
+global const u32 FLIPPED_VERTICALLY_FLAG = 0x40000000;
+global const u32 FLIPPED_DIAGONALLY_FLAG = 0x20000000;
+
+inline vec3
 NormalizeRGB(u32 Red, u32 Green, u32 Blue)
 {
     const f32 MAX = 255.f;
     return vec3(Red / MAX, Green / MAX, Blue / MAX);
 }
 
+global const vec3 BackgroundColor = NormalizeRGB(29, 33, 45);
+
+inline void
+GetEntityStateString(entity_state State, char *String, u32 Length)
+{
+    char *StateString = 0;
+
+    switch (State)
+    {
+    case ENTITY_STATE_IDLE:
+        CopyString("idle", String, Length);
+        break;
+    case ENTITY_STATE_RUN:
+        CopyString("run", String, Length);
+        break;
+    case ENTITY_STATE_JUMP:
+        CopyString("jump", String, Length);
+        break;
+    case ENTITY_STATE_DOUBLE_JUMP:
+        CopyString("double_jump", String, Length);
+        break;
+    case ENTITY_STATE_FALL:
+        CopyString("fall", String, Length);
+        break;
+    case ENTITY_STATE_SQUASH:
+        CopyString("squash", String, Length);
+        break;
+    case ENTITY_STATE_DUCK:
+        CopyString("duck", String, Length);
+        break;
+    case ENTITY_STATE_ATTACK:
+        CopyString("attack", String, Length);
+        break;
+    default:
+        break;
+    }
+}
+
 // todo: write more efficient functions
-internal_function inline f32
+inline f32
 Clamp(f32 Value, f32 Min, f32 Max)
 {
     if (Value < Min) return Min;
@@ -44,14 +83,14 @@ Clamp(f32 Value, f32 Min, f32 Max)
     return Value;
 }
 
-internal_function inline f32
+inline f32
 GetRandomInRange(f32 Min, f32 Max)
 {
     f32 Result = Min + (f32)(rand()) / ((f32)(RAND_MAX / (Max - Min)));
     return Result;
 }
 
-internal_function inline b32
+inline b32
 IntersectAABB(const aabb& Box1, const aabb& Box2)
 {
     // Separating Axis Theorem
@@ -62,7 +101,7 @@ IntersectAABB(const aabb& Box1, const aabb& Box2)
 }
 
 // basic Minkowski-based collision detection
-internal_function vec2
+internal vec2
 SweptAABB(const vec2 Point, const vec2 Delta, const aabb& Box, const vec2 Padding)
 {
     vec2 Time = vec2(1.f);
@@ -108,9 +147,7 @@ SweptAABB(const vec2 Point, const vec2 Delta, const aabb& Box, const vec2 Paddin
     return Time;
 }
 
-global_variable const vec3 BackgroundColor = NormalizeRGB(29, 33, 45);
-
-internal_function void
+internal void
 ProcessInput(game_state *GameState, game_input *Input, f32 Delta)
 {
     entity_state PlayerState = *Top(&GameState->Player->StatesStack);
@@ -308,7 +345,7 @@ ProcessInput(game_state *GameState, game_input *Input, f32 Delta)
     }
 }
 
-internal_function inline vec2
+inline vec2
 GetUVOffset01FromTileID(tileset *Tileset, u32 TileID)
 {
     s32 TileX = TileID % Tileset->Columns;
@@ -324,7 +361,7 @@ GetUVOffset01FromTileID(tileset *Tileset, u32 TileID)
 
 extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
-    assert(sizeof(game_state) <= Memory->PermanentStorageSize);
+    Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
 
     game_state *GameState = (game_state*)Memory->PermanentStorage;
 
@@ -347,14 +384,14 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
         GameState->CurrentFont = GameState->FontAssets + 1;
 
-        GameState->ScreenWidthInMeters = 20.f;
-        f32 MetersToPixels = (f32)ScreenWidth / GameState->ScreenWidthInMeters;
-        f32 PixelsToMeters = 1.f / MetersToPixels;
+        GameState->ScreenWidthInWorldUnits = 20.f;
+        f32 MetersToPixels = (f32)ScreenWidth / GameState->ScreenWidthInWorldUnits;
+        f32 PixelsToWorldUnits = 1.f / MetersToPixels;
 
-        GameState->MetersToPixels = MetersToPixels;
-        GameState->PixelsToMeters = PixelsToMeters;
+        GameState->WorldUnitsToPixels = MetersToPixels;
+        GameState->PixelsToWorldUnits = PixelsToWorldUnits;
 
-        GameState->ScreenHeightInMeters = ScreenHeight * PixelsToMeters;
+        GameState->ScreenHeightInWorldUnits = ScreenHeight * PixelsToWorldUnits;
 
         char *MapJson = (char *)Platform->ReadFile("maps/map01.json").Contents;
         GameState->Map = {};
@@ -618,11 +655,11 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                         }
                     }
 
-                    assert(AnimationName);
+                    Assert(AnimationName);
 
                     animation *Animation = CreateAnimation(GameState, AnimationName, &GameState->WorldArena);
 
-                    assert(Animation);
+                    Assert(Animation);
 
                     *Animation = {};
 
@@ -658,9 +695,9 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         }
 
 
-        vec2 ScreenCenterInMeters = vec2(
-            GameState->ScreenWidthInMeters / 2.f,
-            GameState->ScreenHeightInMeters / 2.f
+        vec2 ScreenCenterInWorldUnits = vec2(
+            GameState->ScreenWidthInWorldUnits / 2.f,
+            GameState->ScreenHeightInWorldUnits / 2.f
         );
 
         mat4 *TileInstanceModels = PushArray<mat4>(&GameState->WorldArena, GameState->TotalTileCount);
@@ -695,12 +732,12 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                             s32 TileMapX = Chunk->X + (GIDIndex % Chunk->Width);
                             s32 TileMapY = Chunk->Y + (GIDIndex / Chunk->Height);
 
-                            f32 TileXMeters = ScreenCenterInMeters.x + TileMapX * Tileset->TileWidthInMeters;
-                            f32 TileYMeters = ScreenCenterInMeters.y - TileMapY * Tileset->TileHeightInMeters;
+                            f32 TileXMeters = ScreenCenterInWorldUnits.x + TileMapX * Tileset->TileWidthInWorldUnits;
+                            f32 TileYMeters = ScreenCenterInWorldUnits.y - TileMapY * Tileset->TileHeightInWorldUnits;
 
                             *TileInstanceModel = translate(*TileInstanceModel, vec3(TileXMeters, TileYMeters, 0.f));
                             *TileInstanceModel = scale(*TileInstanceModel,
-                                vec3(Tileset->TileWidthInMeters, Tileset->TileHeightInMeters, 0.f));
+                                vec3(Tileset->TileWidthInWorldUnits, Tileset->TileHeightInWorldUnits, 0.f));
 
                             // TileInstanceUVOffset01
                             vec2 * TileInstanceUVOffset01 = TileInstanceUVOffsets01 + TileInstanceIndex;
@@ -715,14 +752,14 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                                     aabb* Box = GameState->Boxes + BoxIndex;
 
                                     Box->Position.x = TileXMeters +
-                                        TileInfo->Boxes[CurrentBoxIndex].Position.x * Tileset->TilesetWidthPixelsToMeters;
+                                        TileInfo->Boxes[CurrentBoxIndex].Position.x * Tileset->TilesetWidthPixelsToWorldUnits;
                                     Box->Position.y = TileYMeters +
                                         ((Tileset->TileHeightInPixels -
                                             TileInfo->Boxes[CurrentBoxIndex].Position.y -
-                                            TileInfo->Boxes[CurrentBoxIndex].Size.y) * Tileset->TilesetHeightPixelsToMeters);
+                                            TileInfo->Boxes[CurrentBoxIndex].Size.y) * Tileset->TilesetHeightPixelsToWorldUnits);
 
-                                    Box->Size.x = TileInfo->Boxes[CurrentBoxIndex].Size.x * Tileset->TilesetWidthPixelsToMeters;
-                                    Box->Size.y = TileInfo->Boxes[CurrentBoxIndex].Size.y * Tileset->TilesetHeightPixelsToMeters;
+                                    Box->Size.x = TileInfo->Boxes[CurrentBoxIndex].Size.x * Tileset->TilesetWidthPixelsToWorldUnits;
+                                    Box->Size.y = TileInfo->Boxes[CurrentBoxIndex].Size.y * Tileset->TilesetHeightPixelsToWorldUnits;
 
                                     mat4 * BoxInstanceModel = BoxInstanceModels + BoxIndex;
                                     *BoxInstanceModel = mat4(1.f);
@@ -769,12 +806,12 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                     Entity->ID = Object->ID;
                     // tile objects have their position at bottom-left (https://github.com/bjorn/tiled/issues/91)
                     Entity->Position = vec2(
-                        Object->X * Tileset->TilesetWidthPixelsToMeters,
-                        (Object->Y - Object->Height) * Tileset->TilesetWidthPixelsToMeters
+                        Object->X * Tileset->TilesetWidthPixelsToWorldUnits,
+                        (Object->Y - Object->Height) * Tileset->TilesetWidthPixelsToWorldUnits
                     );
                     Entity->Size = vec2(
-                        Object->Width * Tileset->TilesetHeightPixelsToMeters,
-                        Object->Height * Tileset->TilesetHeightPixelsToMeters
+                        Object->Width * Tileset->TilesetHeightPixelsToWorldUnits,
+                        Object->Height * Tileset->TilesetHeightPixelsToWorldUnits
                     );
 
                     Entity->Type = Object->Type;
@@ -793,11 +830,11 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                         // EntityInstanceModel
                         EntityRenderInfo->InstanceModel = mat4(1.f);
 
-                        f32 EntityWorldXInMeters = ScreenCenterInMeters.x + Entity->Position.x;
-                        f32 EntityWorldYInMeters = ScreenCenterInMeters.y - Entity->Position.y;
+                        f32 EntityWorldXInWorldUnits = ScreenCenterInWorldUnits.x + Entity->Position.x;
+                        f32 EntityWorldYInWorldUnits = ScreenCenterInWorldUnits.y - Entity->Position.y;
 
                         EntityRenderInfo->InstanceModel = translate(EntityRenderInfo->InstanceModel,
-                            vec3(EntityWorldXInMeters, EntityWorldYInMeters, 0.f));
+                            vec3(EntityWorldXInWorldUnits, EntityWorldYInWorldUnits, 0.f));
                         EntityRenderInfo->InstanceModel = scale(EntityRenderInfo->InstanceModel,
                             vec3(Entity->Size.x, Entity->Size.y, 0.f));
 
@@ -816,15 +853,15 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                             {
                                 aabb* Box = GameState->Boxes + BoxIndex;
 
-                                Box->Position.x = EntityWorldXInMeters +
-                                    EntityTileInfo->Boxes[CurrentBoxIndex].Position.x * Tileset->TilesetWidthPixelsToMeters;
-                                Box->Position.y = EntityWorldYInMeters +
+                                Box->Position.x = EntityWorldXInWorldUnits +
+                                    EntityTileInfo->Boxes[CurrentBoxIndex].Position.x * Tileset->TilesetWidthPixelsToWorldUnits;
+                                Box->Position.y = EntityWorldYInWorldUnits +
                                     ((Tileset->TileHeightInPixels -
                                         EntityTileInfo->Boxes[CurrentBoxIndex].Position.y -
-                                        EntityTileInfo->Boxes[CurrentBoxIndex].Size.y) * Tileset->TilesetHeightPixelsToMeters);
+                                        EntityTileInfo->Boxes[CurrentBoxIndex].Size.y) * Tileset->TilesetHeightPixelsToWorldUnits);
 
-                                Box->Size.x = EntityTileInfo->Boxes[CurrentBoxIndex].Size.x * Tileset->TilesetWidthPixelsToMeters;
-                                Box->Size.y = EntityTileInfo->Boxes[CurrentBoxIndex].Size.y * Tileset->TilesetHeightPixelsToMeters;
+                                Box->Size.x = EntityTileInfo->Boxes[CurrentBoxIndex].Size.x * Tileset->TilesetWidthPixelsToWorldUnits;
+                                Box->Size.y = EntityTileInfo->Boxes[CurrentBoxIndex].Size.y * Tileset->TilesetHeightPixelsToWorldUnits;
 
                                 mat4 * BoxInstanceModel = BoxInstanceModels + BoxIndex;
                                 *BoxInstanceModel = mat4(1.f);
@@ -1505,15 +1542,15 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         GameState->Camera.y -= UpdatedMove.y;
 
         GameState->Projection = ortho(
-            -GameState->ScreenWidthInMeters / 2.f * GameState->Zoom, 
-            GameState->ScreenWidthInMeters / 2.f * GameState->Zoom,
-           -GameState->ScreenHeightInMeters / 2.f * GameState->Zoom,
-            GameState->ScreenHeightInMeters / 2.f * GameState->Zoom
+            -GameState->ScreenWidthInWorldUnits / 2.f * GameState->Zoom, 
+            GameState->ScreenWidthInWorldUnits / 2.f * GameState->Zoom,
+           -GameState->ScreenHeightInWorldUnits / 2.f * GameState->Zoom,
+            GameState->ScreenHeightInWorldUnits / 2.f * GameState->Zoom
         );
 
         mat4 View = mat4(1.f);
         View = translate(View, vec3(-GameState->Camera.x, GameState->Camera.y, 0.f));
-        View = translate(View, vec3(-GameState->ScreenWidthInMeters / 2.f, -GameState->ScreenHeightInMeters / 2.f, 0.f));
+        View = translate(View, vec3(-GameState->ScreenWidthInWorldUnits / 2.f, -GameState->ScreenHeightInWorldUnits / 2.f, 0.f));
 
         GameState->VP = GameState->Projection * View;
 
@@ -1712,7 +1749,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     // draw some borders
     {
         vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y);
-        vec2 Size = vec2(GameState->ScreenWidthInMeters, GameState->ScreenHeightInMeters);
+        vec2 Size = vec2(GameState->ScreenWidthInWorldUnits, GameState->ScreenHeightInWorldUnits);
         rotation_info Rotation = {};
         Rotation.AngleInRadians = 0.f;
         Rotation.Axis = vec3(0.f, 0.f, 1.f);
@@ -1724,7 +1761,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     {
         // todo: consolidate about game world coordinates ([0,0] is at the center)
-        vec2 Position = vec2(GameState->ScreenWidthInMeters / 2.f, GameState->ScreenHeightInMeters / 2.f) + vec2(6.f, 1.f);
+        vec2 Position = vec2(GameState->ScreenWidthInWorldUnits / 2.f, GameState->ScreenHeightInWorldUnits / 2.f) + vec2(6.f, 1.f);
         vec2 Size = vec2(1.f, 1.f);
         rotation_info Rotation = {};
         Rotation.AngleInRadians = radians((f32)GameState->Time * 200.f);
@@ -1760,7 +1797,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         }
 
         {
-            vec2 Position = vec2(GameState->ScreenWidthInMeters / 2.f, GameState->ScreenHeightInMeters / 2.f) + Particle->Position;
+            vec2 Position = vec2(GameState->ScreenWidthInWorldUnits / 2.f, GameState->ScreenHeightInWorldUnits / 2.f) + Particle->Position;
             f32 Rotation = (f32)radians(GameState->Time * 250.f);
             vec4 Color = Particle->Color;
             vec2 Size = Particle->Size;
@@ -1802,7 +1839,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     {
         vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
-            + vec2(0.5f, GameState->ScreenHeightInMeters - 1.f);
+            + vec2(0.5f, GameState->ScreenHeightInWorldUnits - 1.f);
         rotation_info Rotation = {};
         Rotation.AngleInRadians = 0.f;
         Rotation.Axis = vec3(0.f, 1.f, 0.f);
@@ -1814,24 +1851,32 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         wchar FrameTime[32];
         FormatString(FrameTime, ArrayCount(FrameTime), L"ms: %.4f", Params->msPerFrame * 1000.f);
 
-#define str(x) #x
-#define xstr(x) str(x)
-
         char PlayerStateString[32];
         GetEntityStateString(*Top(&GameState->Player->StatesStack), PlayerStateString, ArrayCount(PlayerStateString));
 
         wchar PlayerState[32];
         FormatString(PlayerState, ArrayCount(PlayerState), L"player state: %S", PlayerStateString);
 
-        f32 NextLineAdvance = GameState->CurrentFont->VerticalAdvance * GameState->PixelsToMeters * TextScale;
+        wchar PlayerPosition[64];
+        FormatString(PlayerPosition, ArrayCount(PlayerPosition), L"player position: x: %.2f, y: %.2f", GameState->Player->Position.x, GameState->Player->Position.y);
+
+        wchar MousePosition[64];
+        f32 CanonicalMouseX = (Params->Input.MouseX * GameState->PixelsToWorldUnits - GameState->ScreenWidthInWorldUnits / 2.f + GameState->Camera.x);
+        f32 CanonicalMouseY = (Params->Input.MouseY * GameState->PixelsToWorldUnits - GameState->ScreenHeightInWorldUnits / 2.f + GameState->Camera.y);
+
+        FormatString(MousePosition, ArrayCount(MousePosition), L"mouse position: x: %.2f, y: %.2f", CanonicalMouseX, CanonicalMouseY);
+
+        f32 NextLineAdvance = GameState->CurrentFont->VerticalAdvance * GameState->PixelsToWorldUnits * TextScale;
         DrawTextLine(Memory, GameState, FrameFps, Position, TextScale, &Rotation, vec4(0.f, 1.f, 1.f, 1.f), GameState->CurrentFont);
         DrawTextLine(Memory, GameState, FrameTime, Position - vec2(0.f, 1.f * NextLineAdvance), TextScale, &Rotation, vec4(0.f, 1.f, 1.f, 1.f), GameState->CurrentFont);
         DrawTextLine(Memory, GameState, PlayerState, Position - vec2(0.f, 2.f * NextLineAdvance), TextScale, &Rotation, vec4(0.f, 1.f, 1.f, 1.f), GameState->CurrentFont);
+        DrawTextLine(Memory, GameState, PlayerPosition, Position - vec2(0.f, 3.f * NextLineAdvance), TextScale, &Rotation, vec4(0.f, 1.f, 1.f, 1.f), GameState->CurrentFont);
+        DrawTextLine(Memory, GameState, MousePosition, Position - vec2(0.f, 4.f * NextLineAdvance), TextScale, &Rotation, vec4(0.f, 1.f, 1.f, 1.f), GameState->CurrentFont);
     }
 
     //{
     //    vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
-    //        + vec2(0.f, GameState->ScreenHeightInMeters);
+    //        + vec2(0.f, GameState->ScreenHeightInWorldUnits);
     //    Position.y += 0.f;
     //    rotation_info Rotation = {};
     //    Rotation.AngleInRadians = 0.f;
@@ -1842,7 +1887,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     //{
     //    vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
-    //        + vec2(1.f, GameState->ScreenHeightInMeters - 1.f);
+    //        + vec2(1.f, GameState->ScreenHeightInWorldUnits - 1.f);
     //    rotation_info Rotation = {};
     //    Rotation.AngleInRadians = 0.f; //radians((f32)GameState->Time * 100.f);
     //    Rotation.Axis = vec3(0.f, 1.f, 0.f);
@@ -1852,7 +1897,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     //{
     //    vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
-    //        + vec2(1.f, GameState->ScreenHeightInMeters - 2.5f);
+    //        + vec2(1.f, GameState->ScreenHeightInWorldUnits - 2.5f);
     //    rotation_info Rotation = {};
     //    Rotation.AngleInRadians = 0.f;
     //    Rotation.Axis = vec3(0.f, 0.f, 1.f);
@@ -1862,7 +1907,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     ////{
     ////    vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
-    ////        + vec2(1.f, GameState->ScreenHeightInMeters - 6.5f);
+    ////        + vec2(1.f, GameState->ScreenHeightInWorldUnits - 6.5f);
     ////    rotation_info Rotation = {};
     ////    Rotation.AngleInRadians = 0.f;
     ////    Rotation.Axis = vec3(0.f, 0.f, 1.f);
@@ -1873,7 +1918,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     //{
     //    vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
-    //        + vec2(1.f, GameState->ScreenHeightInMeters - 6.5f);
+    //        + vec2(1.f, GameState->ScreenHeightInWorldUnits - 6.5f);
     //    rotation_info Rotation = {};
     //    Rotation.AngleInRadians = 0.f;
     //    Rotation.Axis = vec3(0.f, 0.f, 1.f);
@@ -1883,7 +1928,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     //{
     //    vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
-    //        + vec2(1.f, GameState->ScreenHeightInMeters - 8.f);
+    //        + vec2(1.f, GameState->ScreenHeightInWorldUnits - 8.f);
     //    rotation_info Rotation = {};
     //    Rotation.AngleInRadians = 0.f;
     //    Rotation.Axis = vec3(0.f, 0.f, 1.f);
@@ -1893,7 +1938,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     //{
     //    vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
-    //        + vec2(1.f, GameState->ScreenHeightInMeters - 9.f);
+    //        + vec2(1.f, GameState->ScreenHeightInWorldUnits - 9.f);
     //    rotation_info Rotation = {};
     //    Rotation.AngleInRadians = 0.f;
     //    Rotation.Axis = vec3(0.f, 0.f, 1.f);

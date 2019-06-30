@@ -1,15 +1,11 @@
-#include "fuzzy_types.h"
-#include "fuzzy_platform.h"
-#include "fuzzy.h"
-
-internal_function void
+internal void
 LoadGameAssets(platform_api *Platform, game_state *GameState, memory_arena *Arena)
 {
     read_file_result AssetFile = Platform->ReadFile("assets/data.fasset");
 
     asset_header *AssetHeader = (asset_header *)AssetFile.Contents;
 
-    assert(AssetHeader->MagicValue == 0x451);
+    Assert(AssetHeader->MagicValue == 0x451);
 
     GameState->FontAssetCount = AssetHeader->FontCount;
     GameState->FontAssets = PushArray<font_asset>(Arena, GameState->FontAssetCount);

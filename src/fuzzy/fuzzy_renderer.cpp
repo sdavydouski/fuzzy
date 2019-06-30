@@ -1,10 +1,4 @@
-#include "fuzzy_platform.h"
 #include "fuzzy_renderer.h"
-#include "fuzzy.h"
-#include <glm/gtc/type_ptr.hpp>
-#include "stdio.h"
-
-#pragma region Shaders
 
 inline b32
 UniformKeyComparator(shader_uniform *Uniform, char *Key)
@@ -16,7 +10,13 @@ UniformKeyComparator(shader_uniform *Uniform, char *Key)
 inline b32
 UniformKeyExists(shader_uniform *Uniform)
 {
-    b32 Result = (b32)Uniform->Name;
+    b32 Result = false;
+
+    if (Uniform->Name)
+    {
+        Result = true;
+    }
+
     return Result;
 }
 
@@ -26,14 +26,14 @@ UniformKeySetter(shader_uniform *Uniform, char *Key)
     Uniform->Name = Key;
 }
 
-shader_uniform *
+inline shader_uniform *
 GetUniform(shader_program *ShaderProgram, char *Name)
 {
     shader_uniform *Result = Get<shader_uniform, char *>(&ShaderProgram->Uniforms, Name, UniformKeyComparator);
     return Result;
 }
 
-shader_uniform *
+inline shader_uniform *
 CreateUniform(shader_program *ShaderProgram, char *Name, memory_arena *Arena)
 {
     shader_uniform *Result = Create<shader_uniform, char *>(
@@ -41,7 +41,7 @@ CreateUniform(shader_program *ShaderProgram, char *Name, memory_arena *Arena)
     return Result;
 }
 
-u32
+internal u32
 CreateShader(game_memory *Memory, game_state *GameState, GLenum Type, char *Source)
 {
     u32 Shader = Memory->Renderer.glCreateShader(Type);
@@ -69,12 +69,12 @@ CreateShader(game_memory *Memory, game_state *GameState, GLenum Type, char *Sour
 
         EndTemporaryMemory(ErrorLogMemory);
     }
-    assert(IsShaderCompiled);
+    Assert(IsShaderCompiled);
 
     return Shader;
 }
 
-u32
+internal u32
 CreateProgram(game_memory *Memory, game_state *GameState, u32 VertexShader, u32 FragmentShader)
 {
     u32 Program = Memory->Renderer.glCreateProgram();
@@ -104,7 +104,7 @@ CreateProgram(game_memory *Memory, game_state *GameState, u32 VertexShader, u32 
         
         EndTemporaryMemory(ErrorLogMemory);
     }
-    assert(IsProgramLinked);
+    Assert(IsProgramLinked);
 
     return Program;
 }
@@ -113,7 +113,7 @@ inline s32
 GetUniformLocation(game_memory *Memory, u32 ShaderProgram, const char *Name)
 {
     s32 UniformLocation = Memory->Renderer.glGetUniformLocation(ShaderProgram, Name);
-    //assert(uniformLocation != -1);
+    //Assert(uniformLocation != -1);
     return UniformLocation;
 }
 
@@ -207,7 +207,7 @@ SetShaderUniform(game_memory *Memory, shader_uniform *Uniform, const mat4& Value
     }
 }
 
-shader_program
+internal shader_program
 CreateShaderProgram(game_memory *Memory, game_state *GameState, char *VertexShaderFileName, char *FragmentShaderFileName)
 {
     shader_program Result = {};
@@ -243,11 +243,7 @@ CreateShaderProgram(game_memory *Memory, game_state *GameState, char *VertexShad
     return Result;
 }
 
-#pragma endregion
-
-#pragma region Buffers
-
-void
+internal void
 SetupVertexBuffer(renderer_api *Renderer, vertex_buffer *Buffer)
 {
     Renderer->glGenVertexArrays(1, &Buffer->VAO);
@@ -283,11 +279,7 @@ SetupVertexBuffer(renderer_api *Renderer, vertex_buffer *Buffer)
     }
 }
 
-#pragma endregion
-
-#pragma region New Renderer API
-
-void
+internal void
 DrawRectangle(
     game_memory *Memory, 
     game_state *GameState, 
@@ -324,7 +316,7 @@ DrawRectangle(
     Memory->Renderer.glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
-void
+internal void
 DrawRectangleOutline(
     game_memory *Memory, 
     game_state *GameState, 
@@ -369,7 +361,7 @@ DrawRectangleOutline(
     Memory->Renderer.glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
-void
+internal void
 DrawSprite(
     game_memory *Memory,
     game_state *GameState,
@@ -407,6 +399,7 @@ DrawSprite(
     Memory->Renderer.glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
+// todo: move out
 inline u32
 GetCharacterGlyphIndex(font_asset *Font, wchar Character)
 {
@@ -432,7 +425,7 @@ GetCharacterGlyphIndex(font_asset *Font, wchar Character)
     return GlyphIndex;
 }
 
-f32 inline
+inline f32
 GetHorizontalAdvanceForPair(font_asset *Font, wchar Character, wchar NextCharacter)
 {
     f32 Result = 0.f;
@@ -442,7 +435,7 @@ GetHorizontalAdvanceForPair(font_asset *Font, wchar Character, wchar NextCharact
 
     if (RowIndex >= 0 && ColumnIndex >= 0)
     {
-        assert((RowIndex * Font->GlyphCount + ColumnIndex) < (s32)Font->HorizontalAdvanceTableCount);
+        Assert((RowIndex * Font->GlyphCount + ColumnIndex) < (s32)Font->HorizontalAdvanceTableCount);
 
         Result = *(Font->HorizontalAdvanceTable + RowIndex * Font->GlyphCount + ColumnIndex);
     }
@@ -459,8 +452,7 @@ GetCharacterGlyph(font_asset *Font, wchar Character)
     return Result;
 }
 
-
-void
+internal void
 DrawTextLine(
     game_memory *Memory,
     game_state *GameState,
@@ -495,7 +487,7 @@ DrawTextLine(
         shader_uniform *SpriteSizeUniform = GetUniform(&GameState->TextShaderProgram, "u_SpriteSize");
         SetShaderUniform(Memory, SpriteSizeUniform->Location, GlyphInfo->SpriteSize / TextureAtlasSize);
 
-        vec2 Size = GlyphInfo->CharacterSize * GameState->PixelsToMeters * TextScale;
+        vec2 Size = GlyphInfo->CharacterSize * GameState->PixelsToWorldUnits * TextScale;
         vec2 UV = GlyphInfo->UV;
 
         shader_uniform *ModelUniform = GetUniform(&GameState->TextShaderProgram, "u_Model");
@@ -503,7 +495,7 @@ DrawTextLine(
 
         mat4 Model = mat4(1.f);
 
-        vec2 Alignment = GlyphInfo->Alignment * GameState->PixelsToMeters * TextScale;
+        vec2 Alignment = GlyphInfo->Alignment * GameState->PixelsToWorldUnits * TextScale;
         Model = glm::translate(Model, vec3(Position + Alignment, 0.f));
 
         // scaling
@@ -521,8 +513,6 @@ DrawTextLine(
 
         f32 HorizontalAdvance = GetHorizontalAdvanceForPair(Font, Character, NextCharacter);
 
-        AtX += HorizontalAdvance * GameState->PixelsToMeters * TextScale;
+        AtX += HorizontalAdvance * GameState->PixelsToWorldUnits * TextScale;
     }
 }
-
-#pragma endregion

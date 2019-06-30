@@ -1,7 +1,6 @@
 #pragma once
 
 #include "fuzzy_types.h"
-#include "fuzzy_math.h"
 
 struct random_sequence
 {

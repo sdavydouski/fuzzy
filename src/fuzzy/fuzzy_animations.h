@@ -1,7 +1,5 @@
 #pragma once
 
-#include "fuzzy_types.h"
-
 struct animation_frame
 {
     f32 XOffset01;

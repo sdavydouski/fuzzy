@@ -18,15 +18,16 @@
 #pragma warning(disable:4302)
 #pragma warning(disable:4311)
 
-global_variable game_params GameParams = {};
+// todo: don't really like (do smth with glfw input handling)
+global game_params GameParams = {};
 
-internal_function void
+internal void
 Win32GetFullPathToEXEDirectory(win32_state *State) 
 {
     char EXEFullPath[WIN32_FILE_PATH];
     GetModuleFileNameA(0, EXEFullPath, sizeof(EXEFullPath));
 
-    char* OnePastLastEXEFullPathSlash = GetLastAfterDelimiter(EXEFullPath, '\\');
+    char *OnePastLastEXEFullPathSlash = GetLastAfterDelimiter(EXEFullPath, '\\');
 
     for (char Index = 0; Index < OnePastLastEXEFullPathSlash - EXEFullPath; ++Index) 
     {
@@ -34,7 +35,7 @@ Win32GetFullPathToEXEDirectory(win32_state *State)
     }
 }
 
-internal_function FILETIME
+internal FILETIME
 Win32GetLastWriteTime(char *FileName) 
 {
     FILETIME LastWriteTime = {};
@@ -48,7 +49,7 @@ Win32GetLastWriteTime(char *FileName)
     return LastWriteTime;
 }
 
-internal_function b32
+internal b32
 Win32FileExists(char *FileName) 
 {
     WIN32_FILE_ATTRIBUTE_DATA Ignored;
@@ -57,7 +58,7 @@ Win32FileExists(char *FileName)
     return Exists;
 }
 
-internal_function win32_game_code
+internal win32_game_code
 Win32LoadGameCode(char *SourceDLLName, char *TempDLLName, char *LockFileName) 
 {
     win32_game_code Result = {};
@@ -81,7 +82,7 @@ Win32LoadGameCode(char *SourceDLLName, char *TempDLLName, char *LockFileName)
     return Result;
 }
 
-internal_function void
+internal void
 Win32UnloadGameCode(win32_game_code *GameCode) 
 {
     if (GameCode->GameCodeDLL) 
@@ -94,7 +95,7 @@ Win32UnloadGameCode(win32_game_code *GameCode)
     GameCode->UpdateAndRender = 0;
 }
 
-internal_function void
+internal void
 Win32InitOpenGLRenderer(game_memory *GameMemory) 
 {
     // todo: in future this will be different
@@ -152,8 +153,70 @@ Win32InitOpenGLRenderer(game_memory *GameMemory)
     GameMemory->Renderer.glDisable = glDisable;
 }
 
-s32 CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, s32 nCmdShow)
-//int main(int argc, char *argv[])
+PLATFORM_PRINT_OUTPUT(PlatformPrintOutput)
+{
+    OutputDebugStringA(Output);
+}
+
+PLATFORM_FREE_FILE(PlatformFreeFile)
+{
+    if (File.Contents)
+    {
+        VirtualFree(File.Contents, 0, MEM_RELEASE);
+    }
+}
+
+// todo: pass memory arena?
+PLATFORM_READ_FILE(PlatformReadFile)
+{
+    read_file_result Result = {};
+
+    HANDLE FileHandle = CreateFileA(FileName, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+    if (FileHandle != INVALID_HANDLE_VALUE)
+    {
+        LARGE_INTEGER FileSize;
+        if (GetFileSizeEx(FileHandle, &FileSize))
+        {
+            u32 FileSize32 = (u32)FileSize.QuadPart;
+            Result.Contents = VirtualAlloc(0, FileSize32, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+            if (Result.Contents)
+            {
+                DWORD BytesRead;
+                if (ReadFile(FileHandle, Result.Contents, FileSize32, &BytesRead, 0) && FileSize32 == BytesRead)
+                {
+                    Result.Size = FileSize32;
+                }
+                else
+                {
+                    PlatformFreeFile(Result);
+                    Result.Size = 0;
+
+                    // todo: logging
+                }
+            }
+            else
+            {
+                // todo: logging
+            }
+        }
+        else
+        {
+            // todo: logging
+        }
+    }
+    else
+    {
+        // todo: logging
+    }
+
+    return Result;
+}
+
+#if 1
+int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
+#else
+int main(int argc, char *argv[])
+#endif
 {
     win32_state Win32State = {};
     game_memory GameMemory = {};
@@ -211,7 +274,6 @@ s32 CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    //glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
     GLFWmonitor *Monitor = glfwGetPrimaryMonitor();
     const GLFWvidmode* VidMode = glfwGetVideoMode(Monitor);
@@ -222,6 +284,8 @@ s32 CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
     if (!Window) 
     {
         OutputDebugStringA("Failed to create GLFW window\n");
+
+        // todo: more logging
         glfwTerminate();
         return EXIT_FAILURE;
     }
@@ -294,10 +358,16 @@ s32 CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
         }
     });
 
-    glfwSetScrollCallback(Window, [](GLFWwindow* window, f64 XOffset, f64 YOffset)
+    glfwSetCursorPosCallback(Window, [](GLFWwindow* Window, f64 xpos, f64 ypos)
     {
-        GameParams.Input.ScrollX += (f32)XOffset;
-        GameParams.Input.ScrollY += (f32)YOffset;
+        GameParams.Input.MouseX = (f32)xpos;
+        GameParams.Input.MouseY = (f32)ypos;
+    });
+
+    glfwSetScrollCallback(Window, [](GLFWwindow* Window, f64 xOffset, f64 yOffset)
+    {
+        GameParams.Input.ScrollX += (f32)xOffset;
+        GameParams.Input.ScrollY += (f32)yOffset;
     });
 
     glfwSetFramebufferSizeCallback(Window, [](GLFWwindow *Window, s32 Width, s32 Height) 

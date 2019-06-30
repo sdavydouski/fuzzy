@@ -6,15 +6,7 @@
 #include "fuzzy_renderer.h"
 #include "fuzzy_animations.h"
 #include "fuzzy_containers.h"
-#include "fuzzy_random.h"
 #include "assets.h"
-
-#define ArrayLength(Array) (sizeof(Array) / sizeof((Array)[0]))
-
-#pragma warning(disable:4302)
-#pragma warning(disable:4311)
-
-#define StructOffset(StructType, StructMember) ((u64)(&(((StructType *)0)->StructMember)))
 
 struct aabb_info
 {
@@ -54,42 +46,6 @@ enum entity_state
     ENTITY_STATE_DUCK,
     ENTITY_STATE_ATTACK
 };
-
-inline void
-GetEntityStateString(entity_state State, char *String, u32 Length)
-{
-    char *StateString = 0;
-
-    switch (State)
-    {
-    case ENTITY_STATE_IDLE:
-        CopyString("idle", String, Length);
-        break;
-    case ENTITY_STATE_RUN:
-        CopyString("run", String, Length);
-        break;
-    case ENTITY_STATE_JUMP:
-        CopyString("jump", String, Length);
-        break;
-    case ENTITY_STATE_DOUBLE_JUMP:
-        CopyString("double_jump", String, Length);
-        break;
-    case ENTITY_STATE_FALL:
-        CopyString("fall", String, Length);
-        break;
-    case ENTITY_STATE_SQUASH:
-        CopyString("squash", String, Length);
-        break;
-    case ENTITY_STATE_DUCK:
-        CopyString("duck", String, Length);
-        break;
-    case ENTITY_STATE_ATTACK:
-        CopyString("attack", String, Length);
-        break;
-    default:
-        break;
-    }
-}
 
 struct entity
 {
@@ -167,8 +123,8 @@ struct game_state
     mat4 Projection;
     mat4 VP;
 
-    f32 ScreenWidthInMeters;
-    f32 ScreenHeightInMeters;
+    f32 ScreenWidthInWorldUnits;
+    f32 ScreenHeightInWorldUnits;
 
     u32 UBO;
 
@@ -198,6 +154,6 @@ struct game_state
 
     font_asset *CurrentFont;
 
-    f32 PixelsToMeters;
-    f32 MetersToPixels;
+    f32 PixelsToWorldUnits;
+    f32 WorldUnitsToPixels;
 };

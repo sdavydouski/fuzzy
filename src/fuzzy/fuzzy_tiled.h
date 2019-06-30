@@ -1,8 +1,5 @@
 #pragma once
 
-#include "fuzzy_types.h"
-#include "fuzzy_containers.h"
-
 // todo: move it somewhere else
 struct bitmap
 {
@@ -66,11 +63,11 @@ struct tileset
     s32 TileWidthInPixels;
     s32 TileHeightInPixels;
 
-    f32 TileWidthInMeters;
-    f32 TileHeightInMeters;
+    f32 TileWidthInWorldUnits;
+    f32 TileHeightInWorldUnits;
 
-    f32 TilesetWidthPixelsToMeters;
-    f32 TilesetHeightPixelsToMeters;
+    f32 TilesetWidthPixelsToWorldUnits;
+    f32 TilesetHeightPixelsToWorldUnits;
 
     bitmap Image;
 

@@ -196,7 +196,7 @@
   <ItemGroup>
     <None Include="fuzzy_assets.cpp" />
     <None Include="fuzzy_containers.cpp" />
-    <None Include="fuzzy_math.h" />
+    <None Include="fuzzy_math.cpp" />
     <None Include="fuzzy_animations.cpp" />
     <None Include="fuzzy_tiled.cpp" />
     <None Include="fuzzy_renderer.cpp" />
@@ -209,7 +209,7 @@
     <ClInclude Include="fuzzy_renderer.h" />
     <ClInclude Include="fuzzy_platform.h" />
     <ClInclude Include="fuzzy_memory.h" />
-    <ClInclude Include="fuzzy_random.h" />
+    <ClInclude Include="fuzzy_random.cpp" />
     <ClInclude Include="fuzzy_tiled.h" />
     <ClInclude Include="fuzzy_types.h" />
   </ItemGroup>

@@ -160,10 +160,6 @@ PrepareFontAsset(
         glyph *Glyph = Glyphs + CodepointIndex;
 
         Glyph->CharacterSize = vec2(Quad.x1 - Quad.x0, Quad.y1 - Quad.y0);
-        if (Glyph->CharacterSize.x == 0.5f)
-        {
-            int b = 0;
-        }
         Glyph->UV = vec2(Quad.s0, Quad.t0);
         Glyph->Alignment = vec2(Quad.x0, -Quad.y1);
 

@@ -1,7 +1,5 @@
 #pragma once
 
-#include "fuzzy_types.h"
-
 constexpr u64 
 Kilobytes(u64 bytes)
 {
@@ -72,7 +70,7 @@ EndTemporaryMemory(temporary_memory TempMemory)
 inline void *
 PushSize(memory_arena *Arena, memory_index Size)
 {
-    assert((Arena->Used + Size) <= Arena->Size);
+    Assert((Arena->Used + Size) <= Arena->Size);
 
     void *Result = (u8*)Arena->Base + Arena->Used;
     Arena->Used += Size;
@@ -96,7 +94,7 @@ PushArray(memory_arena *Arena, u32 Count)
     return Result;
 }
 
-inline char*
+inline char *
 PushString(memory_arena* Arena, u32 StringLength)
 {
     char* Result = PushArray<char>(Arena, StringLength);

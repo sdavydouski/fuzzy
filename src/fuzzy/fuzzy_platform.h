@@ -1,12 +1,9 @@
 #pragma once
 
-#include <string.h>
-#include <stdio.h>
-#include "fuzzy_types.h"
-
 #define EXPORT __declspec(dllexport)
 
 #define ArrayCount(arr) (sizeof(arr) / sizeof(arr[0]))
+#define StructOffset(StructType, StructMember) ((u64)(&(((StructType *)0)->StructMember)))
 
 #pragma region Platform API
 
@@ -287,6 +284,9 @@ struct game_input
 
     key_state Jump;
     key_state Attack;
+
+    f32 MouseX;
+    f32 MouseY;
 
     f32 ScrollX;
     f32 ScrollY;

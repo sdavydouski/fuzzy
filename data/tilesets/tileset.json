@@ -6,18 +6,18 @@
  "name":"tileset",
  "properties":[
         {
-         "name":"TileHeightInMeters",
+         "name":"TileHeightInWorldUnits",
          "type":"float",
          "value":1
         }, 
         {
-         "name":"TileWidthInMeters",
+         "name":"TileWidthInWorldUnits",
          "type":"float",
          "value":1
         }],
  "spacing":0,
  "tilecount":1024,
- "tiledversion":"1.2.3",
+ "tiledversion":"1.2.4",
  "tileheight":16,
  "tiles":[
         {

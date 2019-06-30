@@ -2,12 +2,12 @@
 #include "fuzzy_memory.h"
 
 template<typename TValue, typename TKey>
-TValue *
+internal TValue *
 Get(hash_table<TValue> *HashTable, TKey Key, b32(*KeyComparator)(TValue *, TKey)) {
     TValue *Result = nullptr;
 
     u32 HashValueIndex = Hash(Key) % HashTable->Count;
-    assert(HashValueIndex < HashTable->Count);
+    Assert(HashValueIndex < HashTable->Count);
 
     TValue *Value = HashTable->Values + HashValueIndex;
 
@@ -28,7 +28,7 @@ Get(hash_table<TValue> *HashTable, TKey Key, b32(*KeyComparator)(TValue *, TKey)
 
 
 template<typename TValue, typename TKey>
-TValue * 
+internal TValue * 
 Create(
     hash_table<TValue> *HashTable, 
     TKey Key, 
@@ -40,7 +40,7 @@ Create(
     TValue *Result = nullptr;
 
     u32 HashValueIndex = Hash(Key) % HashTable->Count;
-    assert(HashValueIndex < HashTable->Count);
+    Assert(HashValueIndex < HashTable->Count);
 
     TValue *Value = HashTable->Values + HashValueIndex;
 
@@ -73,7 +73,7 @@ Push(stack<TValue> *Stack, TValue NewValue)
     TValue *Value = Stack->Values + Stack->Count;
     ++Stack->Count;
 
-    assert(Stack->Count < Stack->MaxCount);
+    Assert(Stack->Count < Stack->MaxCount);
 
     *Value = NewValue;
 }
@@ -82,7 +82,7 @@ template<typename TValue>
 inline TValue *
 Top(stack<TValue> *Stack)
 {
-    assert(Stack->Count > 0);
+    Assert(Stack->Count > 0);
 
     TValue *Result = Stack->Values + (Stack->Count - 1);
     return Result;
@@ -95,7 +95,7 @@ Pop(stack<TValue> *Stack)
     TValue *Result = Top(Stack);
     --Stack->Count;
 
-    assert(Stack->Count >= 0);
+    Assert(Stack->Count >= 0);
 
     return Result;
 }

@@ -1,6 +1,4 @@
 #include "fuzzy_animations.h"
-#include "fuzzy_platform.h"
-#include "fuzzy.h"
 
 inline b32
 AnimationKeyComparator(animation *Animation, char *Key)
@@ -12,7 +10,13 @@ AnimationKeyComparator(animation *Animation, char *Key)
 inline b32
 AnimationKeyExists(animation *Animation)
 {
-    b32 Result = (b32)Animation->Name;
+    b32 Result = false;
+
+    if (Animation->Name)
+    {
+        Result = true;
+    }
+
     return Result;
 }
 
@@ -22,14 +26,14 @@ AnimationKeySetter(animation *Animation, char *Key)
     Animation->Name = Key;
 }
 
-animation *
+inline animation *
 GetAnimation(game_state *GameState, char *Name)
 {
     animation *Result = Get<animation, char *>(&GameState->Animations, Name, AnimationKeyComparator);
     return Result;
 }
 
-animation *
+inline animation *
 CreateAnimation(game_state *GameState, char *Name, memory_arena *Arena)
 {
     animation *Result = Create<animation, char *>(
@@ -44,7 +48,7 @@ GetCurrentAnimationFrame(animation *Animation)
     return Result;
 }
 
-void
+internal void
 ChangeAnimation(game_state *GameState, entity *Entity, animation *Animation, b32 Loop = true)
 {
     Animation->CurrentFrameIndex = 0;
@@ -63,7 +67,7 @@ ChangeAnimation(game_state *GameState, entity *Entity, animation *Animation, b32
     Entity->CurrentAnimation = Animation;
 }
 
-void
+inline void
 ChangeAnimation(game_state *GameState, entity *Entity, char *Name, b32 Loop = true)
 {
     animation *Animation = GetAnimation(GameState, Name);

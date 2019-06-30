@@ -1,12 +1,20 @@
+// todo: to make rapidjson work
+#undef internal
 #include "rapidjson/document.h"
+#define internal static
+
 #include "fuzzy_tiled.h"
-#include "fuzzy_platform.h"
 #include "fuzzy.h"
 
 using namespace rapidjson;
 
+global const char *TILE_LAYER = "tilelayer";
+global const char *OBJECT_LAYER = "objectgroup";
+
+typedef GenericDocument<UTF8<>, MemoryPoolAllocator<>, MemoryPoolAllocator<>> DocumentType;
+
 // todo: not scalable
-entity_type
+internal entity_type
 GetEntityTypeFromString(const char *String)
 {
     entity_type Result;
@@ -54,14 +62,14 @@ TileMetaInfoKeySetter(tile_meta_info *TileMetaInfo, u32 Key)
     TileMetaInfo->Id = Key;
 }
 
-tile_meta_info *
+inline tile_meta_info *
 GetTileMetaInfo(tileset *Tileset, u32 ID)
 {
     tile_meta_info *Result = Get<tile_meta_info, u32>(&Tileset->Tiles, ID, TileMetaInfoKeyComparator);
     return Result;
 }
 
-tile_meta_info *
+inline tile_meta_info *
 CreateTileMetaInfo(tileset *Tileset, u32 ID, memory_arena *Arena)
 {
     tile_meta_info *Result = Create<tile_meta_info, u32>(
@@ -69,9 +77,7 @@ CreateTileMetaInfo(tileset *Tileset, u32 ID, memory_arena *Arena)
     return Result;
 }
 
-typedef GenericDocument<UTF8<>, MemoryPoolAllocator<>, MemoryPoolAllocator<>> DocumentType;
-
-DocumentType
+internal DocumentType
 ParseJSON(const char *Json, u64 ValueBufferSize, u64 ParseBufferSize, memory_arena *Region) 
 {
     // todo: temporary memory for document storage
@@ -87,7 +93,7 @@ ParseJSON(const char *Json, u64 ValueBufferSize, u64 ParseBufferSize, memory_are
     return Document;
 }
 
-void
+internal void
 LoadTileset(tileset *Tileset, const char *Json, memory_arena *Arena, platform_api *Platform) 
 {
     // todo: think more about the sizes
@@ -106,7 +112,7 @@ LoadTileset(tileset *Tileset, const char *Json, memory_arena *Arena, platform_ap
     {
         Platform->PrintOutput("Image loading failed:\n");
     }
-    assert(Tileset->Image.Memory);
+    Assert(Tileset->Image.Memory);
 
     Tileset->TileWidthInPixels = Document["tilewidth"].GetInt();
     Tileset->TileHeightInPixels = Document["tileheight"].GetInt();
@@ -114,23 +120,23 @@ LoadTileset(tileset *Tileset, const char *Json, memory_arena *Arena, platform_ap
     Tileset->Margin = Document["margin"].GetUint();
     Tileset->Spacing = Document["spacing"].GetUint();
 
-    assert(Document.HasMember("properties"));
+    Assert(Document.HasMember("properties"));
 
     const Value& CustomProperties = Document["properties"];
-    assert(CustomProperties.IsArray());
+    Assert(CustomProperties.IsArray());
     
     for (SizeType CustomPropertyIndex = 0; CustomPropertyIndex < CustomProperties.Size(); ++CustomPropertyIndex) 
     {
         const Value& CustomProperty = CustomProperties[CustomPropertyIndex];
         const char* PropertyName = CustomProperty["name"].GetString();
 
-        if (StringEquals(PropertyName, "TileWidthInMeters"))
+        if (StringEquals(PropertyName, "TileWidthInWorldUnits"))
         {
-            Tileset->TileWidthInMeters = CustomProperty["value"].GetFloat();
+            Tileset->TileWidthInWorldUnits = CustomProperty["value"].GetFloat();
         }
-        else if (StringEquals(PropertyName, "TileHeightInMeters"))
+        else if (StringEquals(PropertyName, "TileHeightInWorldUnits"))
         {
-            Tileset->TileHeightInMeters = CustomProperty["value"].GetFloat();
+            Tileset->TileHeightInWorldUnits = CustomProperty["value"].GetFloat();
         }
         else 
         {
@@ -138,8 +144,8 @@ LoadTileset(tileset *Tileset, const char *Json, memory_arena *Arena, platform_ap
         }
     }
 
-    Tileset->TilesetWidthPixelsToMeters = Tileset->TileWidthInMeters / Tileset->TileWidthInPixels;
-    Tileset->TilesetHeightPixelsToMeters = Tileset->TileHeightInMeters / Tileset->TileHeightInPixels;
+    Tileset->TilesetWidthPixelsToWorldUnits = Tileset->TileWidthInWorldUnits / Tileset->TileWidthInPixels;
+    Tileset->TilesetHeightPixelsToWorldUnits = Tileset->TileHeightInWorldUnits / Tileset->TileHeightInPixels;
 
     Tileset->Tiles.Count = Document["tilecount"].GetUint();
     Tileset->Tiles.Values = PushArray<tile_meta_info>(Arena, Tileset->Tiles.Count);
@@ -147,7 +153,7 @@ LoadTileset(tileset *Tileset, const char *Json, memory_arena *Arena, platform_ap
     if (Document.HasMember("tiles")) 
     {
         const Value& Tiles = Document["tiles"];
-        assert(Tiles.IsArray());
+        Assert(Tiles.IsArray());
 
         for (SizeType TileIndex = 0; TileIndex < Tiles.Size(); ++TileIndex) 
         {
@@ -168,7 +174,7 @@ LoadTileset(tileset *Tileset, const char *Json, memory_arena *Arena, platform_ap
             {
                 const Value& TileObjects = Tile["objectgroup"]["objects"];
 
-                assert(TileObjects.IsArray());
+                Assert(TileObjects.IsArray());
 
                 TileInfo->BoxCount = TileObjects.Size();
                 TileInfo->Boxes = PushArray<aabb>(Arena, TileInfo->BoxCount);
@@ -191,7 +197,7 @@ LoadTileset(tileset *Tileset, const char *Json, memory_arena *Arena, platform_ap
             {
                 const Value& Animation = Tile["animation"];
 
-                assert(Animation.IsArray());
+                Assert(Animation.IsArray());
 
                 TileInfo->AnimationFrameCount = Animation.Size();
                 TileInfo->AnimationFrames = PushArray<tile_animation_frame>(Arena, TileInfo->AnimationFrameCount);
@@ -210,7 +216,7 @@ LoadTileset(tileset *Tileset, const char *Json, memory_arena *Arena, platform_ap
             {
                 const Value& CustomTileProperties = Tile["properties"];
 
-                assert(CustomTileProperties.IsArray());
+                Assert(CustomTileProperties.IsArray());
 
                 TileInfo->CustomPropertiesCount = CustomTileProperties.Size();
                 TileInfo->CustomProperties = PushArray<tile_custom_property>(Arena, TileInfo->CustomPropertiesCount);
@@ -260,10 +266,7 @@ LoadTileset(tileset *Tileset, const char *Json, memory_arena *Arena, platform_ap
     }
 }
 
-global_variable const char *TILE_LAYER = "tilelayer";
-global_variable const char *OBJECT_LAYER = "objectgroup";
-
-void
+internal void
 LoadMap(tilemap *Map, const char *Json, memory_arena *Arena, platform_api *Platform) 
 {
     // todo: think more about the sizes
@@ -271,7 +274,7 @@ LoadMap(tilemap *Map, const char *Json, memory_arena *Arena, platform_api *Platf
     constexpr u64 ParseBufferSize = Megabytes(1);
     DocumentType Document = ParseJSON(Json, ValueBufferSize, ParseBufferSize, Arena);
 
-    assert(Document.HasMember("tilesets"));
+    Assert(Document.HasMember("tilesets"));
 
     // todo: add support for multiple tilesets
     const Value& Tileset = Document["tilesets"].GetArray()[0];
@@ -292,7 +295,7 @@ LoadMap(tilemap *Map, const char *Json, memory_arena *Arena, platform_api *Platf
     LoadTileset(&Map->Tilesets[0].Source, TilesetJson, Arena, Platform);
 
     const Value& Layers = Document["layers"];
-    assert(Layers.IsArray());
+    Assert(Layers.IsArray());
 
     u32 TileLayerCount = 0;
     u32 ObjectGroupCount = 0;
@@ -343,7 +346,7 @@ LoadMap(tilemap *Map, const char *Json, memory_arena *Arena, platform_api *Platf
             TileLayer->Visible = Layer["visible"].GetBool();
 
             const Value& Chunks = Layer["chunks"];
-            assert(Chunks.IsArray());
+            Assert(Chunks.IsArray());
 
             TileLayer->ChunkCount = Chunks.Size();
             TileLayer->Chunks = PushArray<map_chunk>(Arena, TileLayer->ChunkCount);
@@ -361,7 +364,7 @@ LoadMap(tilemap *Map, const char *Json, memory_arena *Arena, platform_api *Platf
                 MapChunk->Height = Chunk["height"].GetUint();
 
                 const Value& ChunkData = Chunk["data"];
-                assert(ChunkData.IsArray());
+                Assert(ChunkData.IsArray());
 
                 MapChunk->GIDCount = ChunkData.Size();
                 MapChunk->GIDs = PushArray<u32>(Arena, MapChunk->GIDCount);
@@ -381,7 +384,7 @@ LoadMap(tilemap *Map, const char *Json, memory_arena *Arena, platform_api *Platf
             ObjectLayer->Visible = Layer["visible"].GetBool();
 
             const Value& Objects = Layer["objects"];
-            assert(Objects.IsArray());
+            Assert(Objects.IsArray());
 
             ObjectLayer->ObjectCount = Objects.Size();
             ObjectLayer->Objects = PushArray<map_object>(Arena, ObjectLayer->ObjectCount);

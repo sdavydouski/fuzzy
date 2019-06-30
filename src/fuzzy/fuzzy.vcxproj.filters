@@ -11,15 +11,15 @@
     <ClInclude Include="fuzzy_animations.h" />
     <ClInclude Include="fuzzy_tiled.h" />
     <ClInclude Include="fuzzy_containers.h" />
-    <ClInclude Include="fuzzy_random.h" />
     <ClInclude Include="fuzzy_renderer.h" />
+    <ClInclude Include="fuzzy_random.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="fuzzy_tiled.cpp" />
     <None Include="fuzzy_animations.cpp" />
     <None Include="fuzzy_containers.cpp" />
-    <None Include="fuzzy_math.h" />
     <None Include="fuzzy_renderer.cpp" />
     <None Include="fuzzy_assets.cpp" />
+    <None Include="fuzzy_math.cpp" />
   </ItemGroup>
 </Project>

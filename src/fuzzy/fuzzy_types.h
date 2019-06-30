@@ -5,10 +5,14 @@
 #include <glm/vec3.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
-#define global_variable static
-#define internal_function static
-#define local_persist static
+#define global static
+#define internal static
+#define persist static
+
+// todo: get rid of crt version
+#define Assert assert
 
 #define InvalidCodePath assert(!"InvalidCodePath")
 

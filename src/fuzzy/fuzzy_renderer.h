@@ -1,7 +1,5 @@
 #pragma once
 
-#include "fuzzy_containers.h"
-
 struct vertex_buffer_attribute
 {
     u32 Index;
