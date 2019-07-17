@@ -755,6 +755,11 @@
                  "name":"AnimationName",
                  "type":"string",
                  "value":"PLAYER_DUCK"
+                }, 
+                {
+                 "name":"StopOnTheLastFrame",
+                 "type":"bool",
+                 "value":true
                 }]
         }, 
         {
@@ -840,7 +845,7 @@
                 {
                  "name":"AnimationName",
                  "type":"string",
-                 "value":"PLAYER_JUMP_UP"
+                 "value":"PLAYER_JUMP"
                 }]
         }, 
         {

@@ -107,8 +107,8 @@
                  "type":"player",
                  "visible":true,
                  "width":16,
-                 "x":0,
-                 "y":-16
+                 "x":-1,
+                 "y":-113.878787878788
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -191,7 +191,7 @@
  "nextobjectid":12,
  "orientation":"orthogonal",
  "renderorder":"right-up",
- "tiledversion":"1.2.3",
+ "tiledversion":"1.2.4",
  "tileheight":16,
  "tilesets":[
         {

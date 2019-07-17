@@ -73,3 +73,14 @@ ChangeAnimation(game_state *GameState, entity *Entity, char *Name, b32 Loop = tr
     animation *Animation = GetAnimation(GameState, Name);
     ChangeAnimation(GameState, Entity, Animation, Loop);
 }
+
+inline void
+ChangeAnimationIfDifferent(game_state *GameState, entity *Entity, char *Name, b32 Loop = true)
+{
+    animation *Animation = GetAnimation(GameState, Name);
+
+    if (Animation != Entity->CurrentAnimation)
+    {
+        ChangeAnimation(GameState, Entity, Animation, Loop);
+    }
+}

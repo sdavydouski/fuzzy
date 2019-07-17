@@ -324,7 +324,7 @@ GetLastAfterDelimiter(char *String, const char Delimiter) {
     return Result;
 }
 
-inline s32 
+inline u32 
 StringLength(const char *String) {
     u32 Result = (u32)strlen(String);
 

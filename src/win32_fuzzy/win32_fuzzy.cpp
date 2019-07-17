@@ -212,7 +212,7 @@ PLATFORM_READ_FILE(PlatformReadFile)
     return Result;
 }
 
-#if 1
+#if 0
 int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 #else
 int main(int argc, char *argv[])
@@ -405,8 +405,7 @@ int main(int argc, char *argv[])
         }
 
         TotalTime = glfwGetTime();
-        // todo: is it seconds per frame?
-        GameParams.msPerFrame = (f32) (TotalTime - LastTime);
+        GameParams.msPerFrame = (f32)(TotalTime - LastTime) * 1000.f;
         LastTime = TotalTime;
         
         if (GameCode.IsValid) 

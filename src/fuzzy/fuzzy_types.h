@@ -14,7 +14,8 @@
 // todo: get rid of crt version
 #define Assert assert
 
-#define InvalidCodePath assert(!"InvalidCodePath")
+#define InvalidCodePath Assert(!"InvalidCodePath")
+#define InvalidDefaultCase default: { InvalidCodePath; } break
 
 #define U32Max UINT32_MAX;
 

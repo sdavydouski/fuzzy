@@ -80,16 +80,6 @@ Push(stack<TValue> *Stack, TValue NewValue)
 
 template<typename TValue>
 inline TValue *
-Top(stack<TValue> *Stack)
-{
-    Assert(Stack->Count > 0);
-
-    TValue *Result = Stack->Values + (Stack->Count - 1);
-    return Result;
-}
-
-template<typename TValue>
-inline TValue *
 Pop(stack<TValue> *Stack)
 {
     TValue *Result = Top(Stack);
@@ -101,9 +91,11 @@ Pop(stack<TValue> *Stack)
 }
 
 template<typename TValue>
-inline void
-Replace(stack<TValue> *Stack, TValue NewValue)
+inline TValue *
+Top(stack<TValue> *Stack)
 {
-    Pop(Stack);
-    Push(Stack, NewValue);
+    Assert(Stack->Count > 0);
+
+    TValue *Result = Stack->Values + (Stack->Count - 1);
+    return Result;
 }
