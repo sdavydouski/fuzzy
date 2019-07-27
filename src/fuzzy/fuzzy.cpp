@@ -35,8 +35,6 @@ NormalizeRGB(u32 Red, u32 Green, u32 Blue)
     return vec3(Red / MAX, Green / MAX, Blue / MAX);
 }
 
-global vec3 BackgroundColor = NormalizeRGB(29, 33, 45);
-
 inline void
 GetEntityStateString(entity_state State, char *String, u32 Length)
 {
@@ -150,9 +148,28 @@ SweptAABB(const vec2 Point, const vec2 Delta, const aabb& Box, const vec2 Paddin
 inline entity_state
 GetCurrentEntityState(entity *Entity)
 {
-    entity_state Result = *Top(&Entity->StatesStack);
+    entity_state Result = Top(&Entity->StatesStack);
 
     return Result;
+}
+
+inline void
+EmitEvent(game_state *GameState, event_type Type)
+{
+    event Event = {};
+    Event.Type = Type;
+
+    Enqueue(&GameState->EventQueue, Event);
+}
+
+inline void
+EmitEvent(game_state *GameState, event_type Type, event_data Data)
+{
+    event Event = {};
+    Event.Type = Type;
+    Event.Data = PushStruct<event_data>(&GameState->WorldArena);
+
+    Enqueue(&GameState->EventQueue, Event);
 }
 
 internal void
@@ -361,6 +378,13 @@ GameInit(game_state *GameState, game_memory *Memory, game_params *Params)
     );
 
     LoadGameAssets(&Memory->Platform, GameState, &GameState->WorldArena);
+
+    // initialize event queue (todo: move to separate function)
+    GameState->EventQueue = {};
+    GameState->EventQueue.Head = 0;
+    GameState->EventQueue.Tail = 0;
+    GameState->EventQueue.MaxCount = 10;
+    GameState->EventQueue.Values = PushArray<event>(&GameState->WorldArena, GameState->EventQueue.MaxCount);
 
     GameState->CurrentFont = GameState->FontAssets + 1;
 
@@ -1389,17 +1413,10 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     Renderer->glViewport(0, 0, ScreenWidth, ScreenHeight);
 
-    // todo: just messing around
-    {
-        entity_state PlayerState = GetCurrentEntityState(GameState->Player);
-        if (PlayerState != ENTITY_STATE_SQUASH)
-        {
-            BackgroundColor = NormalizeRGB(29, 33, 45);
-        }
-    }
-
     GameState->Time += Params->msPerFrame;
     GameState->Lag += Params->msPerFrame;
+
+    GameState->BackgroundColor = NormalizeRGB(29, 33, 45);
 
     ProcessInput(GameState, &Params->Input, Params->msPerFrame);
 
@@ -1465,8 +1482,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
                 if (PlayerState == ENTITY_STATE_DIVE)
                 {
-                    // todo: continue (event-based system?)
-                    BackgroundColor = vec3(1.f, 0.f, 0.f);
+                    EmitEvent(GameState, EVENT_TYPE_PLAYER_DIVE_HIT);
                 }
 
                 Pop(&GameState->Player->StatesStack);
@@ -1592,7 +1608,23 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         GameState->Lag -= GameState->UpdateRate;
     }
 
-    Renderer->glClearColor(BackgroundColor.r, BackgroundColor.g, BackgroundColor.b, 1.f);
+    // process events (todo: all of them?)
+    while (GameState->EventQueue.Head != GameState->EventQueue.Tail)
+    {
+        event Event = Dequeue(&GameState->EventQueue);
+
+        switch (Event.Type)
+        {
+            case EVENT_TYPE_PLAYER_DIVE_HIT:
+                // todo: spawn some particles
+                GameState->BackgroundColor = vec3(1.f, 0.f, 0.f);
+                break;
+
+            InvalidDefaultCase;
+        }
+    }
+
+    Renderer->glClearColor(GameState->BackgroundColor.r, GameState->BackgroundColor.g, GameState->BackgroundColor.b, 1.f);
     Renderer->glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
     Renderer->glBindTexture(GL_TEXTURE_2D, GameState->TilesetTexture);
@@ -1909,7 +1941,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         GetEntityStateString(GetCurrentEntityState(GameState->Player), PlayerStateString, ArrayCount(PlayerStateString));
 
         wchar PlayerState[32];
-        FormatString(PlayerState, ArrayCount(PlayerState), L"player state: %S, count: %u", PlayerStateString, GameState->Player->StatesStack.Count);
+        FormatString(PlayerState, ArrayCount(PlayerState), L"player state: %S, count: %u", PlayerStateString, GameState->Player->StatesStack.Head);
 
         wchar PlayerPosition[64];
         FormatString(PlayerPosition, ArrayCount(PlayerPosition), L"player position: x: %.2f, y: %.2f", GameState->Player->Position.x, GameState->Player->Position.y);
@@ -1927,86 +1959,4 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         DrawTextLine(Memory, GameState, PlayerPosition, Position - vec2(0.f, 3.f * NextLineAdvance), TextScale, &Rotation, vec4(0.f, 1.f, 1.f, 1.f), GameState->CurrentFont);
         DrawTextLine(Memory, GameState, MousePosition, Position - vec2(0.f, 4.f * NextLineAdvance), TextScale, &Rotation, vec4(0.f, 1.f, 1.f, 1.f), GameState->CurrentFont);
     }
-
-    //{
-    //    vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
-    //        + vec2(0.f, GameState->ScreenHeightInWorldUnits);
-    //    Position.y += 0.f;
-    //    rotation_info Rotation = {};
-    //    Rotation.AngleInRadians = 0.f;
-    //    Rotation.Axis = vec3(0.f, 0.f, 1.f);
-
-    //    DrawTextLine(Memory, GameState, L"If_you_can_keep_your_head_when_all_about_you", Position, 0.5f, &Rotation, vec4(1.f, 1.f, 0.f, 1.f), GameState->CurrentFont);
-    //}
-
-    //{
-    //    vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
-    //        + vec2(1.f, GameState->ScreenHeightInWorldUnits - 1.f);
-    //    rotation_info Rotation = {};
-    //    Rotation.AngleInRadians = 0.f; //radians((f32)GameState->Time * 100.f);
-    //    Rotation.Axis = vec3(0.f, 1.f, 0.f);
-
-    //    DrawTextLine(Memory, GameState, L"Are_losing_theirs_and_blaming_it_on_you,", Position, 1.f, &Rotation, vec4(0.f, 1.f, 1.f, 1.f), GameState->CurrentFont);
-    //}
-
-    //{
-    //    vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
-    //        + vec2(1.f, GameState->ScreenHeightInWorldUnits - 2.5f);
-    //    rotation_info Rotation = {};
-    //    Rotation.AngleInRadians = 0.f;
-    //    Rotation.Axis = vec3(0.f, 0.f, 1.f);
-
-    //    DrawTextLine(Memory, GameState, L"If you can trust yourself when all men doubt you,", Position, 1.5f, &Rotation, vec4(1.f, 0.f, 1.f, 1.f), GameState->CurrentFont);
-    //}
-
-    ////{
-    ////    vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
-    ////        + vec2(1.f, GameState->ScreenHeightInWorldUnits - 6.5f);
-    ////    rotation_info Rotation = {};
-    ////    Rotation.AngleInRadians = 0.f;
-    ////    Rotation.Axis = vec3(0.f, 0.f, 1.f);
-    ////    f32 InvTextSize = 400.f; //* AbsoluteValue((f32)sin(GameState->Time) * 0.2f + 0.5f);
-
-    ////    DrawTextString(Memory, GameState, "But make allowance for their doubting too;", Position, InvTextSize, &Rotation, vec4(0.f, 1.f, 0.f, 1.f), GameState->CurrentFont);
-    ////}
-
-    //{
-    //    vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
-    //        + vec2(1.f, GameState->ScreenHeightInWorldUnits - 6.5f);
-    //    rotation_info Rotation = {};
-    //    Rotation.AngleInRadians = 0.f;
-    //    Rotation.Axis = vec3(0.f, 0.f, 1.f);
-
-    //    DrawTextLine(Memory, GameState, L"TeVyTe WVAWTyYsWe", Position, 2.5f, &Rotation, vec4(1.f, 1.f, 1.f, 1.f), GameState->CurrentFont);
-    //}
-
-    //{
-    //    vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
-    //        + vec2(1.f, GameState->ScreenHeightInWorldUnits - 8.f);
-    //    rotation_info Rotation = {};
-    //    Rotation.AngleInRadians = 0.f;
-    //    Rotation.Axis = vec3(0.f, 0.f, 1.f);
-
-    //    DrawTextLine(Memory, GameState, L"ТеТу ЙЖдТВЗЮяы", Position, 2.f, &Rotation, vec4(1.f, 0.f, 0.f, 1.f), GameState->CurrentFont);
-    //}
-
-    //{
-    //    vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y) +
-    //        + vec2(1.f, GameState->ScreenHeightInWorldUnits - 9.f);
-    //    rotation_info Rotation = {};
-    //    Rotation.AngleInRadians = 0.f;
-    //    Rotation.Axis = vec3(0.f, 0.f, 1.f);
-
-    //    DrawTextLine(Memory, GameState, L"1234567890-=!@#$%^&*()_+.,/", Position, 1.f, &Rotation, vec4(1.f, 1.f, 1.f, 1.f), GameState->CurrentFont);
-    //}
-
-    //entity_state PlayerState = *Top(&GameState->Player->StatesStack);
-
-    /*std::cout << GameState->Player->StatesStack.Count << std::endl;
-    std::cout << PlayerState << std::endl;
-    std::cout << "----" << std::endl;*/
-
-    //std::cout << Random01(&GameState->Entropy) << std::endl;
-    //std::cout << RandomBetween(&GameState->Entropy, -10, 10) << std::endl;
-    //std::cout << RandomBetween(&GameState->Entropy, -1.f, 1.f) << std::endl;
 }

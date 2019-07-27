@@ -66,36 +66,80 @@ Create(
     return Result;
 }
 
-template<typename TValue>
+template<typename T>
 inline void
-Push(stack<TValue> *Stack, TValue NewValue)
+Push(stack<T> *Stack, T NewValue)
 {
-    TValue *Value = Stack->Values + Stack->Count;
-    ++Stack->Count;
+    T *Value = Stack->Values + Stack->Head;
+    ++Stack->Head;
 
-    Assert(Stack->Count < Stack->MaxCount);
+    Assert(Stack->Head < Stack->MaxCount);
 
     *Value = NewValue;
 }
 
-template<typename TValue>
-inline TValue *
-Pop(stack<TValue> *Stack)
+template<typename T>
+inline T
+Pop(stack<T> *Stack)
 {
-    TValue *Result = Top(Stack);
-    --Stack->Count;
+    T Value = Top(Stack);
+    --Stack->Head;
 
-    Assert(Stack->Count >= 0);
+    Assert(Stack->Head >= 0);
 
-    return Result;
+    return Value;
 }
 
-template<typename TValue>
-inline TValue *
-Top(stack<TValue> *Stack)
+template<typename T>
+inline T
+Top(stack<T> *Stack)
 {
-    Assert(Stack->Count > 0);
+    Assert(Stack->Head > 0);
 
-    TValue *Result = Stack->Values + (Stack->Count - 1);
-    return Result;
+    T *Value = Stack->Values + (Stack->Head - 1);
+    return *Value;
+}
+
+template<typename T>
+inline void
+Enqueue(queue<T> *Queue, T NewValue)
+{
+    u32 NextHead = Queue->Head + 1;
+
+    if (NextHead >= Queue->MaxCount)
+    {
+        NextHead = 0;
+    }
+
+    if (NextHead == Queue->Tail)
+    {
+        Assert("Queue is full");
+    }
+
+    T *Value = Queue->Values + Queue->Head;
+    *Value = NewValue;
+
+    Queue->Head = NextHead;
+}
+
+template<typename T>
+inline T
+Dequeue(queue<T> *Queue)
+{
+    if (Queue->Head == Queue->Tail)
+    {
+        Assert("Queue is empty");
+    }
+
+    u32 NextTail = Queue->Tail + 1;
+
+    if (NextTail >= Queue->MaxCount)
+    {
+        NextTail = 0;
+    }
+
+    T *Value = Queue->Values + Queue->Tail;
+    Queue->Tail = NextTail;
+
+    return *Value;
 }

@@ -7,11 +7,22 @@ struct hash_table
     T *Values;
 };
 
-template<typename TValue>
+template<typename T>
 struct stack
 {
     u32 MaxCount;
-    TValue *Values;
+    u32 Head;
 
-    u32 Count;
+    T *Values;
+};
+
+// circular buffer implementation
+template<typename T>
+struct queue
+{
+    u32 MaxCount;
+    u32 Head;
+    u32 Tail;
+
+    T *Values;
 };

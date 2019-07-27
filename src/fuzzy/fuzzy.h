@@ -8,6 +8,25 @@
 #include "fuzzy_containers.h"
 #include "assets.h"
 
+enum event_type
+{
+    EVENT_TYPE_NONE,
+    EVENT_TYPE_PLAYER_DIVE_HIT,
+
+    EVENT_TYPE_COUNT
+};
+
+struct event_data
+{
+
+};
+
+struct event
+{
+    event_type Type;
+    event_data *Data;
+};
+
 struct aabb_info
 {
     aabb *Box;
@@ -156,4 +175,8 @@ struct game_state
 
     f32 PixelsToWorldUnits;
     f32 WorldUnitsToPixels;
+
+    queue<event> EventQueue;
+
+    vec3 BackgroundColor;
 };
