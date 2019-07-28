@@ -128,6 +128,7 @@ struct game_state
     vertex_buffer DrawableEntitiesVertexBuffer;
     vertex_buffer ParticlesVertexBuffer;
     vertex_buffer QuadVertexBuffer;
+    vertex_buffer PlayerDiveParticlesVertexBuffer;
 
     shader_program TilesShaderProgram;
     shader_program BoxesShaderProgram;
@@ -157,9 +158,13 @@ struct game_state
     // todo: maybe store in in entity directly?
     entity_render_info *EntityRenderInfos;
     particle_render_info *ParticleRenderInfos;
+    particle_render_info *PlayerDiveParticleRenderInfos;
 
     u32 NextParticle;
     particle Particles[1024];
+
+    u32 NextPlayerDiveParticle;
+    particle PlayerDiveParticles[256];
 
     random_sequence Entropy;
 

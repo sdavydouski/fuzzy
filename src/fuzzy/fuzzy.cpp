@@ -1326,6 +1326,108 @@ GameInit(game_state *GameState, game_memory *Memory, game_params *Params)
     SetupVertexBuffer(Renderer, &GameState->ParticlesVertexBuffer);
 #pragma endregion
 
+#pragma region More Particles
+    GameState->PlayerDiveParticleRenderInfos = PushArray<particle_render_info>
+        (&GameState->WorldArena, ArrayCount(GameState->PlayerDiveParticles));
+
+    GameState->PlayerDiveParticlesVertexBuffer = {};
+    GameState->PlayerDiveParticlesVertexBuffer.Size = QuadVerticesSize + ArrayCount(GameState->PlayerDiveParticles) * sizeof(particle_render_info);
+    GameState->PlayerDiveParticlesVertexBuffer.Usage = GL_STREAM_DRAW;
+
+    GameState->PlayerDiveParticlesVertexBuffer.DataLayout = PushStruct<vertex_buffer_data_layout>(&GameState->WorldArena);
+    GameState->PlayerDiveParticlesVertexBuffer.DataLayout->SubBufferCount = 2;
+    GameState->PlayerDiveParticlesVertexBuffer.DataLayout->SubBuffers = PushArray<vertex_sub_buffer>(
+        &GameState->WorldArena, GameState->PlayerDiveParticlesVertexBuffer.DataLayout->SubBufferCount);
+
+    {
+        vertex_sub_buffer *SubBuffer = GameState->PlayerDiveParticlesVertexBuffer.DataLayout->SubBuffers + 0;
+        SubBuffer->Offset = 0;
+        SubBuffer->Size = QuadVerticesSize;
+        SubBuffer->Data = QuadVertices;
+    }
+
+    {
+        vertex_sub_buffer *SubBuffer = GameState->PlayerDiveParticlesVertexBuffer.DataLayout->SubBuffers + 1;
+        SubBuffer->Offset = QuadVerticesSize;
+        SubBuffer->Size = ArrayCount(GameState->PlayerDiveParticles) * sizeof(particle_render_info);
+        SubBuffer->Data = GameState->PlayerDiveParticleRenderInfos;
+    }
+
+    GameState->PlayerDiveParticlesVertexBuffer.AttributesLayout = PushStruct<vertex_buffer_attributes_layout>(&GameState->WorldArena);
+    GameState->PlayerDiveParticlesVertexBuffer.AttributesLayout->AttributeCount = 6;
+    GameState->PlayerDiveParticlesVertexBuffer.AttributesLayout->Attributes = PushArray<vertex_buffer_attribute>(
+        &GameState->WorldArena, GameState->PlayerDiveParticlesVertexBuffer.AttributesLayout->AttributeCount);
+
+    {
+        vertex_buffer_attribute *Attribute = GameState->PlayerDiveParticlesVertexBuffer.AttributesLayout->Attributes + 0;
+        Attribute->Index = 0;
+        Attribute->Size = 4;
+        Attribute->Type = GL_FLOAT;
+        Attribute->Normalized = GL_FALSE;
+        Attribute->Stride = sizeof(vec4);
+        Attribute->Divisor = 0;
+        Attribute->OffsetPointer = (void *)0;
+    }
+
+    {
+        vertex_buffer_attribute *Attribute = GameState->PlayerDiveParticlesVertexBuffer.AttributesLayout->Attributes + 1;
+        Attribute->Index = 1;
+        Attribute->Size = 4;
+        Attribute->Type = GL_FLOAT;
+        Attribute->Normalized = GL_FALSE;
+        Attribute->Stride = sizeof(particle_render_info);
+        Attribute->Divisor = 1;
+        // todo: really need to deal with this offset thing, man
+        Attribute->OffsetPointer = (void *)((u64)QuadVerticesSize + StructOffset(particle_render_info, Model));
+    }
+
+    {
+        vertex_buffer_attribute *Attribute = GameState->PlayerDiveParticlesVertexBuffer.AttributesLayout->Attributes + 2;
+        Attribute->Index = 2;
+        Attribute->Size = 4;
+        Attribute->Type = GL_FLOAT;
+        Attribute->Normalized = GL_FALSE;
+        Attribute->Stride = sizeof(particle_render_info);
+        Attribute->Divisor = 1;
+        Attribute->OffsetPointer = (void *)(QuadVerticesSize + StructOffset(particle_render_info, Model) + sizeof(vec4));
+    }
+
+    {
+        vertex_buffer_attribute *Attribute = GameState->PlayerDiveParticlesVertexBuffer.AttributesLayout->Attributes + 3;
+        Attribute->Index = 3;
+        Attribute->Size = 4;
+        Attribute->Type = GL_FLOAT;
+        Attribute->Normalized = GL_FALSE;
+        Attribute->Stride = sizeof(particle_render_info);
+        Attribute->Divisor = 1;
+        Attribute->OffsetPointer = (void *)(QuadVerticesSize + StructOffset(particle_render_info, Model) + 2 * sizeof(vec4));
+    }
+
+    {
+        vertex_buffer_attribute *Attribute = GameState->PlayerDiveParticlesVertexBuffer.AttributesLayout->Attributes + 4;
+        Attribute->Index = 4;
+        Attribute->Size = 4;
+        Attribute->Type = GL_FLOAT;
+        Attribute->Normalized = GL_FALSE;
+        Attribute->Stride = sizeof(particle_render_info);
+        Attribute->Divisor = 1;
+        Attribute->OffsetPointer = (void *)(QuadVerticesSize + StructOffset(particle_render_info, Model) + 3 * sizeof(vec4));
+    }
+
+    {
+        vertex_buffer_attribute *Attribute = GameState->PlayerDiveParticlesVertexBuffer.AttributesLayout->Attributes + 5;
+        Attribute->Index = 5;
+        Attribute->Size = 4;
+        Attribute->Type = GL_FLOAT;
+        Attribute->Normalized = GL_FALSE;
+        Attribute->Stride = sizeof(particle_render_info);
+        Attribute->Divisor = 1;
+        Attribute->OffsetPointer = (void *)((u64)QuadVerticesSize + StructOffset(particle_render_info, Color));
+    }
+
+    SetupVertexBuffer(Renderer, &GameState->PlayerDiveParticlesVertexBuffer);
+#pragma endregion
+
 #pragma region Quad
 
     GameState->QuadVertexBuffer = {};
@@ -1378,6 +1480,17 @@ GameInit(game_state *GameState, game_memory *Memory, game_params *Params)
         particle *Particle = GameState->Particles + ParticleIndex;
 
         Particle->RenderInfo = GameState->ParticleRenderInfos + ParticleIndex;
+        Particle->RenderInfo->Offset = ParticleIndex * sizeof(particle_render_info) + QuadVerticesSize;
+        Particle->RenderInfo->Model = mat4(1.f);
+        Particle->RenderInfo->Color = vec4(0.f);
+    }
+
+    // more particles
+    for (u32 ParticleIndex = 0; ParticleIndex < ArrayCount(GameState->PlayerDiveParticles); ++ParticleIndex)
+    {
+        particle *Particle = GameState->PlayerDiveParticles + ParticleIndex;
+
+        Particle->RenderInfo = GameState->PlayerDiveParticleRenderInfos + ParticleIndex;
         Particle->RenderInfo->Offset = ParticleIndex * sizeof(particle_render_info) + QuadVerticesSize;
         Particle->RenderInfo->Model = mat4(1.f);
         Particle->RenderInfo->Color = vec4(0.f);
@@ -1616,9 +1729,39 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         switch (Event.Type)
         {
             case EVENT_TYPE_PLAYER_DIVE_HIT:
-                // todo: spawn some particles
-                GameState->BackgroundColor = vec3(1.f, 0.f, 0.f);
-                break;
+            {
+                u32 ParticlesSpawn = 20;
+                for (u32 ParticleSpawnIndex = 0; ParticleSpawnIndex < ParticlesSpawn; ++ParticleSpawnIndex)
+                {
+                    particle *Particle = GameState->PlayerDiveParticles + GameState->NextPlayerDiveParticle++;
+
+                    if (GameState->NextPlayerDiveParticle >= ArrayCount(GameState->PlayerDiveParticles))
+                    {
+                        GameState->NextPlayerDiveParticle = 0;
+                    }
+
+                    // todo: clean this mess with coordinates
+                    Particle->Position = vec2(
+                        RandomBetween(&GameState->Entropy, -0.1f, 0.1f) + 0.f, 
+                        RandomBetween(&GameState->Entropy, 0.f, 0.1f)
+                    ) + vec2(GameState->Player->Position.x, -GameState->Player->Position.y);
+                    Particle->Velocity = vec2(
+                        RandomBetween(&GameState->Entropy, -0.5f, 0.5f), 
+                        RandomBetween(&GameState->Entropy, 4.f, 4.2f)
+                    );
+                    Particle->Acceleration = vec2(0.f, -6.5f);
+                    Particle->Color = vec4(
+                        RandomBetween(&GameState->Entropy, 0.75f, 1.0f),
+                        RandomBetween(&GameState->Entropy, 0.75f, 1.0f),
+                        RandomBetween(&GameState->Entropy, 0.75f, 1.0f),
+                        1.0f
+                    );
+                    Particle->dColor = vec4(0.f, 0.f, 0.f, -0.6f);
+                    Particle->Size = vec2(0.1f);
+                    Particle->dSize = vec2(-0.02f);
+                }
+            }
+            break;
 
             InvalidDefaultCase;
         }
@@ -1896,6 +2039,51 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     Renderer->glBufferSubData(GL_ARRAY_BUFFER, GameState->QuadVerticesSize, 
         ArrayCount(GameState->Particles) * sizeof(particle_render_info), GameState->ParticleRenderInfos);
     Renderer->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, ArrayCount(GameState->Particles));
+
+    // more particles
+    Renderer->glBindVertexArray(GameState->PlayerDiveParticlesVertexBuffer.VAO);
+    Renderer->glBindBuffer(GL_ARRAY_BUFFER, GameState->PlayerDiveParticlesVertexBuffer.VBO);
+
+    for (u32 ParticleIndex = 0; ParticleIndex < ArrayCount(GameState->PlayerDiveParticles); ++ParticleIndex)
+    {
+        particle *Particle = GameState->PlayerDiveParticles + ParticleIndex;
+
+        Particle->Position += 0.5f * Particle->Acceleration * Square(dt) + Particle->Velocity * dt;
+        Particle->Velocity += dt * Particle->Acceleration;
+        Particle->Color += dt * Particle->dColor;
+        Particle->Size += dt * Particle->dSize;
+
+        f32 CoefficientOfRestitution = 0.3f;
+
+        //if (Particle->Position.y < 0.f)
+        //{
+        //    Particle->Position.y = -Particle->Position.y;
+        //    Particle->Velocity.y = -Particle->Velocity.y * CoefficientOfRestitution;
+        //}
+
+        {
+            vec2 Position = vec2(GameState->ScreenWidthInWorldUnits / 2.f, GameState->ScreenHeightInWorldUnits / 2.f) + Particle->Position;
+            f32 Rotation = (f32)radians(GameState->Time);
+            vec4 Color = Particle->Color;
+            vec2 Size = Particle->Size;
+
+            Particle->RenderInfo->Model = mat4(1.f);
+            // translation
+            Particle->RenderInfo->Model = translate(Particle->RenderInfo->Model, vec3(Position, 0.f));
+            // scaling
+            Particle->RenderInfo->Model = scale(Particle->RenderInfo->Model, vec3(Size, 0.f));
+            // rotation
+            Particle->RenderInfo->Model = translate(Particle->RenderInfo->Model, vec3(Size / 2.f, 0.f));
+            Particle->RenderInfo->Model = rotate(Particle->RenderInfo->Model, Rotation, vec3(0.f, 0.f, 1.f));
+            Particle->RenderInfo->Model = translate(Particle->RenderInfo->Model, vec3(-Size / 2.f, 0.f));
+
+            Particle->RenderInfo->Color = Color;
+        }
+    }
+
+    Renderer->glBufferSubData(GL_ARRAY_BUFFER, GameState->QuadVerticesSize, 
+        ArrayCount(GameState->PlayerDiveParticles) * sizeof(particle_render_info), GameState->PlayerDiveParticleRenderInfos);
+    Renderer->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, ArrayCount(GameState->PlayerDiveParticles));
 
     // draw some test sprites
     {
