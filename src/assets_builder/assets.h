@@ -32,9 +32,9 @@ struct font_asset
 {
     bitmap TextureAtlas;
 
-    s32 VerticalAdvance;
-    s32 Ascent;
-    s32 Descent;
+    i32 VerticalAdvance;
+    i32 Ascent;
+    i32 Descent;
 
     u32 CodepointsRangeCount;
     codepoints_range *CodepointsRanges;
@@ -47,14 +47,14 @@ struct font_asset
 };
 
 struct font_asset_header {
-    s32 TextureAtlasWidth;
-    s32 TextureAtlasHeight;
-    s32 TextureAtlasChannels;
+    i32 TextureAtlasWidth;
+    i32 TextureAtlasHeight;
+    i32 TextureAtlasChannels;
     u64 TextureAtlasOffset;
 
-    s32 VerticalAdvance;
-    s32 Ascent;
-    s32 Descent;
+    i32 VerticalAdvance;
+    i32 Ascent;
+    i32 Descent;
 
     u32 CodepointsRangeCount;
     u64 CodepointsRangesOffset;
@@ -68,8 +68,8 @@ struct font_asset_header {
 
 struct asset_header
 {
-    s32 MagicValue;
-    s32 Version;
+    i32 MagicValue;
+    i32 Version;
 
     u32 FontCount;
     u64 FontsOffset;

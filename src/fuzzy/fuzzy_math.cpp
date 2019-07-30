@@ -20,7 +20,7 @@ inline u32
 Hash(char *Value)
 {
     u32 Hash = 5381;
-    s32 C;
+    i32 C;
 
     while (C = *Value++)
     {

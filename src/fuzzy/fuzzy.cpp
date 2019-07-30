@@ -18,6 +18,7 @@
 #include "fuzzy_random.cpp"
 #include "fuzzy_containers.cpp"
 #include "fuzzy_tiled.cpp"
+#include "fuzzy_text.cpp"
 #include "fuzzy_renderer.cpp"
 #include "fuzzy_animations.cpp"
 #include "fuzzy_assets.cpp"
@@ -350,8 +351,8 @@ ProcessInput(game_state *GameState, game_input *Input, f32 Delta)
 inline vec2
 GetUVOffset01FromTileID(tileset *Tileset, u32 TileID)
 {
-    s32 TileX = TileID % Tileset->Columns;
-    s32 TileY = TileID / Tileset->Columns;
+    i32 TileX = TileID % Tileset->Columns;
+    i32 TileY = TileID / Tileset->Columns;
 
     vec2 Result = vec2(
         (f32)(TileX * (Tileset->TileWidthInPixels + Tileset->Spacing) + Tileset->Margin) / (f32)Tileset->Image.Width,
@@ -367,8 +368,8 @@ GameInit(game_state *GameState, game_memory *Memory, game_params *Params)
     platform_api *Platform = &Memory->Platform;
     renderer_api *Renderer = &Memory->Renderer;
 
-    s32 ScreenWidth = Params->ScreenWidth;
-    s32 ScreenHeight = Params->ScreenHeight;
+    i32 ScreenWidth = Params->ScreenWidth;
+    i32 ScreenHeight = Params->ScreenHeight;
     vec2 ScreenCenter = vec2(ScreenWidth / 2.f, ScreenHeight / 2.f);
 
     InitializeMemoryArena(
@@ -439,7 +440,7 @@ GameInit(game_state *GameState, game_memory *Memory, game_params *Params)
 
     {
         GameState->TilesShaderProgram = 
-            CreateShaderProgram(Memory, GameState, "shaders/tile_instanced.vert", "shaders/tile_instanced.frag");
+            CreateShaderProgram(Renderer, Platform, GameState, "shaders/tile_instanced.vert", "shaders/tile_instanced.frag");
 
         u32 transformsUniformBlockIndex = Renderer->glGetUniformBlockIndex(GameState->TilesShaderProgram.ProgramHandle, "transforms");
         Renderer->glUniformBlockBinding(GameState->TilesShaderProgram.ProgramHandle, transformsUniformBlockIndex, transformsBindingPoint);
@@ -447,12 +448,12 @@ GameInit(game_state *GameState, game_memory *Memory, game_params *Params)
         Renderer->glUseProgram(GameState->TilesShaderProgram.ProgramHandle);
 
         shader_uniform *TileSizeUniform = GetUniform(&GameState->TilesShaderProgram, "u_TileSize");
-        SetShaderUniform(Memory, TileSizeUniform->Location, TileSize01);
+        SetShaderUniform(Renderer, TileSizeUniform->Location, TileSize01);
     }
 
     {
         GameState->BoxesShaderProgram = 
-            CreateShaderProgram(Memory, GameState, "shaders/box_instanced.vert", "shaders/box_instanced.frag");
+            CreateShaderProgram(Renderer, Platform, GameState, "shaders/box_instanced.vert", "shaders/box_instanced.frag");
 
         u32 transformsUniformBlockIndex = Renderer->glGetUniformBlockIndex(GameState->BoxesShaderProgram.ProgramHandle, "transforms");
         Renderer->glUniformBlockBinding(GameState->BoxesShaderProgram.ProgramHandle, transformsUniformBlockIndex, transformsBindingPoint);
@@ -460,7 +461,7 @@ GameInit(game_state *GameState, game_memory *Memory, game_params *Params)
 
     {
         GameState->DrawableEntitiesShaderProgram = 
-            CreateShaderProgram(Memory, GameState, "shaders/entity_instanced.vert", "shaders/entity_instanced.frag");
+            CreateShaderProgram(Renderer, Platform, GameState, "shaders/entity_instanced.vert", "shaders/entity_instanced.frag");
 
         u32 transformsUniformBlockIndex = Renderer->glGetUniformBlockIndex(GameState->DrawableEntitiesShaderProgram.ProgramHandle, "transforms");
         Renderer->glUniformBlockBinding(GameState->DrawableEntitiesShaderProgram.ProgramHandle, transformsUniformBlockIndex, transformsBindingPoint);
@@ -468,12 +469,12 @@ GameInit(game_state *GameState, game_memory *Memory, game_params *Params)
         Renderer->glUseProgram(GameState->DrawableEntitiesShaderProgram.ProgramHandle);
 
         shader_uniform *TileSizeUniform = GetUniform(&GameState->DrawableEntitiesShaderProgram, "u_TileSize");
-        SetShaderUniform(Memory, TileSizeUniform->Location, TileSize01);
+        SetShaderUniform(Renderer, TileSizeUniform->Location, TileSize01);
     }
 
     {
         GameState->DrawableEntitiesBorderShaderProgram = 
-            CreateShaderProgram(Memory, GameState, "shaders/entity_instanced.vert", "shaders/color.frag");
+            CreateShaderProgram(Renderer, Platform, GameState, "shaders/entity_instanced.vert", "shaders/color.frag");
 
         u32 transformsUniformBlockIndex = Renderer->glGetUniformBlockIndex(GameState->DrawableEntitiesBorderShaderProgram.ProgramHandle, "transforms");
         Renderer->glUniformBlockBinding(GameState->DrawableEntitiesBorderShaderProgram.ProgramHandle, transformsUniformBlockIndex, transformsBindingPoint);
@@ -481,7 +482,7 @@ GameInit(game_state *GameState, game_memory *Memory, game_params *Params)
 
     {
         GameState->RectangleOutlineShaderProgram = 
-            CreateShaderProgram(Memory, GameState, "shaders/rectangle.vert", "shaders/rectangle_outline.frag");
+            CreateShaderProgram(Renderer, Platform, GameState, "shaders/rectangle.vert", "shaders/rectangle_outline.frag");
 
         u32 transformsUniformBlockIndex = Renderer->glGetUniformBlockIndex(GameState->RectangleOutlineShaderProgram.ProgramHandle, "transforms");
         Renderer->glUniformBlockBinding(GameState->RectangleOutlineShaderProgram.ProgramHandle, transformsUniformBlockIndex, transformsBindingPoint);
@@ -489,7 +490,7 @@ GameInit(game_state *GameState, game_memory *Memory, game_params *Params)
 
     {
         GameState->RectangleShaderProgram = 
-            CreateShaderProgram(Memory, GameState, "shaders/rectangle.vert", "shaders/rectangle.frag");
+            CreateShaderProgram(Renderer, Platform, GameState, "shaders/rectangle.vert", "shaders/rectangle.frag");
 
         u32 transformsUniformBlockIndex = Renderer->glGetUniformBlockIndex(GameState->RectangleShaderProgram.ProgramHandle, "transforms");
         Renderer->glUniformBlockBinding(GameState->RectangleShaderProgram.ProgramHandle, transformsUniformBlockIndex, transformsBindingPoint);
@@ -497,7 +498,7 @@ GameInit(game_state *GameState, game_memory *Memory, game_params *Params)
 
     {
         GameState->ParticlesShaderProgram = 
-            CreateShaderProgram(Memory, GameState, "shaders/particle_instanced.vert", "shaders/particle_instanced.frag");
+            CreateShaderProgram(Renderer, Platform, GameState, "shaders/particle_instanced.vert", "shaders/particle_instanced.frag");
 
         u32 transformsUniformBlockIndex = Renderer->glGetUniformBlockIndex(GameState->ParticlesShaderProgram.ProgramHandle, "transforms");
         Renderer->glUniformBlockBinding(GameState->ParticlesShaderProgram.ProgramHandle, transformsUniformBlockIndex, transformsBindingPoint);
@@ -510,7 +511,7 @@ GameInit(game_state *GameState, game_memory *Memory, game_params *Params)
 
     {
         GameState->SpriteShaderProgram = 
-            CreateShaderProgram(Memory, GameState, "shaders/sprite.vert", "shaders/sprite.frag");
+            CreateShaderProgram(Renderer, Platform, GameState, "shaders/sprite.vert", "shaders/sprite.frag");
 
         u32 transformsUniformBlockIndex = Renderer->glGetUniformBlockIndex(GameState->SpriteShaderProgram.ProgramHandle, "transforms");
         Renderer->glUniformBlockBinding(GameState->SpriteShaderProgram.ProgramHandle, transformsUniformBlockIndex, transformsBindingPoint);
@@ -518,12 +519,12 @@ GameInit(game_state *GameState, game_memory *Memory, game_params *Params)
         Renderer->glUseProgram(GameState->SpriteShaderProgram.ProgramHandle);
 
         shader_uniform *TileSizeUniform = GetUniform(&GameState->SpriteShaderProgram, "u_TileSize");
-        SetShaderUniform(Memory, TileSizeUniform->Location, TileSize01);
+        SetShaderUniform(Renderer, TileSizeUniform->Location, TileSize01);
     }
 
     {
         GameState->TextShaderProgram = 
-            CreateShaderProgram(Memory, GameState, "shaders/text.vert", "shaders/text.frag");
+            CreateShaderProgram(Renderer, Platform, GameState, "shaders/text.vert", "shaders/text.frag");
 
         u32 transformsUniformBlockIndex = Renderer->glGetUniformBlockIndex(GameState->TextShaderProgram.ProgramHandle, "transforms");
         Renderer->glUniformBlockBinding(GameState->TextShaderProgram.ProgramHandle, transformsUniformBlockIndex, transformsBindingPoint);
@@ -729,8 +730,8 @@ GameInit(game_state *GameState, game_memory *Memory, game_params *Params)
                         mat4* TileInstanceModel = TileInstanceModels + TileInstanceIndex;
                         *TileInstanceModel = mat4(1.f);
 
-                        s32 TileMapX = Chunk->X + (GIDIndex % Chunk->Width);
-                        s32 TileMapY = Chunk->Y + (GIDIndex / Chunk->Height);
+                        i32 TileMapX = Chunk->X + (GIDIndex % Chunk->Width);
+                        i32 TileMapY = Chunk->Y + (GIDIndex / Chunk->Height);
 
                         f32 TileXMeters = ScreenCenterInWorldUnits.x + TileMapX * Tileset->TileWidthInWorldUnits;
                         f32 TileYMeters = ScreenCenterInWorldUnits.y - TileMapY * Tileset->TileHeightInWorldUnits;
@@ -1516,8 +1517,8 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     platform_api *Platform = &Memory->Platform;
     renderer_api *Renderer = &Memory->Renderer;
 
-    s32 ScreenWidth = Params->ScreenWidth;
-    s32 ScreenHeight = Params->ScreenHeight;
+    i32 ScreenWidth = Params->ScreenWidth;
+    i32 ScreenHeight = Params->ScreenHeight;
 
     if (!GameState->IsInitialized)
     {
@@ -1910,7 +1911,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         shader_uniform *ColorUniform = GetUniform(&GameState->DrawableEntitiesBorderShaderProgram, "u_Color");
         
         vec4 Color = vec4(0.f, 0.f, 1.f, 1.f);
-        SetShaderUniform(Memory, ColorUniform->Location, Color);
+        SetShaderUniform(Renderer, ColorUniform->Location, Color);
     }
 
     f32 scaleFactor = 1.1f;
@@ -1975,7 +1976,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         f32 Thickness = 0.2f;
         vec4 Color = vec4(0.f, 1.f, 0.f, 1.f);
 
-        DrawRectangleOutline(Memory, GameState, Position, Size, &Rotation, Thickness, Color);
+        DrawRectangleOutline(Renderer, GameState, Position, Size, &Rotation, Thickness, Color);
     }
 
     {
@@ -1988,7 +1989,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         f32 Thickness = 0.1f;
         vec4 Color = vec4(1.f, 1.f, 0.f, 1.f);
 
-        DrawRectangleOutline(Memory, GameState, Position, Size, &Rotation, Thickness, Color);
+        DrawRectangleOutline(Renderer, GameState, Position, Size, &Rotation, Thickness, Color);
     }
 
     f32 dt = Params->msPerFrame * 0.001f;
@@ -2001,6 +2002,10 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     for (u32 ParticleIndex = 0; ParticleIndex < ArrayCount(GameState->Particles); ++ParticleIndex)
     {
         particle *Particle = GameState->Particles + ParticleIndex;
+
+        if (Particle->Color.a <= 0.f) {
+            continue;
+        }
 
         Particle->Position += 0.5f * Particle->Acceleration * Square(dt) + Particle->Velocity * dt;
         Particle->Velocity += dt * Particle->Acceleration;
@@ -2048,6 +2053,10 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     {
         particle *Particle = GameState->PlayerDiveParticles + ParticleIndex;
 
+        if (Particle->Color.a <= 0.f) {
+            continue;
+        }
+
         Particle->Position += 0.5f * Particle->Acceleration * Square(dt) + Particle->Velocity * dt;
         Particle->Velocity += dt * Particle->Acceleration;
         Particle->Color += dt * Particle->dColor;
@@ -2055,7 +2064,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
         f32 CoefficientOfRestitution = 0.3f;
 
-        //if (Particle->Position.y < 0.f)
+        //if (Particle->Position.y < -GameState->Player->Position.y)
         //{
         //    Particle->Position.y = -Particle->Position.y;
         //    Particle->Velocity.y = -Particle->Velocity.y * CoefficientOfRestitution;
@@ -2073,9 +2082,9 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             // scaling
             Particle->RenderInfo->Model = scale(Particle->RenderInfo->Model, vec3(Size, 0.f));
             // rotation
-            Particle->RenderInfo->Model = translate(Particle->RenderInfo->Model, vec3(Size / 2.f, 0.f));
-            Particle->RenderInfo->Model = rotate(Particle->RenderInfo->Model, Rotation, vec3(0.f, 0.f, 1.f));
-            Particle->RenderInfo->Model = translate(Particle->RenderInfo->Model, vec3(-Size / 2.f, 0.f));
+            //Particle->RenderInfo->Model = translate(Particle->RenderInfo->Model, vec3(Size / 2.f, 0.f));
+            //Particle->RenderInfo->Model = rotate(Particle->RenderInfo->Model, Rotation, vec3(0.f, 0.f, 1.f));
+            //Particle->RenderInfo->Model = translate(Particle->RenderInfo->Model, vec3(-Size / 2.f, 0.f));
 
             Particle->RenderInfo->Color = Color;
         }
@@ -2095,7 +2104,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         vec2 Alignment = vec2(0.5f, 0.5f);
         vec2 UV = GetUVOffset01FromTileID(&GameState->Map.Tilesets[0].Source, 325);
 
-        DrawSprite(Memory, GameState, Position, Size, &Rotation, UV, Alignment);
+        DrawSprite(Renderer, GameState, Position, Size, &Rotation, UV, Alignment);
     }
 
     // draw text
@@ -2141,10 +2150,10 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         FormatString(MousePosition, ArrayCount(MousePosition), L"mouse position: x: %.2f, y: %.2f", CanonicalMouseX, CanonicalMouseY);
 
         f32 NextLineAdvance = GameState->CurrentFont->VerticalAdvance * GameState->PixelsToWorldUnits * TextScale;
-        DrawTextLine(Memory, GameState, FrameFps, Position, TextScale, &Rotation, vec4(0.f, 1.f, 1.f, 1.f), GameState->CurrentFont);
-        DrawTextLine(Memory, GameState, FrameTime, Position - vec2(0.f, 1.f * NextLineAdvance), TextScale, &Rotation, vec4(0.f, 1.f, 1.f, 1.f), GameState->CurrentFont);
-        DrawTextLine(Memory, GameState, PlayerState, Position - vec2(0.f, 2.f * NextLineAdvance), TextScale, &Rotation, vec4(0.f, 1.f, 1.f, 1.f), GameState->CurrentFont);
-        DrawTextLine(Memory, GameState, PlayerPosition, Position - vec2(0.f, 3.f * NextLineAdvance), TextScale, &Rotation, vec4(0.f, 1.f, 1.f, 1.f), GameState->CurrentFont);
-        DrawTextLine(Memory, GameState, MousePosition, Position - vec2(0.f, 4.f * NextLineAdvance), TextScale, &Rotation, vec4(0.f, 1.f, 1.f, 1.f), GameState->CurrentFont);
+        DrawTextLine(Renderer, GameState, FrameFps, Position, TextScale, &Rotation, vec4(0.f, 1.f, 1.f, 1.f), GameState->CurrentFont);
+        DrawTextLine(Renderer, GameState, FrameTime, Position - vec2(0.f, 1.f * NextLineAdvance), TextScale, &Rotation, vec4(0.f, 1.f, 1.f, 1.f), GameState->CurrentFont);
+        DrawTextLine(Renderer, GameState, PlayerState, Position - vec2(0.f, 2.f * NextLineAdvance), TextScale, &Rotation, vec4(0.f, 1.f, 1.f, 1.f), GameState->CurrentFont);
+        DrawTextLine(Renderer, GameState, PlayerPosition, Position - vec2(0.f, 3.f * NextLineAdvance), TextScale, &Rotation, vec4(0.f, 1.f, 1.f, 1.f), GameState->CurrentFont);
+        DrawTextLine(Renderer, GameState, MousePosition, Position - vec2(0.f, 4.f * NextLineAdvance), TextScale, &Rotation, vec4(0.f, 1.f, 1.f, 1.f), GameState->CurrentFont);
     }
 }

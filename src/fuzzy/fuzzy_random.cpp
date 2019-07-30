@@ -52,10 +52,10 @@ RandomBetween(random_sequence *Sequence, f32 Min, f32 Max)
     return Result;
 }
 
-inline s32
-RandomBetween(random_sequence *Sequence, s32 Min, s32 Max)
+inline i32
+RandomBetween(random_sequence *Sequence, i32 Min, i32 Max)
 {
-    s32 Result = Min + (s32)(RandomNextU32(Sequence) % ((Max + 1) - Min));
+    i32 Result = Min + (i32)(RandomNextU32(Sequence) % ((Max + 1) - Min));
 
     return Result;
 }

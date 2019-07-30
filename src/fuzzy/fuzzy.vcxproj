@@ -194,6 +194,7 @@
     </BuildLog>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <None Include="fuzzy_text.cpp" />
     <None Include="fuzzy_assets.cpp" />
     <None Include="fuzzy_containers.cpp" />
     <None Include="fuzzy_math.cpp" />

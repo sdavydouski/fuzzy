@@ -79,21 +79,21 @@ PrepareFontAsset(
 
     f32 Scale = stbtt_ScaleForPixelHeight(&FontInfo, FontHeight);
 
-    s32 Ascent, Descent, LineGap;
+    i32 Ascent, Descent, LineGap;
     stbtt_GetFontVMetrics(&FontInfo, &Ascent, &Descent, &LineGap);
-    Ascent = (s32)((f32)Ascent * Scale);
-    Descent = (s32)((f32)Descent * Scale);
-    LineGap = (s32)((f32)LineGap * Scale);
+    Ascent = (i32)((f32)Ascent * Scale);
+    Descent = (i32)((f32)Descent * Scale);
+    LineGap = (i32)((f32)LineGap * Scale);
 
-    s32 VerticalAdvance = Ascent - Descent + LineGap;
+    i32 VerticalAdvance = Ascent - Descent + LineGap;
 
     stbtt_pack_context PackContext;
-    s32 TextureWidth = 1024;
-    s32 TextureHeight = 1024;
-    s32 TextureChannels = 1;
+    i32 TextureWidth = 1024;
+    i32 TextureHeight = 1024;
+    i32 TextureChannels = 1;
     u8 *Pixels = (u8 *)malloc(TextureWidth * TextureHeight * TextureChannels);
-    s32 StrideInBytes = 0;
-    s32 Padding = 1;
+    i32 StrideInBytes = 0;
+    i32 Padding = 1;
 
     stbtt_PackBegin(&PackContext, Pixels, TextureWidth, TextureHeight, StrideInBytes, Padding, NULL);
 
@@ -101,7 +101,7 @@ PrepareFontAsset(
     u32 vOverSample = 2;
     stbtt_PackSetOversampling(&PackContext, hOverSample, vOverSample);
 
-    s32 FontIndex = 0;
+    i32 FontIndex = 0;
 
     u32 CodepointsRangeCount = 2;
     codepoints_range *CodepointsRanges = (codepoints_range *)malloc(CodepointsRangeCount * sizeof(codepoints_range));
@@ -148,7 +148,7 @@ PrepareFontAsset(
 
         stbtt_packedchar *CharData = CharInfo.CharData;
         codepoints_range *Encoding = CharInfo.Encoding;
-        s32 CharacterIndex = CharInfo.CharacterIndex;
+        i32 CharacterIndex = CharInfo.CharacterIndex;
 
         wchar Character = Encoding->Start + CharacterIndex;
 
@@ -169,7 +169,7 @@ PrepareFontAsset(
             char_info CharInfo = GetCharInfo(OtherCodepointIndex, Latin, Cyrillic, LatinCharData, CyrillicCharData);
 
             codepoints_range *Encoding = CharInfo.Encoding;
-            s32 OtherCharacterIndex = CharInfo.CharacterIndex;
+            i32 OtherCharacterIndex = CharInfo.CharacterIndex;
 
             wchar OtherCharacter = Encoding->Start + OtherCharacterIndex;
 
@@ -231,7 +231,7 @@ PackFonts(asset_header *Header, FILE *AssetFile)
 
         font_asset_header FontAssetHeader = {};
 
-        s32 PixelCount = FontAsset->TextureAtlas.Width * FontAsset->TextureAtlas.Height * FontAsset->TextureAtlas.Channels;
+        i32 PixelCount = FontAsset->TextureAtlas.Width * FontAsset->TextureAtlas.Height * FontAsset->TextureAtlas.Channels;
 
         FontAssetHeader.TextureAtlasWidth = FontAsset->TextureAtlas.Width;
         FontAssetHeader.TextureAtlasHeight = FontAsset->TextureAtlas.Height;

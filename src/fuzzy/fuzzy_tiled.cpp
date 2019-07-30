@@ -246,8 +246,8 @@ LoadTileset(tileset *Tileset, const char *Json, memory_arena *Arena, platform_ap
                         }
                         else if (StringEquals(CustomTileProperty->Type, "int"))
                         {
-                            CustomTileProperty->Value = PushSize(Arena, sizeof(s32));
-                            *(s32 *)CustomTileProperty->Value = CustomTilePropertyValue["value"].GetInt();
+                            CustomTileProperty->Value = PushSize(Arena, sizeof(i32));
+                            *(i32 *)CustomTileProperty->Value = CustomTilePropertyValue["value"].GetInt();
                         }
                         else if (StringEquals(CustomTileProperty->Type, "bool"))
                         {

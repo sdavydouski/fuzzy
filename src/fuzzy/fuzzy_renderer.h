@@ -3,8 +3,8 @@
 struct vertex_buffer_attribute
 {
     u32 Index;
-    s32 Size;
-    s32 Type;
+    i32 Size;
+    i32 Type;
     b32 Normalized;
     u32 Stride;
     u32 Divisor;
@@ -44,7 +44,7 @@ struct vertex_buffer
 struct shader_uniform
 {
     char *Name;
-    s32 Location;
+    i32 Location;
 
     shader_uniform *Next;
 };

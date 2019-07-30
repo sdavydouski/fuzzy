@@ -22,7 +22,7 @@ typedef PLATFORM_READ_FILE(platform_read_file);
 #define PLATFORM_FREE_FILE(name) void name(read_file_result File)
 typedef PLATFORM_FREE_FILE(platform_free_file);
 
-#define PLATFORM_READ_IMAGE_FILE(name) u8 *name(const char *Filename, s32 *X, s32 *Y, s32 *Comp, s32 ReqComp)
+#define PLATFORM_READ_IMAGE_FILE(name) u8 *name(const char *Filename, i32 *X, i32 *Y, i32 *Comp, i32 ReqComp)
 typedef PLATFORM_READ_IMAGE_FILE(platform_read_image_file);
 
 #define PLATFORM_FREE_IMAGE_FILE(name) void name(void *Image)
@@ -333,13 +333,13 @@ StringLength(const char *String) {
 
 inline void 
 ConcatenateStrings(const char *SourceA, const char *SourceB, char *Dest) {
-    s32 SourceALength = StringLength(SourceA);
-    for (s32 Index = 0; Index < SourceALength; ++Index) {
+    i32 SourceALength = StringLength(SourceA);
+    for (i32 Index = 0; Index < SourceALength; ++Index) {
         *Dest++ = *SourceA++;
     }
 
-    s32 SourceBLength = StringLength(SourceB);
-    for (s32 Index = 0; Index < SourceBLength; ++Index) {
+    i32 SourceBLength = StringLength(SourceB);
+    for (i32 Index = 0; Index < SourceBLength; ++Index) {
         *Dest++ = *SourceB++;
     }
 

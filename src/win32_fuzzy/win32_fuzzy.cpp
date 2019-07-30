@@ -292,7 +292,7 @@ int main(int argc, char *argv[])
 
     glfwSetWindowPos(Window, (VidMode->width - GameParams.ScreenWidth) / 2, (VidMode->height - GameParams.ScreenHeight) / 2);
 
-    glfwSetKeyCallback(Window, [](GLFWwindow *Window, s32 Key, s32 Scancode, s32 Action, s32 Mods) 
+    glfwSetKeyCallback(Window, [](GLFWwindow *Window, i32 Key, i32 Scancode, i32 Action, i32 Mods) 
     {
         if (Key == GLFW_KEY_ESCAPE && Action == GLFW_PRESS) 
         {
@@ -370,7 +370,7 @@ int main(int argc, char *argv[])
         GameParams.Input.ScrollY += (f32)yOffset;
     });
 
-    glfwSetFramebufferSizeCallback(Window, [](GLFWwindow *Window, s32 Width, s32 Height) 
+    glfwSetFramebufferSizeCallback(Window, [](GLFWwindow *Window, i32 Width, i32 Height) 
     {
         GameParams.ScreenWidth = Width;
         GameParams.ScreenHeight = Height;

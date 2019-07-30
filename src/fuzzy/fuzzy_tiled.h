@@ -1,11 +1,13 @@
 #pragma once
 
+#include "fuzzy_containers.h"
+
 // todo: move it somewhere else
 struct bitmap
 {
-    s32 Width;
-    s32 Height;
-    s32 Channels;
+    i32 Width;
+    i32 Height;
+    i32 Channels;
     void *Memory;
 };
 
@@ -60,8 +62,8 @@ struct tileset
     u32 Margin;
     u32 Spacing;
 
-    s32 TileWidthInPixels;
-    s32 TileHeightInPixels;
+    i32 TileWidthInPixels;
+    i32 TileHeightInPixels;
 
     f32 TileWidthInWorldUnits;
     f32 TileHeightInWorldUnits;
@@ -76,8 +78,8 @@ struct tileset
 
 struct map_chunk
 {
-    s32 X;
-    s32 Y;
+    i32 X;
+    i32 Y;
     u32 Width;
     u32 Height;
 
@@ -87,8 +89,8 @@ struct map_chunk
 
 struct tile_layer
 {
-    s32 StartX;
-    s32 StartY;
+    i32 StartX;
+    i32 StartY;
 
     u32 Width;
     u32 Height;
