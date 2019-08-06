@@ -179,7 +179,7 @@ ProcessInput(game_state *GameState, game_input *Input, f32 Delta)
     entity_state PlayerState = GetCurrentEntityState(GameState->Player);
 
     f32 JumpAcceleration = 20.f;
-    f32 RunAcceleration = 4.f;
+    f32 RunAcceleration = 10.f;
 
     // todo: move out common parts
     switch (PlayerState)
@@ -336,7 +336,7 @@ ProcessInput(game_state *GameState, game_input *Input, f32 Delta)
     // todo: float precision!
     if (Input->ScrollY == 0.f)
     {
-        GameState->Zoom = 1.f;
+        //GameState->Zoom = 1.f;
     }
     else if (Input->ScrollY > 0.f)
     {
@@ -695,7 +695,6 @@ GameInit(game_state *GameState, game_memory *Memory, game_params *Params)
         }
     }
 
-
     vec2 ScreenCenterInWorldUnits = vec2(
         GameState->ScreenWidthInWorldUnits / 2.f,
         GameState->ScreenHeightInWorldUnits / 2.f
@@ -731,10 +730,10 @@ GameInit(game_state *GameState, game_memory *Memory, game_params *Params)
                         *TileInstanceModel = mat4(1.f);
 
                         i32 TileMapX = Chunk->X + (GIDIndex % Chunk->Width);
-                        i32 TileMapY = Chunk->Y + (GIDIndex / Chunk->Height);
+                        i32 TileMapY = Chunk->Y - (GIDIndex / Chunk->Height);
 
                         f32 TileXMeters = ScreenCenterInWorldUnits.x + TileMapX * Tileset->TileWidthInWorldUnits;
-                        f32 TileYMeters = ScreenCenterInWorldUnits.y - TileMapY * Tileset->TileHeightInWorldUnits;
+                        f32 TileYMeters = ScreenCenterInWorldUnits.y + TileMapY * Tileset->TileHeightInWorldUnits;
 
                         *TileInstanceModel = translate(*TileInstanceModel, vec3(TileXMeters, TileYMeters, 0.f));
                         *TileInstanceModel = scale(*TileInstanceModel,
@@ -808,7 +807,7 @@ GameInit(game_state *GameState, game_memory *Memory, game_params *Params)
                 // tile objects have their position at bottom-left (https://github.com/bjorn/tiled/issues/91)
                 Entity->Position = vec2(
                     Object->X * Tileset->TilesetWidthPixelsToWorldUnits,
-                    (Object->Y - Object->Height) * Tileset->TilesetWidthPixelsToWorldUnits
+                    (Object->Y + Object->Height) * Tileset->TilesetWidthPixelsToWorldUnits
                 );
                 Entity->Size = vec2(
                     Object->Width * Tileset->TilesetHeightPixelsToWorldUnits,
@@ -832,7 +831,7 @@ GameInit(game_state *GameState, game_memory *Memory, game_params *Params)
                     EntityRenderInfo->InstanceModel = mat4(1.f);
 
                     f32 EntityWorldXInWorldUnits = ScreenCenterInWorldUnits.x + Entity->Position.x;
-                    f32 EntityWorldYInWorldUnits = ScreenCenterInWorldUnits.y - Entity->Position.y;
+                    f32 EntityWorldYInWorldUnits = ScreenCenterInWorldUnits.y + Entity->Position.y;
 
                     EntityRenderInfo->InstanceModel = translate(EntityRenderInfo->InstanceModel,
                         vec3(EntityWorldXInWorldUnits, EntityWorldYInWorldUnits, 0.f));
@@ -1540,7 +1539,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
         // friction imitation (todo: frame-rate dependent?)
         GameState->Player->Acceleration.x += -Params->msPerFrame * GameState->Player->Velocity.x;
-        GameState->Player->Acceleration.y += -Params->msPerFrame *0.01f * GameState->Player->Velocity.y;
+        GameState->Player->Acceleration.y += -Params->msPerFrame * 0.01f * GameState->Player->Velocity.y;
 
         GameState->Player->Velocity += GameState->Player->Acceleration * dt;
 
@@ -1574,10 +1573,10 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
         vec2 UpdatedMove = Move * CollisionTime;
         GameState->Player->Position.x += UpdatedMove.x;
-        GameState->Player->Position.y -= UpdatedMove.y;
+        GameState->Player->Position.y += UpdatedMove.y;
 
         GameState->Player->Acceleration.x = 0.f;
-        // gravity
+        // gravity (todo: 9.8)
         GameState->Player->Acceleration.y = -0.4f;
 
         // collisions!
@@ -1674,17 +1673,17 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             }
         }
 
-        GameState->Camera.y -= UpdatedMove.y;
+        GameState->Camera.y += UpdatedMove.y;
 
         GameState->Projection = ortho(
             -GameState->ScreenWidthInWorldUnits / 2.f * GameState->Zoom, 
             GameState->ScreenWidthInWorldUnits / 2.f * GameState->Zoom,
-           -GameState->ScreenHeightInWorldUnits / 2.f * GameState->Zoom,
+            -GameState->ScreenHeightInWorldUnits / 2.f * GameState->Zoom,
             GameState->ScreenHeightInWorldUnits / 2.f * GameState->Zoom
         );
 
         mat4 View = mat4(1.f);
-        View = translate(View, vec3(-GameState->Camera.x, GameState->Camera.y, 0.f));
+        View = translate(View, vec3(-GameState->Camera.x, -GameState->Camera.y, 0.f));
         View = translate(View, vec3(-GameState->ScreenWidthInWorldUnits / 2.f, -GameState->ScreenHeightInWorldUnits / 2.f, 0.f));
 
         GameState->VP = GameState->Projection * View;
@@ -1745,7 +1744,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                     Particle->Position = vec2(
                         RandomBetween(&GameState->Entropy, -0.1f, 0.1f) + 0.f, 
                         RandomBetween(&GameState->Entropy, 0.f, 0.1f)
-                    ) + vec2(GameState->Player->Position.x, -GameState->Player->Position.y);
+                    ) + vec2(GameState->Player->Position.x, GameState->Player->Position.y);
                     Particle->Velocity = vec2(
                         RandomBetween(&GameState->Entropy, -0.5f, 0.5f), 
                         RandomBetween(&GameState->Entropy, 4.f, 4.2f)
@@ -1968,7 +1967,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     // draw some borders
     {
-        vec2 Position = vec2(GameState->Camera.x, -GameState->Camera.y);
+        vec2 Position = vec2(GameState->Camera.x, GameState->Camera.y);
         vec2 Size = vec2(GameState->ScreenWidthInWorldUnits, GameState->ScreenHeightInWorldUnits);
         rotation_info Rotation = {};
         Rotation.AngleInRadians = 0.f;
@@ -2144,8 +2143,10 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         FormatString(PlayerPosition, ArrayCount(PlayerPosition), L"player position: x: %.2f, y: %.2f", GameState->Player->Position.x, GameState->Player->Position.y);
 
         wchar MousePosition[64];
-        f32 CanonicalMouseX = (Params->Input.MouseX * GameState->PixelsToWorldUnits - GameState->ScreenWidthInWorldUnits / 2.f + GameState->Camera.x);
-        f32 CanonicalMouseY = (Params->Input.MouseY * GameState->PixelsToWorldUnits - GameState->ScreenHeightInWorldUnits / 2.f + GameState->Camera.y);
+        f32 CanonicalMouseX = (Params->Input.MouseX * GameState->PixelsToWorldUnits - 
+            GameState->ScreenWidthInWorldUnits / 2.f + GameState->Camera.x);
+        f32 CanonicalMouseY = (Params->Input.MouseY * GameState->PixelsToWorldUnits - 
+            GameState->ScreenHeightInWorldUnits / 2.f + GameState->Camera.y);
 
         FormatString(MousePosition, ArrayCount(MousePosition), L"mouse position: x: %.2f, y: %.2f", CanonicalMouseX, CanonicalMouseY);
 

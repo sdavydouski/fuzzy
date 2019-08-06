@@ -8,6 +8,8 @@
 
 using namespace rapidjson;
 
+#define INVERT_Y(y) -(y)
+
 global const char *TILE_LAYER = "tilelayer";
 global const char *OBJECT_LAYER = "objectgroup";
 
@@ -338,7 +340,7 @@ LoadMap(tilemap *Map, const char *Json, memory_arena *Arena, platform_api *Platf
             tile_layer *TileLayer = Map->TileLayers + TileLayerIndex;
 
             TileLayer->StartX = Layer["startx"].GetInt();
-            TileLayer->StartY = Layer["starty"].GetInt();
+            TileLayer->StartY = INVERT_Y(Layer["starty"].GetInt());
             
             TileLayer->Width = Layer["width"].GetUint();
             TileLayer->Height = Layer["height"].GetUint();
@@ -358,7 +360,7 @@ LoadMap(tilemap *Map, const char *Json, memory_arena *Arena, platform_api *Platf
                 map_chunk *MapChunk = TileLayer->Chunks + ChunkIndex;
 
                 MapChunk->X = Chunk["x"].GetInt();
-                MapChunk->Y = Chunk["y"].GetInt();
+                MapChunk->Y = INVERT_Y(Chunk["y"].GetInt());
 
                 MapChunk->Width = Chunk["width"].GetUint();
                 MapChunk->Height = Chunk["height"].GetUint();
@@ -396,7 +398,7 @@ LoadMap(tilemap *Map, const char *Json, memory_arena *Arena, platform_api *Platf
                 map_object *MapObject = ObjectLayer->Objects + ObjectIndex;
 
                 MapObject->X = Object["x"].GetFloat();
-                MapObject->Y = Object["y"].GetFloat();
+                MapObject->Y = INVERT_Y(Object["y"].GetFloat());
 
                 MapObject->Width = Object["width"].GetFloat();
                 MapObject->Height = Object["height"].GetFloat();

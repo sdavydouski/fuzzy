@@ -361,7 +361,7 @@ int main(int argc, char *argv[])
     glfwSetCursorPosCallback(Window, [](GLFWwindow* Window, f64 xpos, f64 ypos)
     {
         GameParams.Input.MouseX = (f32)xpos;
-        GameParams.Input.MouseY = (f32)ypos;
+        GameParams.Input.MouseY = GameParams.ScreenHeight - (f32)ypos;
     });
 
     glfwSetScrollCallback(Window, [](GLFWwindow* Window, f64 xOffset, f64 yOffset)
@@ -378,7 +378,7 @@ int main(int argc, char *argv[])
 
     glfwMakeContextCurrent(Window);
 
-#if 0
+#if 1
     glfwSwapInterval(1);
 #else
     glfwSwapInterval(0);
