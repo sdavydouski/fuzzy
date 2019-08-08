@@ -54,7 +54,7 @@ GetCharInfo(
     return Result;
 }
 
-void
+internal void
 PrepareFontAsset(
     char *FontFileName,
     f32 FontHeight,
@@ -217,7 +217,7 @@ PrepareFontAsset(
     //free(Glyphs);
 }
 
-void
+internal void
 PackFonts(asset_header *Header, FILE *AssetFile)
 {
     font_asset *FontAssets = (font_asset *)malloc(Header->FontCount * sizeof(font_asset));

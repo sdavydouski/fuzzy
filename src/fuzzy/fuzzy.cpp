@@ -178,8 +178,8 @@ ProcessInput(game_state *GameState, game_input *Input, f32 Delta)
 {
     entity_state PlayerState = GetCurrentEntityState(GameState->Player);
 
-    f32 JumpAcceleration = 20.f;
-    f32 RunAcceleration = 10.f;
+    f32 JumpAcceleration = 25.f;
+    f32 RunAcceleration = 5.f;
 
     // todo: move out common parts
     switch (PlayerState)
@@ -333,12 +333,7 @@ ProcessInput(game_state *GameState, game_input *Input, f32 Delta)
 
     f32 ZoomScale = 0.2f;
 
-    // todo: float precision!
-    if (Input->ScrollY == 0.f)
-    {
-        //GameState->Zoom = 1.f;
-    }
-    else if (Input->ScrollY > 0.f)
+    if (Input->ScrollY >= 0.f)
     {
         GameState->Zoom = 1.f / (1.f + Input->ScrollY * ZoomScale);
     }
@@ -1465,7 +1460,7 @@ GameInit(game_state *GameState, game_memory *Memory, game_params *Params)
     SetupVertexBuffer(Renderer, &GameState->QuadVertexBuffer);
 #pragma endregion
 
-    GameState->UpdateRate = 10.f;   // 10 ms
+    GameState->UpdateRate = 1000.f / 60.f;   // 60 times per second
     GameState->Lag = 0.f;
     GameState->Time = 0.f;
 
@@ -1537,9 +1532,9 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     {
         f32 dt = 0.1f;
 
-        // friction imitation (todo: frame-rate dependent?)
-        GameState->Player->Acceleration.x += -Params->msPerFrame * GameState->Player->Velocity.x;
-        GameState->Player->Acceleration.y += -Params->msPerFrame * 0.01f * GameState->Player->Velocity.y;
+        // friction imitation
+        GameState->Player->Acceleration.x += -4.f * GameState->Player->Velocity.x;
+        GameState->Player->Acceleration.y += -0.001f * GameState->Player->Velocity.y;
 
         GameState->Player->Velocity += GameState->Player->Acceleration * dt;
 
@@ -1577,7 +1572,7 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
         GameState->Player->Acceleration.x = 0.f;
         // gravity (todo: 9.8)
-        GameState->Player->Acceleration.y = -0.4f;
+        GameState->Player->Acceleration.y = -1.f;
 
         // collisions!
         if (CollisionTime.x < 1.f)
@@ -1740,11 +1735,10 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                         GameState->NextPlayerDiveParticle = 0;
                     }
 
-                    // todo: clean this mess with coordinates
                     Particle->Position = vec2(
                         RandomBetween(&GameState->Entropy, -0.1f, 0.1f) + 0.f, 
                         RandomBetween(&GameState->Entropy, 0.f, 0.1f)
-                    ) + vec2(GameState->Player->Position.x, GameState->Player->Position.y);
+                    ) + GameState->Player->Position;
                     Particle->Velocity = vec2(
                         RandomBetween(&GameState->Entropy, -0.5f, 0.5f), 
                         RandomBetween(&GameState->Entropy, 4.f, 4.2f)
@@ -2144,9 +2138,9 @@ extern "C" EXPORT GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
         wchar MousePosition[64];
         f32 CanonicalMouseX = (Params->Input.MouseX * GameState->PixelsToWorldUnits - 
-            GameState->ScreenWidthInWorldUnits / 2.f + GameState->Camera.x);
+            GameState->ScreenWidthInWorldUnits / 2.f) * GameState->Zoom + GameState->Camera.x;
         f32 CanonicalMouseY = (Params->Input.MouseY * GameState->PixelsToWorldUnits - 
-            GameState->ScreenHeightInWorldUnits / 2.f + GameState->Camera.y);
+            GameState->ScreenHeightInWorldUnits / 2.f) * GameState->Zoom + GameState->Camera.y;
 
         FormatString(MousePosition, ArrayCount(MousePosition), L"mouse position: x: %.2f, y: %.2f", CanonicalMouseX, CanonicalMouseY);
 

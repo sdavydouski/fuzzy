@@ -170,7 +170,7 @@ SetShaderUniform(renderer_api *Renderer, shader_uniform *Uniform, i32 Value)
 {
     if (Uniform)
     {
-        Renderer->glUniform1i(Uniform->Location, Value);
+        SetShaderUniform(Renderer, Uniform->Location, Value);
     }
 }
 
@@ -179,7 +179,7 @@ SetShaderUniform(renderer_api *Renderer, shader_uniform *Uniform, f32 Value)
 {
     if (Uniform)
     {
-        Renderer->glUniform1f(Uniform->Location, Value);
+        SetShaderUniform(Renderer, Uniform->Location, Value);
     }
 }
 
@@ -188,7 +188,7 @@ SetShaderUniform(renderer_api *Renderer, shader_uniform *Uniform, vec2 Value)
 {
     if (Uniform)
     {
-        Renderer->glUniform2f(Uniform->Location, Value.x, Value.y);
+        SetShaderUniform(Renderer, Uniform->Location, Value);
     }
 }
 
@@ -197,7 +197,7 @@ SetShaderUniform(renderer_api *Renderer, shader_uniform *Uniform, vec3 Value)
 {
     if (Uniform)
     {
-        Renderer->glUniform3f(Uniform->Location, Value.x, Value.y, Value.z);
+        SetShaderUniform(Renderer, Uniform->Location, Value);
     }
 }
 
@@ -206,7 +206,7 @@ SetShaderUniform(renderer_api *Renderer, shader_uniform *Uniform, vec4 Value)
 {
     if (Uniform)
     {
-        Renderer->glUniform4f(Uniform->Location, Value.x, Value.y, Value.z, Value.w);
+        SetShaderUniform(Renderer, Uniform->Location, Value);
     }
 }
 
@@ -215,7 +215,7 @@ SetShaderUniform(renderer_api *Renderer, shader_uniform *Uniform, const mat4& Va
 {
     if (Uniform)
     {
-        Renderer->glUniformMatrix4fv(Uniform->Location, 1, GL_FALSE, glm::value_ptr(Value));
+        SetShaderUniform(Renderer, Uniform->Location, Value);
     }
 }
 
@@ -324,9 +324,12 @@ DrawRectangle(
     Model = glm::scale(Model, vec3(Size, 0.f));
 
     // rotation
-    Model = glm::translate(Model, vec3(Size / 2.f, 0.f));
-    Model = glm::rotate(Model, Rotation->AngleInRadians, Rotation->Axis);
-    Model = glm::translate(Model, vec3(-Size / 2.f, 0.f));
+    if (Rotation)
+    {
+        Model = glm::translate(Model, vec3(Size / 2.f, 0.f));
+        Model = glm::rotate(Model, Rotation->AngleInRadians, Rotation->Axis);
+        Model = glm::translate(Model, vec3(-Size / 2.f, 0.f));
+    }
 
     SetShaderUniform(Renderer, ModelUniform, Model);
     SetShaderUniform(Renderer, ColorUniform, Color);
@@ -366,9 +369,12 @@ DrawRectangleOutline(
     Model = glm::scale(Model, vec3(Size, 0.f));
 
     // rotation
-    Model = glm::translate(Model, vec3(Size / 2.f, 0.f));
-    Model = glm::rotate(Model, Rotation->AngleInRadians, Rotation->Axis);
-    Model = glm::translate(Model, vec3(-Size / 2.f, 0.f));
+    if (Rotation)
+    {
+        Model = glm::translate(Model, vec3(Size / 2.f, 0.f));
+        Model = glm::rotate(Model, Rotation->AngleInRadians, Rotation->Axis);
+        Model = glm::translate(Model, vec3(-Size / 2.f, 0.f));
+    }
 
     SetShaderUniform(Renderer, ModelUniform, Model);
     SetShaderUniform(Renderer, ColorUniform, Color);
@@ -407,9 +413,12 @@ DrawSprite(
     Model = glm::scale(Model, vec3(Size, 0.f));
 
     // rotation
-    Model = glm::translate(Model, vec3(Size / 2.f, 0.f));
-    Model = glm::rotate(Model, Rotation->AngleInRadians, Rotation->Axis);
-    Model = glm::translate(Model, vec3(-Size / 2.f, 0.f));
+    if (Rotation)
+    {
+        Model = glm::translate(Model, vec3(Size / 2.f, 0.f));
+        Model = glm::rotate(Model, Rotation->AngleInRadians, Rotation->Axis);
+        Model = glm::translate(Model, vec3(-Size / 2.f, 0.f));
+    }
 
     SetShaderUniform(Renderer, ModelUniform, Model);
     SetShaderUniform(Renderer, UVUniform, UV);
@@ -467,9 +476,12 @@ DrawTextLine(
         Model = glm::scale(Model, vec3(Size, 0.f));
 
         // rotation
-        Model = glm::translate(Model, vec3(Size / 2.f, 0.f));
-        Model = glm::rotate(Model, Rotation->AngleInRadians, Rotation->Axis);
-        Model = glm::translate(Model, vec3(-Size / 2.f, 0.f));
+        if (Rotation)
+        {
+            Model = glm::translate(Model, vec3(Size / 2.f, 0.f));
+            Model = glm::rotate(Model, Rotation->AngleInRadians, Rotation->Axis);
+            Model = glm::translate(Model, vec3(-Size / 2.f, 0.f));
+        }
 
         SetShaderUniform(Renderer, ModelUniform->Location, Model);
         SetShaderUniform(Renderer, UVUniform->Location, UV);
